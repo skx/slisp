@@ -6,6 +6,25 @@ Given a lisp-program output the assembly version of that program, which may be c
 
 
 
+## Motivation
+
+I've spent a few weeks writing a compiler for a home-made language, [s-lang](https://github.com/skx/s-lang).  Initially that language only used integers, but later I added floats/strings/pointers with appropriate type-markers in the lower bits of the values.
+
+I found the overhead of dealing with typing and syntax a bit complex, and kinda backed myself into a corner with it - I wrote a reasonably complete standard-library with File I/O, getenv, and other things.
+
+The language was complete enough to write a brainfuck interpreter, but unfortunately this was slow (taking two minutes to render the mandelbrot program).  So I ended up writing a JIT assembler to compile brainfuck programs to native code - and that was fast enough to render the mandelbrot example in 3 seconds.
+
+However adding more types, and dynamic things felt like it would be too complex as it would involve ripping out so much of what I'd done.  The compiler, the standard library, and the interface between the two.
+
+So this repository was born:
+
+* Implement a compiler.
+* With proper typing from the ground-up.
+* Use lisp because the syntax is trivial to parse.
+* And I've written interpreters for it in the past so there are dragons, but somewhat friendly ones.
+
+
+
 ## Example
 
 ```lisp
