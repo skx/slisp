@@ -95,7 +95,7 @@ type Binding struct {
 type Defun struct {
 	Name   string
 	Params []string
-	Body   Expr
+	Exprs  []Expr
 }
 
 type Do struct {
@@ -231,14 +231,27 @@ func (p *Parser) parseDefun() *Defun {
 	}
 	p.expect(")")
 
-	body := p.parseExpr()
+	// body goes here
+	body := []Expr{}
 
+	// allow multiple expressions
+	for {
+		expr := p.parseExpr()
+		body = append(body, expr)
+
+		// stop if we see a close
+		if p.peek() == ")" {
+			break
+		}
+	}
+
+	// and ensure we do see that close
 	p.expect(")")
 
 	return &Defun{
 		Name:   name,
 		Params: params,
-		Body:   body,
+		Exprs:  body,
 	}
 }
 
@@ -608,7 +621,9 @@ func (g *Generator) emitDefun(fn *Defun) {
 		))
 	}
 
-	g.emitExpr(fn.Body, env)
+	for _, xpr := range fn.Exprs {
+		g.emitExpr(xpr, env)
+	}
 
 	g.emitln("    leave")
 	g.emitln("    ret")
@@ -644,8 +659,8 @@ printint:
     mov rbp, rsp
     sub rsp, 64
     UNTAG_REG rax
-    lea rsi, [rsp+63]     ;; pointer to end of buffer - terminated with newline.
-    mov byte [rsi], 10
+    lea rsi, [rsp+63]     ;; pointer to end of buffer - terminated with NULL
+    mov byte [rsi], 0
     mov rcx, 1
 convert_loop:             ;; build up ASCII via divisions
     mov rbx, 10
