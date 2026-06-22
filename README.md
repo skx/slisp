@@ -52,6 +52,7 @@ See [example.lisp](example.lisp) for a genuine/bigger example, including a more 
   * We have some run-time type detection via functions
     * `(cons? x)` - True if the item is a cons pair.
     * `(int? x)` - True if the item is an int.
+    * `(lambda? x)` - True if the item is a lambda.
     * `(nil? x)` - True if the item is nil.
     * `(str? y)` - True if the item is a string.
 * Primitives
@@ -63,13 +64,14 @@ See [example.lisp](example.lisp) for a genuine/bigger example, including a more 
 * Special forms
   * `(do ..)`
   * `(if ..)`
+  * `(lambda ..)`
   * `(let ..)`
   * `(list ..)`
     * This turns `(list 1 2 3 4)` into `(cons 1 (cons 2 (cons 3 (cons 4 nil))))` at parse-time.
+    * Our `print` function handles displaying this correctly.  Woo.
 
 Anti-features:
 
-* No lambdas
 * No closures.
 * No "set!" for global variables.
   * You want a named variable?  Use `let`.
