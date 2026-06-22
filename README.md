@@ -71,7 +71,7 @@ Anti-features:
 
 * No lambdas
 * No closures.
-* No "setq" or "set!" for global variables.
+* No "set!" for global variables.
   * You want a named variable?  Use `let`.
 
 

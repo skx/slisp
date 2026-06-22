@@ -116,20 +116,39 @@
       (print "The length of the list of numbers we printed is:" )
       (println (length (list 1 2 3 4 5 6 7 8 9 10)))
 
-
-      ;; print a pair of characters
-      ;(putc 42)
-      ;(putc 10)
-
-      (println nil)
-
       (print "Summing numbers 1..10: ")
       (println (sum (list 1 2 3 4 5 6 7 8 9 10)))
 
+      ;; Test the comparison operators.
+      ;; They return 1 (int) or NIL depending on whether they are true or not
+      (print "(< 3 4):")
+      (print (< 3 4))
+      (print " (< 4 4):")
+      (println (< 4 4))
+
+      (print "(> 3 4):")
+      (print (> 3 4))
+      (print " (> 34 4):")
+      (println (> 34 4))
+
+      (print "(>= 3 4):")
+      (print (>= 3 4))
+      (print " (>= 4 4):")
+      (print (>= 4 4))
+      (print " (>= 34 4):")
+      (println (>= 34 4))
+
+      (print "(<= 3 4):")
+      (print (<= 3 4))
+      (print " (<= 4 4):")
+      (print (<= 4 4))
+      (print " (<= 34 4):")
+      (println (<= 34 4))
+
       ; create a cons cell, and print it :)
       (println (cons (cons (cons 12 31) 392) nil))
-
       (println (cons 1 (cons 2 (cons 3 nil))))
+
       ;; return value is the last thing compiled.
       0
       ;; You can be more explicit with (exit 0)
