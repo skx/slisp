@@ -16,10 +16,11 @@
 // [X] DEFUN
 // [X] IF
 // [X] LET
-// [X] INT?  // true if value is integer.
-// [X] STR?  // true if value is string.
-// [X] CONS? // true if value is cons
-// [X] NIL?  // true if value is nil
+// [X] INT?    // true if value is integer.
+// [X] STR?    // true if value is string.
+// [X] CONS?   // true if value is cons
+// [X] LAMBDA? // true if value is lambda
+// [X] NIL?    // true if value is nil
 //
 // Standard library:
 // [X] PRINTINT
@@ -34,7 +35,7 @@
 //	000:  INT
 //	001:  STRING
 //      010:  CONS
-//      011:  ...
+//      011:  LAMBDA
 //      100:  ...
 //      101:  ...
 //      110:  ...
@@ -82,7 +83,7 @@ type Nil struct {
 }
 
 type Call struct {
-	Fn   string
+	Fn   Expr
 	Args []Expr
 }
 
@@ -105,6 +106,13 @@ type Defun struct {
 
 type Do struct {
 	Exprs []Expr
+}
+
+type Lambda struct {
+	// name is auto-generated when we encounter the lambda
+	name   string
+	Params []string
+	Exprs  []Expr
 }
 
 type Let struct {
@@ -266,7 +274,7 @@ func (p *Parser) buildList(args []Expr) Expr {
 
 	for i := len(args) - 1; i >= 0; i-- {
 		result = &Call{
-			Fn: "cons",
+			Fn: &Symbol{Name: "cons"},
 			Args: []Expr{
 				args[i],
 				result,
@@ -306,91 +314,137 @@ func (p *Parser) parseExpr() Expr {
 func (p *Parser) parseList() Expr {
 	p.expect("(")
 
-	head := p.next()
+	head := p.parseExpr()
 
-	switch head {
+	if sym, ok := head.(*Symbol); ok {
+		switch sym.Name {
 
-	case "do":
+		case "do":
 
-		var exprs []Expr
+			var exprs []Expr
 
-		for p.peek() != ")" {
-			exprs = append(exprs, p.parseExpr())
-		}
+			for p.peek() != ")" {
+				exprs = append(exprs, p.parseExpr())
+			}
 
-		p.expect(")")
-
-		return &Do{
-			Exprs: exprs,
-		}
-
-	case "if":
-		cond := p.parseExpr()
-		thenExpr := p.parseExpr()
-		var elseExpr Expr
-		if p.peek() != ")" {
-			elseExpr = p.parseExpr()
-		}
-		p.expect(")")
-
-		return &If{
-			Cond: cond,
-			Then: thenExpr,
-			Else: elseExpr,
-		}
-
-	case "let":
-		p.expect("(")
-
-		var binds []Binding
-
-		for p.peek() == "(" {
-			p.expect("(")
-			name := p.next()
-			expr := p.parseExpr()
 			p.expect(")")
 
-			binds = append(binds, Binding{
-				Name: name,
-				Expr: expr,
-			})
-		}
+			return &Do{
+				Exprs: exprs,
+			}
 
-		p.expect(")")
+		case "if":
+			cond := p.parseExpr()
+			thenExpr := p.parseExpr()
+			var elseExpr Expr
+			if p.peek() != ")" {
+				elseExpr = p.parseExpr()
+			}
+			p.expect(")")
 
-		body := p.parseExpr()
-		p.expect(")")
+			return &If{
+				Cond: cond,
+				Then: thenExpr,
+				Else: elseExpr,
+			}
 
-		return &Let{
-			Bindings: binds,
-			Body:     body,
-		}
+		case "lambda":
+			p.expect("(")
 
-	case "list":
-		var args []Expr
+			var params []string
+			for p.peek() != ")" {
+				params = append(params, p.next())
+			}
+			p.expect(")")
 
-		for p.peek() != ")" {
-			args = append(args, p.parseExpr())
-		}
+			// body goes here
+			body := []Expr{}
 
-		p.expect(")")
+			// allow multiple expressions
+			for {
+				expr := p.parseExpr()
+				body = append(body, expr)
 
-		return p.buildList(args)
+				// stop if we see a close
+				if p.peek() == ")" {
+					break
+				}
+			}
 
-	default:
-		var args []Expr
+			// and ensure we do see that close
+			p.expect(")")
 
-		for p.peek() != ")" {
-			args = append(args, p.parseExpr())
-		}
+			return &Lambda{
+				Params: params,
+				Exprs:  body,
+			}
 
-		p.expect(")")
+		case "let":
+			p.expect("(")
 
-		return &Call{
-			Fn:   head,
-			Args: args,
+			var binds []Binding
+
+			for p.peek() == "(" {
+				p.expect("(")
+				name := p.next()
+				expr := p.parseExpr()
+				p.expect(")")
+
+				binds = append(binds, Binding{
+					Name: name,
+					Expr: expr,
+				})
+			}
+
+			p.expect(")")
+
+			body := p.parseExpr()
+			p.expect(")")
+
+			return &Let{
+				Bindings: binds,
+				Body:     body,
+			}
+
+		case "list":
+			var args []Expr
+
+			for p.peek() != ")" {
+				args = append(args, p.parseExpr())
+			}
+
+			p.expect(")")
+
+			return p.buildList(args)
+		default:
+			var args []Expr
+
+			for p.peek() != ")" {
+				args = append(args, p.parseExpr())
+			}
+
+			p.expect(")")
+
+			return &Call{
+				Fn:   &Symbol{Name: sym.Name},
+				Args: args,
+			}
 		}
 	}
+
+	var args []Expr
+
+	for p.peek() != ")" {
+		args = append(args, p.parseExpr())
+	}
+
+	p.expect(")")
+
+	return &Call{
+		Fn:   head,
+		Args: args,
+	}
+
 }
 
 //
@@ -426,9 +480,19 @@ func (e *Env) Lookup(name string) (int, bool) {
 //
 
 type Generator struct {
-	text    strings.Builder
+	// text stores the text we emit as we compile
+	text strings.Builder
+
+	// labelID is used to give unique labels to if/lambda/etc
 	labelID int
+
+	// strings holds the strings we've encountered, we need to
+	// emit those with their labels later.
 	strings []StringLiteral
+
+	// lambdas holds the lambdas we've encountered and we need
+	// to emit those later too.
+	lambdas []*Lambda
 }
 
 func (g *Generator) label(prefix string) string {
@@ -442,12 +506,42 @@ func (g *Generator) emitln(s string) {
 	g.text.WriteString("\n")
 }
 
+func asmName(name string) string {
+	switch name {
+	case "int?":
+		return "intp"
+	case "str?":
+		return "strp"
+	case "cons?":
+		return "consp"
+	case "lambda?":
+		return "lambdap"
+	case "nil?":
+		return "nilp"
+	}
+	return name
+}
+
 func (g *Generator) emitExpr(e Expr, env *Env) {
 	switch n := e.(type) {
 
 	case *Int:
 		g.emitln(fmt.Sprintf("    mov rax, %d", n.Value))
 		g.emitln("   TAG_INTEGER_REG rax")
+
+	case *Lambda:
+		// create a unique name for this lambda
+		name := fmt.Sprintf("lambda_%d", g.labelID)
+		g.labelID++
+
+		// load the address - it will be compiled eventually.
+		g.emitln(fmt.Sprintf("    lea rax, %s", name))
+		g.emitln("    TAG_LAMBDA_REG rax")
+
+		// save away the lambda in the list of lambdas we
+		// know about, because we do need to compile it .. later
+		n.name = name
+		g.lambdas = append(g.lambdas, n)
 
 	case *String:
 		lbl := g.label("str")
@@ -522,121 +616,143 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		g.emitExpr(n.Body, child)
 
 	case *Call:
-		if n.Fn == "<=" {
-			g.emitExpr(n.Args[0], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    push rax")
-			g.emitExpr(n.Args[1], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    pop rbx")
-			g.emitln("    call lt_equals")
-			return
-		}
 
-		if n.Fn == "<" {
-			g.emitExpr(n.Args[0], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    push rax")
-			g.emitExpr(n.Args[1], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    pop rbx")
-			g.emitln("    call lt")
-			return
-		}
+		if symbol, ok := n.Fn.(*Symbol); ok {
+			if symbol.Name == "<=" {
+				g.emitExpr(n.Args[0], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    push rax")
+				g.emitExpr(n.Args[1], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    pop rbx")
+				g.emitln("    call lt_equals")
+				return
+			}
 
-		if n.Fn == ">" {
-			g.emitExpr(n.Args[0], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    push rax")
-			g.emitExpr(n.Args[1], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    pop rbx")
-			g.emitln("    call gt")
-			return
-		}
+			if symbol.Name == "<" {
+				g.emitExpr(n.Args[0], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    push rax")
+				g.emitExpr(n.Args[1], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    pop rbx")
+				g.emitln("    call lt")
+				return
+			}
 
-		if n.Fn == ">=" {
-			g.emitExpr(n.Args[0], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    push rax")
-			g.emitExpr(n.Args[1], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    pop rbx")
-			g.emitln("    call gt_equals")
-			return
-		}
+			if symbol.Name == ">" {
+				g.emitExpr(n.Args[0], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    push rax")
+				g.emitExpr(n.Args[1], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    pop rbx")
+				g.emitln("    call gt")
+				return
+			}
 
-		if n.Fn == "+" {
-			g.emitExpr(n.Args[0], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    push rax")
-			g.emitExpr(n.Args[1], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    pop rbx")
-			g.emitln("    add rax, rbx")
-			g.emitln("    TAG_INTEGER_REG rax")
-			return
-		}
+			if symbol.Name == ">=" {
+				g.emitExpr(n.Args[0], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    push rax")
+				g.emitExpr(n.Args[1], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    pop rbx")
+				g.emitln("    call gt_equals")
+				return
+			}
 
-		if n.Fn == "-" {
-			g.emitExpr(n.Args[0], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    push rax")
-			g.emitExpr(n.Args[1], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    pop rbx")
-			g.emitln("    sub rbx, rax")
-			g.emitln("    mov rax, rbx")
-			g.emitln("    TAG_INTEGER_REG rax")
-			return
-		}
+			if symbol.Name == "+" {
+				g.emitExpr(n.Args[0], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    push rax")
+				g.emitExpr(n.Args[1], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    pop rbx")
+				g.emitln("    add rax, rbx")
+				g.emitln("    TAG_INTEGER_REG rax")
+				return
+			}
 
-		if n.Fn == "*" {
-			g.emitExpr(n.Args[0], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    push rax")
-			g.emitExpr(n.Args[1], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    pop rbx")
-			g.emitln("    imul rbx, rax")
-			g.emitln("    mov rax, rbx")
-			g.emitln("    TAG_INTEGER_REG rax")
-			return
-		}
+			if symbol.Name == "-" {
+				g.emitExpr(n.Args[0], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    push rax")
+				g.emitExpr(n.Args[1], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    pop rbx")
+				g.emitln("    sub rbx, rax")
+				g.emitln("    mov rax, rbx")
+				g.emitln("    TAG_INTEGER_REG rax")
+				return
+			}
 
-		if n.Fn == "/" {
-			g.emitExpr(n.Args[0], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    push rax")
-			g.emitExpr(n.Args[1], env)
-			g.emitln("    UNTAG_REG rax")
-			g.emitln("    pop rbx")      // rax and rbx have args
-			g.emitln("    mov rcx, rax") // meh
-			g.emitln("    mov rax, rbx")
-			g.emitln("    xor rdx, rdx")
-			g.emitln("    idiv rcx")
-			g.emitln("    TAG_INTEGER_REG rax")
-			return
-		}
+			if symbol.Name == "*" {
+				g.emitExpr(n.Args[0], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    push rax")
+				g.emitExpr(n.Args[1], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    pop rbx")
+				g.emitln("    imul rbx, rax")
+				g.emitln("    mov rax, rbx")
+				g.emitln("    TAG_INTEGER_REG rax")
+				return
+			}
 
-		//
-		// Rewrite a couple of functions, because
-		// nasm doesn't like their names as labels.
-		//
-		// We probably need a map with "old -> mappings" soon.
-		// Or could just change "trailing?" into "p".
-		//
-		if n.Fn == "int?" {
-			n.Fn = "intp"
-		}
-		if n.Fn == "str?" {
-			n.Fn = "strp"
-		}
-		if n.Fn == "cons?" {
-			n.Fn = "consp"
-		}
-		if n.Fn == "nil?" {
-			n.Fn = "nilp"
+			if symbol.Name == "/" {
+				g.emitExpr(n.Args[0], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    push rax")
+				g.emitExpr(n.Args[1], env)
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    pop rbx")      // rax and rbx have args
+				g.emitln("    mov rcx, rax") // meh
+				g.emitln("    mov rax, rbx")
+				g.emitln("    xor rdx, rdx")
+				g.emitln("    idiv rcx")
+				g.emitln("    TAG_INTEGER_REG rax")
+				return
+			}
+
+			regs := []string{
+				"rdi",
+				"rsi",
+				"rdx",
+				"rcx",
+				"r8",
+				"r9",
+			}
+
+			for _, a := range n.Args {
+				g.emitExpr(a, env)
+				g.emitln("    push rax")
+			}
+
+			for i := len(n.Args) - 1; i >= 0; i-- {
+				g.emitln(fmt.Sprintf(
+					"    pop %s",
+					regs[i],
+				))
+			}
+
+			// lambda?
+			if offset, ok := env.Lookup(symbol.Name); ok {
+
+				g.emitln(fmt.Sprintf(
+					"    mov rax,[rbp-%d]",
+					offset,
+				))
+
+				g.emitln("    UNTAG_REG rax")
+				g.emitln("    call rax")
+
+				return
+			} else {
+				// defun
+				g.emitln("    call " + asmName(symbol.Name))
+				return
+			}
 		}
 
 		regs := []string{
@@ -660,15 +776,20 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 			))
 		}
 
-		g.emitln("    call " + n.Fn)
+		// evaluate callable expression
 
+		g.emitExpr(n.Fn, env)
+
+		g.emitln("    UNTAG_REG rax")
+		g.emitln("    call rax")
 	case *Do:
 
 		for _, expr := range n.Exprs {
 			g.emitExpr(expr, env)
 		}
 	default:
-		panic("unknown node")
+
+		panic(fmt.Sprintf("%T %V\n", n, n))
 	}
 }
 
@@ -704,6 +825,45 @@ func (g *Generator) emitDefun(fn *Defun) {
 	}
 
 	for _, xpr := range fn.Exprs {
+		g.emitExpr(xpr, env)
+	}
+
+	g.emitln("    leave")
+	g.emitln("    ret")
+}
+
+func (g *Generator) emitLambda(l *Lambda) {
+
+	g.emitln(l.name + ":")
+
+	g.emitln("    push rbp")
+	g.emitln("    mov rbp, rsp")
+	g.emitln("    sub rsp, 256 ;; guess at space for locals")
+
+	env := NewEnv(nil)
+
+	regs := []string{
+		"rdi",
+		"rsi",
+		"rdx",
+		"rcx",
+		"r8",
+		"r9",
+	}
+
+	for i, p := range l.Params {
+		offset := (i + 1) * 8
+
+		env.slots[p] = offset
+
+		g.emitln(fmt.Sprintf(
+			"    mov [rbp-%d], %s",
+			offset,
+			regs[i],
+		))
+	}
+
+	for _, xpr := range l.Exprs {
 		g.emitExpr(xpr, env)
 	}
 
@@ -750,6 +910,20 @@ consp:
     mov rax, rdi
     and rax, 7
     cmp rax, 2
+    jnz .nil
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+.nil:
+    mov rax, 0
+    TAG_NIL_REG rax
+    ret
+
+;; is the given value a lambda?
+lambdap:
+    mov rax, rdi
+    and rax, 7
+    cmp rax, 3
     jnz .nil
     mov rax, 1
     TAG_INTEGER_REG rax
@@ -829,7 +1003,7 @@ printint:
     UNTAG_REG rax
     lea rsi, [rsp+63]     ;; pointer to end of buffer - terminated with NULL
     mov byte [rsi], 0
-    mov rcx, 1
+    mov rcx, 0
 convert_loop:             ;; build up ASCII via divisions
     mov rbx, 10
     xor rdx, rdx
@@ -975,6 +1149,11 @@ func (g *Generator) Generate(defs []*Defun) string {
     or %1, 2
 %endmacro
 
+%macro TAG_LAMBDA_REG 1
+    sal %1, 3
+    or %1, 3
+%endmacro
+
 %macro TAG_NIL_REG 1
     sal %1, 3
     or %1, 7
@@ -996,6 +1175,12 @@ section .text
 	// Now the user-defined functions
 	for _, d := range defs {
 		g.emitDefun(d)
+		g.emitln("")
+	}
+
+	// Now user-defined lambdas
+	for _, l := range g.lambdas {
+		g.emitLambda(l)
 		g.emitln("")
 	}
 

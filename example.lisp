@@ -14,14 +14,22 @@
       (printstr x))
   (if (cons? x)
       (do
-       (putc 40)       ; (
-       (print (car x))
-       (putc 32)       ; space
-       (putc 46)       ; .
-       (putc 32)       ; space
-       (print (cdr x))
-       (putc 41)       ; )
-       )))
+       (putc 40)      ; "("
+       (printcons x)  ; List items, separated by spaces
+        (putc 41)     ; ")"
+      )))
+
+(defun printcons (x)
+  (print (car x))
+  (if (nil? (cdr x))
+      nil
+      (if (cons? (cdr x))
+          (do
+            (putc 32)
+            (printcons (cdr x)))
+          (do
+            (printstr " . ")
+            (print (cdr x))))))
 
 ;; exactly like print, but with a newline on the end.
 (defun println (x)
@@ -64,6 +72,14 @@
        (print_list_ln (list "factorial " (car xs) ": " (fact (car xs))))
         (factorials (cdr xs)))
       ))
+
+;; Create a new list by calling the given function for every list element
+(defun map (fn lst)
+  (if (nil? lst)
+      nil
+      (cons
+        (fn (car lst))
+        (map fn (cdr lst)))))
 
 ;; count the length of the given list
 (defun length (xs)
@@ -133,7 +149,9 @@
          (print "Summing those numbers: ")
          (println (sum n))
          (print "The length of the list of numbers we handled: " )
-         (println (length n))))
+          (println (length n))
+          (print "Squaring every item of the list, using map:" )
+          (println (map (lambda (x) (square x)) n))))
 
       ;; Test the comparison operators.
       ;; They return 1 (int) or NIL depending on whether they are true or not
@@ -165,7 +183,16 @@
       (println (cons (cons (cons 12 31) 392) nil))
       (println (cons 1 (cons 2 (cons 3 nil))))
 
+      (println "Expect 10 from this (named) lambda:")
+      (let ((x (lambda (a b) (+ a b))))
+        (println (x 3 7)))
+
+      (println "Expect 10 from this (immediate) lambda:")
+      (println ( (lambda (a) (+ 3 a)) 7))
+
       ;; return value is the last thing compiled.
       0
       ;; You can be more explicit with (exit 0)
+
+
       )))
