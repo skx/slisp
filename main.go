@@ -18,6 +18,7 @@
 // [X] LET
 // [X] INT?  // true if value is integer.
 // [X] STR?  // true if value is string.
+// [X] CONS? // true if value is cons
 //
 // Standard library:
 // [X] PRINTINT
@@ -561,6 +562,10 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 			n.Fn = "strp"
 		}
 
+		if n.Fn == "cons?" {
+			n.Fn = "consp"
+		}
+
 		regs := []string{
 			"rdi",
 			"rsi",
@@ -654,6 +659,16 @@ strp:
     movzx rax, al
     ret
 
+;; Is the given value a cons?
+consp:
+    mov rax, rdi
+    mov rax, rdi
+    and rax, 7
+    cmp rax, 2
+    setz al
+    movzx rax, al
+    ret
+
 ;; Print an integer
 printint:
     push rbp
@@ -728,6 +743,39 @@ printstr:
     ret
 
 
+;; Allocate space for a new cons area, return it in RAX
+;; 16-bytes; first has the CAR, second the CDR.
+cons:
+    mov rax, [heap_ptr]      ; get the value of the heap pointer
+    add qword [heap_ptr], 16 ; bump it by 2x ptrs
+    mov [rax], rdi           ; store first item
+    mov [rax+8], rsi         ; second item
+    TAG_CONS_REG rax         ; return the tagged allocation
+    ret
+
+;; Get the first item in the cons.
+car:
+    mov rbx, rdi
+    and rbx, 7
+    cmp rbx, 2
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, [rdi]
+    ret
+
+;; Get the second item in the cons.
+cdr:
+    mov rbx, rdi
+    and rbx, 7
+    cmp rbx, 2
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, [rdi + 8]
+    ret
+
+type_error:
+    jmp exit
+
 section .data
 
 ;; buffer for "\n", used by (newline)
@@ -767,6 +815,11 @@ func (g *Generator) Generate(defs []*Defun) string {
 %macro TAG_STRING_REG 1
     sal %1, 3
     or %1, 1
+%endmacro
+
+%macro TAG_CONS_REG 1
+    sal %1, 3
+    or %1, 2
 %endmacro
 
 %macro UNTAG_REG 1
