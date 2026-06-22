@@ -2,3 +2,4 @@ slisp
 example
 example.s
 example.o
+test/tmp.asm
