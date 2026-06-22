@@ -18,25 +18,50 @@
        (putc 41)       ; )
        )))
 
+;; exactly like print, but with a newline on the end.
 (defun println (x)
   (print x)
   (newline))
 
-;; Add one to the argument
+;; Add one to the given argument.
 (defun add1 (x)
   (+ x 1))
 
-;; double the argument
+;; double the given argument
 (defun double (x)
   (* x 2))
 
-;; square the argument
+;; square the given argument
 (defun square (x)
   (* x x))
 
-;; factorial.  woo.
+;; factorial.  woo!
 (defun fact (n)
   (if (<= n 1) 1 (* n (fact (- n 1)))))
+
+;; print the factorial of every number in the given list
+(defun factorials (xs)
+  (if xs
+      (do
+        (print "factorial ")
+        (print (car xs))
+        (print ": ")
+        (println (fact (car xs)))
+        (factorials (cdr xs)))
+      ))
+
+;; count the length of the given list
+(defun length (xs)
+  (if xs
+      (+ 1 (length (cdr xs)))
+      0))
+
+;; sum all the numbers in the list
+(defun sum (xs)
+  (if xs
+      (+ (car xs)
+         (sum (cdr xs)))
+      0))
 
 ;; Setup a binding for "X" to be a function-result.
 ;; Setup Y for a literal.
@@ -44,16 +69,20 @@
 (defun main ()
   (let ((x (double 13)) (y 12))
     (do
+
+     (if nil
+         (do
+          (println "BUG: nil should not be true.  Terminating")
+          (exit 1)))
+
      (if 1
-         (println "Hello, I am if!"))
+         (println "Hello, I am a working `if` statement!"))
 
       (println "Hello World!")
-      (println "I am compiled lisp.  kinda.")
-      (println "Some random maths")
-       ;; print 12 * 12 -> 144
-      (println (square y))
+      (println "I am compiled lisp")
 
-      ;; print 13 * 2 * 2 -> 52.
+      (println "Some random maths")
+      (println (square y))
       (println (double x))
 
       ;; little countdown to test maths
@@ -81,33 +110,21 @@
       (println (- 98 98))
 
       ;; now some factorials.
-      (println "Showing results of factorial - 1-20")
-      (println (fact 1))
-      (println (fact 2))
-      (println (fact 3))
-      (println (fact 4))
-      (println (fact 5))
-      (println (fact 6))
-      (println (fact 7))
-      (println (fact 8))
-      (println (fact 9))
-      (println (fact 10))
-      (println (fact 11))
-      (println (fact 12))
-      (println (fact 13))
-      (println (fact 14))
-      (println (fact 15))
-      (println (fact 16))
-      (println (fact 17))
-      (println (fact 18))
-      (println (fact 19))
-      (println (fact 20))
+      (println "Showing results of factorial - 1-10:")
+      (factorials (list 1 2 3 4 5 6 7 8 9 10))
+
+      (print "The length of the list of numbers we printed is:" )
+      (println (length (list 1 2 3 4 5 6 7 8 9 10)))
+
 
       ;; print a pair of characters
       ;(putc 42)
       ;(putc 10)
 
       (println nil)
+
+      (print "Summing numbers 1..10: ")
+      (println (sum (list 1 2 3 4 5 6 7 8 9 10)))
 
       ; create a cons cell, and print it :)
       (println (cons (cons (cons 12 31) 392) nil))

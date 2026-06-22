@@ -260,6 +260,22 @@ func (p *Parser) parseDefun() *Defun {
 	}
 }
 
+// buildList is used to turn "(list 1 2 3)" into "(cons 1 (cons 2 (cons 3 nil)))"
+func (p *Parser) buildList(args []Expr) Expr {
+	result := Expr(&Nil{})
+
+	for i := len(args) - 1; i >= 0; i-- {
+		result = &Call{
+			Fn: "cons",
+			Args: []Expr{
+				args[i],
+				result,
+			},
+		}
+	}
+
+	return result
+}
 func (p *Parser) parseExpr() Expr {
 	t := p.peek()
 
@@ -349,6 +365,17 @@ func (p *Parser) parseList() Expr {
 			Bindings: binds,
 			Body:     body,
 		}
+
+	case "list":
+		var args []Expr
+
+		for p.peek() != ")" {
+			args = append(args, p.parseExpr())
+		}
+
+		p.expect(")")
+
+		return p.buildList(args)
 
 	default:
 		var args []Expr
@@ -455,8 +482,9 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 
 		g.emitExpr(n.Cond, env)
 
-		g.emitln("    cmp rax, 0")
-		g.emitln("    je " + elseLbl)
+		g.emitln("    and rax, 7    ; get type bits")
+		g.emitln("    cmp rax, 7    ; is this a nil?")
+		g.emitln("    jz " + elseLbl)
 
 		g.emitExpr(n.Then, env)
 
@@ -501,10 +529,7 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 			g.emitExpr(n.Args[1], env)
 			g.emitln("    UNTAG_REG rax")
 			g.emitln("    pop rbx")
-			g.emitln("    cmp rbx, rax")
-			g.emitln("    setle al")
-			g.emitln("    movzx rax, al")
-			g.emitln("    TAG_INTEGER_REG rax")
+			g.emitln("    call lt_equals")
 			return
 		}
 
@@ -664,38 +689,67 @@ intp:
     mov rax, rdi
     and rax, 7
     cmp rax, 0
-    setz al
-    movzx rax, al
+    jnz .nil
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+.nil:
+    mov rax, 0
+    TAG_NIL_REG rax
     ret
 
 ;; Is the given value a string?
 strp:
     mov rax, rdi
-    mov rax, rdi
     and rax, 7
     cmp rax, 1
-    setz al
-    movzx rax, al
+    jnz .nil
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+.nil:
+    mov rax, 0
+    TAG_NIL_REG rax
     ret
 
 ;; Is the given value a cons?
 consp:
     mov rax, rdi
-    mov rax, rdi
     and rax, 7
     cmp rax, 2
-    setz al
-    movzx rax, al
+    jnz .nil
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+.nil:
+    mov rax, 0
+    TAG_NIL_REG rax
     ret
 
 ;; Is the given value nil?
 nilp:
     mov rax, rdi
-    mov rax, rdi
     and rax, 7
     cmp rax, 7
-    setz al
-    movzx rax, al
+    jnz .nil
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+.nil:
+    mov rax, 0
+    TAG_NIL_REG rax
+    ret
+
+;; <=
+lt_equals:
+    cmp rbx, rax
+    jle .true
+    mov rax, 0
+    TAG_NIL_REG rax
+    ret
+.true:
+    mov rax, 1
+    TAG_INTEGER_REG rax
     ret
 
 ;; Print an integer
