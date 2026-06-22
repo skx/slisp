@@ -6,7 +6,7 @@ TESTS := $(addsuffix .test,$(PROGRAMS))
 all: $(PROGRAMS)
 
 clean:
-	@rm -f *.s *.o *.out *.test $(PROGRAMS)
+	@rm -f *.s *.o *.out *.test tmp.asm $(PROGRAMS)
 
 test: $(TESTS)
 
