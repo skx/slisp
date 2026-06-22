@@ -635,6 +635,7 @@ func (g *Generator) emitRuntime() {
 	stdlib := `
 section .text
 
+;; Is the given value an integer?
 intp:
     mov rax, rdi
     and rax, 7
@@ -643,6 +644,7 @@ intp:
     movzx rax, al
     ret
 
+;; Is the given value a string?
 strp:
     mov rax, rdi
     mov rax, rdi
@@ -652,8 +654,7 @@ strp:
     movzx rax, al
     ret
 
-
-section .text
+;; Print an integer
 printint:
     push rbp
     mov rbp, rsp
@@ -680,19 +681,15 @@ convert_loop:             ;; build up ASCII via divisions
     leave
     ret
 
-section .data
-align 8
-newline_str:
-    db 10
-
-section .text
-
+;; terminate execution with the given exit-code
 exit:
     UNTAG_REG rdi
     mov rax, 60     ; sys_exit
     syscall
     ret
 
+
+;; print a newline.
 newline:
     mov rax, 1      ; SYS_write
     mov rdi, 1      ; stdout
@@ -701,15 +698,9 @@ newline:
     syscall
     ret
 
-
-section .data
-align 8
-putc_buffer:
-    db 10
-
-section .text
-
+;; Write the given ASCII character to stdout
 putc:
+    mov rax, rdi
     UNTAG_REG rax
     mov [putc_buffer],  al  ; store character
     mov rax, 1      ; SYS_write
@@ -719,7 +710,7 @@ putc:
     syscall
     ret
 
-; RDI = pointer to null-terminated string
+;; Print the given string.
 printstr:
     UNTAG_REG rdi
     push rdi
@@ -735,6 +726,31 @@ printstr:
     mov rdi, 1      ; stdout
     syscall
     ret
+
+
+section .data
+
+;; buffer for "\n", used by (newline)
+align 8
+newline_str:
+    db 10
+
+;; buffer for storing a single character, used by (putc x)
+align 8
+putc_buffer:
+    db 10
+
+;; zero section
+section .bss
+
+;; heap storage
+align 16
+heap:
+    resb 1048576
+
+;; offset used of our heap area.
+heap_ptr:
+    resq 1
 	`
 	g.emitln(stdlib)
 }
@@ -775,6 +791,9 @@ section .text
 	// Add our entry-point
 	entry := `
 _start:
+    mov rax, heap        ; setup our heap pointer
+    mov [heap_ptr], rax  ; cons cells are heap-allocated
+
     call main
     mov rdi, rax
     shr rdi, 1
