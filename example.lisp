@@ -1,17 +1,22 @@
-;; if the value is a number?  print it as an integer.
-;; otherwise print it as a string
+;; Print the given item intelligently.
+;; We handle integers, strings, nil and cons pairs.
 (defun print (x)
   (if (int? x)
       (printint x))
+  (if (nil? x)
+      (printstr "<nil>"))
   (if (str? x)
       (printstr x))
   (if (cons? x)
       (do
+       (putc 40)       ; (
+       (print (car x))
+       (putc 32)       ; space
+       (putc 46)       ; .
+       (putc 32)       ; space
        (print (cdr x))
-       (putc 32)  ; space
-       (putc 46)  ; .
-       (putc 32)  ; space
-       (print (cdr x)))))
+       (putc 41)       ; )
+       )))
 
 (defun println (x)
   (print x)
@@ -102,8 +107,10 @@
       ;(putc 42)
       ;(putc 10)
 
+      (println nil)
+
       ; create a cons cell, and print it :)
-      (println (cons 2 3 ))
+      (println (cons (cons (cons 12 31) 392) nil))
 
       ;; return value is the last thing compiled.
       0

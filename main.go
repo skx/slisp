@@ -19,6 +19,7 @@
 // [X] INT?  // true if value is integer.
 // [X] STR?  // true if value is string.
 // [X] CONS? // true if value is cons
+// [X] NIL?  // true if value is nil
 //
 // Standard library:
 // [X] PRINTINT
@@ -32,12 +33,12 @@
 //
 //	000:  INT
 //	001:  STRING
-//      010:  ...
+//      010:  CONS
 //      011:  ...
 //      100:  ...
 //      101:  ...
 //      110:  ...
-//      111:  ...
+//      111:  NIL
 
 // ABI uses the Sys V style, so max six arguments:
 // arg0 -> rdi
@@ -75,6 +76,9 @@ type StringLiteral struct {
 }
 type Symbol struct {
 	Name string
+}
+
+type Nil struct {
 }
 
 type Call struct {
@@ -275,6 +279,10 @@ func (p *Parser) parseExpr() Expr {
 		return &Int{Value: n}
 	}
 
+	// nil?
+	if t == "nil" {
+		return &Nil{}
+	}
 	// symbol
 	return &Symbol{Name: t}
 }
@@ -437,6 +445,10 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 			offset,
 		))
 
+	case *Nil:
+		g.emitln("    mov rax, 0       ; NIL")
+		g.emitln("    TAG_NIL_REG rax  ; Tagged")
+
 	case *If:
 		elseLbl := g.label("else")
 		endLbl := g.label("endif")
@@ -482,7 +494,6 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		g.emitExpr(n.Body, child)
 
 	case *Call:
-
 		if n.Fn == "<=" {
 			g.emitExpr(n.Args[0], env)
 			g.emitln("    UNTAG_REG rax")
@@ -554,16 +565,20 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		// Rewrite a couple of functions, because
 		// nasm doesn't like their names as labels.
 		//
+		// We probably need a map with "old -> mappings" soon.
+		// Or could just change "trailing?" into "p".
+		//
 		if n.Fn == "int?" {
 			n.Fn = "intp"
 		}
-
 		if n.Fn == "str?" {
 			n.Fn = "strp"
 		}
-
 		if n.Fn == "cons?" {
 			n.Fn = "consp"
+		}
+		if n.Fn == "nil?" {
+			n.Fn = "nilp"
 		}
 
 		regs := []string{
@@ -669,6 +684,16 @@ consp:
     movzx rax, al
     ret
 
+;; Is the given value nil?
+nilp:
+    mov rax, rdi
+    mov rax, rdi
+    and rax, 7
+    cmp rax, 7
+    setz al
+    movzx rax, al
+    ret
+
 ;; Print an integer
 printint:
     push rbp
@@ -740,6 +765,7 @@ printstr:
     mov rax, 1      ; write
     mov rdi, 1      ; stdout
     syscall
+
     ret
 
 
@@ -820,6 +846,11 @@ func (g *Generator) Generate(defs []*Defun) string {
 %macro TAG_CONS_REG 1
     sal %1, 3
     or %1, 2
+%endmacro
+
+%macro TAG_NIL_REG 1
+    sal %1, 3
+    or %1, 7
 %endmacro
 
 %macro UNTAG_REG 1
