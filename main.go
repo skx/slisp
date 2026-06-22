@@ -590,10 +590,14 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 			"r9",
 		}
 
-		for i, a := range n.Args {
+		for _, a := range n.Args {
 			g.emitExpr(a, env)
+			g.emitln("    push rax")
+		}
+
+		for i := len(n.Args) - 1; i >= 0; i-- {
 			g.emitln(fmt.Sprintf(
-				"    mov %s, rax",
+				"    pop %s",
 				regs[i],
 			))
 		}
