@@ -1,5 +1,10 @@
+;;; example.lisp -- Some useful and realistic examples of what we can compile.
+;;
+;; This file is half demonstration, and half a test program for the compiler.
+;;
+;;
+
 ;; Print the given item intelligently.
-;; We handle integers, strings, nil and cons pairs.
 (defun print (x)
   (if (int? x)
       (printint x))
@@ -23,6 +28,19 @@
   (print x)
   (newline))
 
+;; print every item in a list.
+(defun print_list (xs)
+  (if xs
+      (do
+       (print (car xs))
+       (print_list (cdr xs)))))
+
+;; print every item in a list, then add a newline.
+(defun print_list_ln (xs)
+  (print_list xs)
+  (newline))
+
+
 ;; Add one to the given argument.
 (defun add1 (x)
   (+ x 1))
@@ -43,10 +61,7 @@
 (defun factorials (xs)
   (if xs
       (do
-        (print "factorial ")
-        (print (car xs))
-        (print ": ")
-        (println (fact (car xs)))
+       (print_list_ln (list "factorial " (car xs) ": " (fact (car xs))))
         (factorials (cdr xs)))
       ))
 
@@ -67,26 +82,25 @@
 ;; Setup Y for a literal.
 ;; Print them both
 (defun main ()
-  (let ((x (double 13)) (y 12))
+  (let (
+        (x (double 13))
+        (y 12)
+        (n (list 1 2 3 4 5 6 7 8 9 10)))
     (do
+     (println "Hello World! I am a compiled lisp")
 
      (if nil
          (do
           (println "BUG: nil should not be true.  Terminating")
-          (exit 1)))
-
-     (if 1
+          (exit 1))
          (println "Hello, I am a working `if` statement!"))
 
-      (println "Hello World!")
-      (println "I am compiled lisp")
-
-      (println "Some random maths")
+      (println "Some random maths now:")
       (println (square y))
       (println (double x))
 
       ;; little countdown to test maths
-      (println "Counting down from 10-0")
+      (println "Counting down from 10-0, via maths:")
       (println (+ (* 4 2) 2))
       ;; 9
       (println (- 10 1))
@@ -109,15 +123,17 @@
       ;; 0
       (println (- 98 98))
 
-      ;; now some factorials.
-      (println "Showing results of factorial - 1-10:")
-      (factorials (list 1 2 3 4 5 6 7 8 9 10))
-
-      (print "The length of the list of numbers we printed is:" )
-      (println (length (list 1 2 3 4 5 6 7 8 9 10)))
-
-      (print "Summing numbers 1..10: ")
-      (println (sum (list 1 2 3 4 5 6 7 8 9 10)))
+      ;; now some factorials, and list operations.
+      ;;
+      ;; Define the list of numbers (1-10)
+      (let ((n (list 1 2 3 4 5 6 7 8 9 10)))
+        (do
+         (println "Showing results of factorial - 1-10:")
+         (factorials n)
+         (print "Summing those numbers: ")
+         (println (sum n))
+         (print "The length of the list of numbers we handled: " )
+         (println (length n))))
 
       ;; Test the comparison operators.
       ;; They return 1 (int) or NIL depending on whether they are true or not
