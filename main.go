@@ -16,8 +16,8 @@
 // [X] DEFUN
 // [X] IF
 // [X] LET
-// [X] INT?   // true if value is integer.
-// [X] STR?   // true if value is string.
+// [X] INT?  // true if value is integer.
+// [X] STR?  // true if value is string.
 //
 // Standard library:
 // [X] PRINTINT
@@ -26,11 +26,18 @@
 // [X] NEWLINE
 // [X] PUTC
 //
-// The lower bit of values is used for type:
+// The lower three bits of values is used for type storage, with macros used for getting/setting
+// them, to avoid user-error.  Hopefully:
 //
-//	0:  INT
-//	1:  STRING
-//
+//	000:  INT
+//	001:  STRING
+//      010:  ...
+//      011:  ...
+//      100:  ...
+//      101:  ...
+//      110:  ...
+//      111:  ...
+
 // ABI uses the Sys V style, so max six arguments:
 // arg0 -> rdi
 // arg1 -> rsi
@@ -38,12 +45,9 @@
 // arg3 -> rcx
 // arg4 -> r8
 // arg5 -> r9
-//
-// TODO: Need to do better with typing to allow CONS, LAMBDA, & etc.
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strconv"
@@ -393,7 +397,8 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 	switch n := e.(type) {
 
 	case *Int:
-		g.emitln(fmt.Sprintf("    mov rax, %d", n.Value<<1))
+		g.emitln(fmt.Sprintf("    mov rax, %d", n.Value))
+		g.emitln("   TAG_INTEGER_REG rax")
 
 	case *String:
 		lbl := g.label("str")
@@ -405,7 +410,7 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 			},
 		)
 		g.emitln(fmt.Sprintf("    lea rax, %s", lbl))
-		g.emitln("    or rax, 1 ; add tagging")
+		g.emitln("    TAG_STRING_REG rax")
 
 	case *Symbol:
 		offset, ok := env.Lookup(n.Name)
@@ -466,81 +471,81 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 
 		if n.Fn == "<=" {
 			g.emitExpr(n.Args[0], env)
-			g.emitln("    sar rax, 1") // remove typing bit
+			g.emitln("    UNTAG_REG rax")
 			g.emitln("    push rax")
-
 			g.emitExpr(n.Args[1], env)
-			g.emitln("    sar rax, 1") // remove typing bit
-
+			g.emitln("    UNTAG_REG rax")
 			g.emitln("    pop rbx")
-
 			g.emitln("    cmp rbx, rax")
 			g.emitln("    setle al")
 			g.emitln("    movzx rax, al")
-			g.emitln("    sal rax, 1") // add typing
+			g.emitln("    TAG_INTEGER_REG rax")
 			return
 		}
 
 		if n.Fn == "+" {
 			g.emitExpr(n.Args[0], env)
-			g.emitln("    sar rax, 1") // remove typing bit
+			g.emitln("    UNTAG_REG rax")
 			g.emitln("    push rax")
-
 			g.emitExpr(n.Args[1], env)
-			g.emitln("    sar rax, 1") // remove typing bit
-
+			g.emitln("    UNTAG_REG rax")
 			g.emitln("    pop rbx")
 			g.emitln("    add rax, rbx")
-			g.emitln("    sal rax, 1")
-
+			g.emitln("    TAG_INTEGER_REG rax")
 			return
 		}
 
 		if n.Fn == "-" {
 			g.emitExpr(n.Args[0], env)
-			g.emitln("    sar rax, 1") // remove typing-bit
+			g.emitln("    UNTAG_REG rax")
 			g.emitln("    push rax")
-
 			g.emitExpr(n.Args[1], env)
-			g.emitln("    sar rax, 1") // remove typing-bit
-
+			g.emitln("    UNTAG_REG rax")
 			g.emitln("    pop rbx")
 			g.emitln("    sub rbx, rax")
 			g.emitln("    mov rax, rbx")
-			g.emitln("    sal rax, 1")
-
+			g.emitln("    TAG_INTEGER_REG rax")
 			return
 		}
 
 		if n.Fn == "*" {
 			g.emitExpr(n.Args[0], env)
-			g.emitln("    sar rax, 1") // remove typing-bit
+			g.emitln("    UNTAG_REG rax")
 			g.emitln("    push rax")
-
 			g.emitExpr(n.Args[1], env)
-			g.emitln("    sar rax, 1") // remove typing-bit
-
+			g.emitln("    UNTAG_REG rax")
 			g.emitln("    pop rbx")
 			g.emitln("    imul rbx, rax")
 			g.emitln("    mov rax, rbx")
-			g.emitln("    sal rax, 1")
-
+			g.emitln("    TAG_INTEGER_REG rax")
 			return
 		}
 
 		if n.Fn == "/" {
 			g.emitExpr(n.Args[0], env)
-			g.emitln("    sar rax, 1") // remove typing-bit
+			g.emitln("    UNTAG_REG rax")
 			g.emitln("    push rax")
 			g.emitExpr(n.Args[1], env)
-			g.emitln("    sar rax, 1")   // remove typing-bit
+			g.emitln("    UNTAG_REG rax")
 			g.emitln("    pop rbx")      // rax and rbx have args
 			g.emitln("    mov rcx, rax") // meh
 			g.emitln("    mov rax, rbx")
 			g.emitln("    xor rdx, rdx")
 			g.emitln("    idiv rcx")
-			g.emitln("    sal rax, 1") // restore typing
+			g.emitln("    TAG_INTEGER_REG rax")
 			return
+		}
+
+		//
+		// Rewrite a couple of functions, because
+		// nasm doesn't like their names as labels.
+		//
+		if n.Fn == "int?" {
+			n.Fn = "intp"
+		}
+
+		if n.Fn == "str?" {
+			n.Fn = "strp"
 		}
 
 		regs := []string{
@@ -613,22 +618,22 @@ func (g *Generator) emitDefun(fn *Defun) {
 // newline, print, and printstr.
 func (g *Generator) emitRuntime() {
 	stdlib := `
+section .text
 
-; input:  rax = value
-; output: rax = 1 if low bit is 0
-;          rax = 0 if low bit is 1
-
-int?:
-    mov rax, rdi ; first arg in rdi
-    test rax, 1
+intp:
+    mov rax, rdi
+    and rax, 7
+    cmp rax, 0
     setz al
     movzx rax, al
     ret
 
-str?:
-    mov rax, rdi ; first arg in rdi
-    test rax, 1
-    setnz al
+strp:
+    mov rax, rdi
+    mov rax, rdi
+    and rax, 7
+    cmp rax, 1
+    setz al
     movzx rax, al
     ret
 
@@ -638,7 +643,7 @@ printint:
     push rbp
     mov rbp, rsp
     sub rsp, 64
-    sar rax, 1            ;; remove typing-bit
+    UNTAG_REG rax
     lea rsi, [rsp+63]     ;; pointer to end of buffer - terminated with newline.
     mov byte [rsi], 10
     mov rcx, 1
@@ -668,7 +673,7 @@ newline_str:
 section .text
 
 exit:
-    sar rdi, 1      ; remove typing
+    UNTAG_REG rdi
     mov rax, 60     ; sys_exit
     syscall
     ret
@@ -690,7 +695,7 @@ putc_buffer:
 section .text
 
 putc:
-    sar rax, 1                      ; remove type
+    UNTAG_REG rax
     mov [putc_buffer],  al  ; store character
     mov rax, 1      ; SYS_write
     mov rdi, 1      ; stdout
@@ -701,7 +706,7 @@ putc:
 
 ; RDI = pointer to null-terminated string
 printstr:
-    and rdi, -2               ; remove tagging bit
+    UNTAG_REG rdi
     push rdi
     mov rdx, 0                ; length counter
 .printstr_len_loop:
@@ -721,23 +726,49 @@ printstr:
 
 func (g *Generator) Generate(defs []*Defun) string {
 
-	g.emitln("global _start")
-	g.emitln("")
-	g.emitln("section .text")
-	g.emitln("")
+	// Write out our header.
+	header := `
 
+%macro TAG_INTEGER_REG 1
+    sal %1, 3
+%endmacro
+
+%macro TAG_STRING_REG 1
+    sal %1, 3
+    or %1, 1
+%endmacro
+
+%macro UNTAG_REG 1
+    and %1, -8
+    sar %1, 3
+%endmacro
+
+
+
+global _start
+
+section .text
+`
+	g.emitln(header)
+
+	// Now the user-defined functions
 	for _, d := range defs {
 		g.emitDefun(d)
 		g.emitln("")
 	}
 
-	g.emitln("_start:")
-	g.emitln("    call main")
-	g.emitln("    mov rdi, rax")
-	g.emitln("    shr rdi, 1")
-	g.emitln("    mov rax, 60")
-	g.emitln("    syscall")
+	// Add our entry-point
+	entry := `
+_start:
+    call main
+    mov rdi, rax
+    shr rdi, 1
+    mov rax, 60
+    syscall
+`
+	g.emitln(entry)
 
+	// Then the string-table for user-defined strings
 	g.emitln("section .data")
 	for _, s := range g.strings {
 		g.emitln("align 8")
@@ -745,40 +776,32 @@ func (g *Generator) Generate(defs []*Defun) string {
 		g.emitln(fmt.Sprintf("     db \"%s\", 0", s.Value))
 	}
 
-	g.emitln("section .text")
+	// Finally add the runtime functions
 	g.emitRuntime()
 	return g.text.String()
 }
 
-//
 // main
-//
-
 func main() {
 
 	if len(os.Args) != 2 {
-		fmt.Println("usage: compiler file.lisp")
+		fmt.Println("usage: slisp file.lisp")
 		os.Exit(1)
 	}
 
-	f, err := os.Open(os.Args[1])
+	// Read the file-contents
+	data, err := os.ReadFile(os.Args[1])
 	if err != nil {
-		panic(err)
+		fmt.Printf("failed to read input %s: %s\n", os.Args[1], err)
+		return
 	}
 
-	defer f.Close()
+	// Parse into functions
+	defs := parseProgram(string(data))
 
-	var src strings.Builder
-
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		src.WriteString(sc.Text())
-		src.WriteString("\n")
-	}
-
-	defs := parseProgram(src.String())
-
+	// Generate the code, and print it
 	g := &Generator{}
+	txt := g.Generate(defs)
 
-	fmt.Print(g.Generate(defs))
+	fmt.Print(txt)
 }
