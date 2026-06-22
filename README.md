@@ -40,13 +40,14 @@ Given a lisp-program output the assembly version of that program, which may be c
       0)
 ```
 
-See [example.lisp](example.lisp) for a genuine/bigger example, including a more complex `print` definition that understands `nil` and cons pairs.
+See [example.lisp](example.lisp) for a genuine/bigger example, including a more complex `print` definition that understands `nil` and cons pairs, as well as applying functions to lists.
 
 
 
 ## Features
 
 * Support for functions, bindings, and basic mathematical operations.
+* A rough and ready bump-allocator for easy heap-allocated cons-cells.
 * Support for integers, nil, strings and cons pairs.
   * We have some run-time type detection via functions
     * `(cons? x)` - True if the item is a cons pair.
@@ -54,17 +55,23 @@ See [example.lisp](example.lisp) for a genuine/bigger example, including a more 
     * `(nil? x)` - True if the item is nil.
     * `(str? y)` - True if the item is a string.
 * Primitives
-  * `(printint 3)` - prints the given number to STDOUT.
-  * `(printstr "Steve")` - prints the given string to STDOUT.
+  * `(exit N)` - Exit with the given status-code.
+  * `(printint N)` - prints the given number to STDOUT.
+  * `(printstr STR)` - prints the given string to STDOUT.
   * `(newline)` - prints a newline.
   * `(putc 42)` - write the given ASCII character to STDOUT.
+* Special forms
+  * `(do ..)`
+  * `(if ..)`
+  * `(let ..)`
+  * `(list ..)`
 
 Anti-features:
 
-* No true lists, just cons pairs
 * No lambdas
 * No closures.
 * No "setq" or "set!" for global variables.
+  * You want a named variable?  Use `let`.
 
 
 
@@ -84,4 +91,4 @@ Finally execute your program:
 
     ./example
 
-`make test` will ensure everything happens correctly for our [example.lisp](example.lisp) file.
+`make clean test` will ensure everything happens correctly for our [example.lisp](example.lisp) file.
