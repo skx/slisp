@@ -94,4 +94,22 @@ Finally execute your program:
 
     ./example
 
-`make clean test` will ensure everything happens correctly for our [example.lisp](example.lisp) file.
+`make clean example` will ensure everything happens correctly for our [example.lisp](example.lisp) file.
+
+
+
+## Testing
+
+There are some test programs beneath `test/`.  To compile them all:
+
+```sh
+cd test && make
+```
+
+To run the tests:
+
+```sh
+cd test && make test
+```
+
+Finally `make clean` will remove the test artifacts, and compiled programs.

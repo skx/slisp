@@ -1003,7 +1003,7 @@ printint:
     UNTAG_REG rax
     lea rsi, [rsp+63]     ;; pointer to end of buffer - terminated with NULL
     mov byte [rsi], 0
-    mov rcx, 1
+    mov rcx, 0
 convert_loop:             ;; build up ASCII via divisions
     mov rbx, 10
     xor rdx, rdx
