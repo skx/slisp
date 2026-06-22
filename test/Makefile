@@ -32,5 +32,5 @@ test: $(TESTS)
 	@../slisp $< > tmp.asm
 	@nasm -f elf64 tmp.asm
 	@ld -o $@ tmp.o
-	./$@ > $@.out 2>&1  || true
+	@./$@ > $@.out 2>&1  || true
 	@cmp $@.out $@.expected || (echo "program $< did not match" ; cat $@.out ; exit 1)
