@@ -8,9 +8,9 @@
 // [X] *
 // [X] /
 // [X] <=
-// [ ] <
-// [ ] >
-// [ ] >=
+// [X] <
+// [X] >
+// [X] >=
 //
 // Special forms
 // [X] DEFUN
@@ -533,6 +533,39 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 			return
 		}
 
+		if n.Fn == "<" {
+			g.emitExpr(n.Args[0], env)
+			g.emitln("    UNTAG_REG rax")
+			g.emitln("    push rax")
+			g.emitExpr(n.Args[1], env)
+			g.emitln("    UNTAG_REG rax")
+			g.emitln("    pop rbx")
+			g.emitln("    call lt")
+			return
+		}
+
+		if n.Fn == ">" {
+			g.emitExpr(n.Args[0], env)
+			g.emitln("    UNTAG_REG rax")
+			g.emitln("    push rax")
+			g.emitExpr(n.Args[1], env)
+			g.emitln("    UNTAG_REG rax")
+			g.emitln("    pop rbx")
+			g.emitln("    call gt")
+			return
+		}
+
+		if n.Fn == ">=" {
+			g.emitExpr(n.Args[0], env)
+			g.emitln("    UNTAG_REG rax")
+			g.emitln("    push rax")
+			g.emitExpr(n.Args[1], env)
+			g.emitln("    UNTAG_REG rax")
+			g.emitln("    pop rbx")
+			g.emitln("    call gt_equals")
+			return
+		}
+
 		if n.Fn == "+" {
 			g.emitExpr(n.Args[0], env)
 			g.emitln("    UNTAG_REG rax")
@@ -744,6 +777,42 @@ nilp:
 lt_equals:
     cmp rbx, rax
     jle .true
+    mov rax, 0
+    TAG_NIL_REG rax
+    ret
+.true:
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+
+;; >=
+gt_equals:
+    cmp rbx, rax
+    jge .true
+    mov rax, 0
+    TAG_NIL_REG rax
+    ret
+.true:
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+
+;; <
+lt:
+    cmp rbx, rax
+    jl .true
+    mov rax, 0
+    TAG_NIL_REG rax
+    ret
+.true:
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+
+;; >
+gt:
+    cmp rbx, rax
+    jg .true
     mov rax, 0
     TAG_NIL_REG rax
     ret
