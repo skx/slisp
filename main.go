@@ -18,6 +18,8 @@
 // [X] LET
 // [X] INT?  // true if value is integer.
 // [X] STR?  // true if value is string.
+// [X] CONS? // true if value is cons
+// [X] NIL?  // true if value is nil
 //
 // Standard library:
 // [X] PRINTINT
@@ -31,12 +33,12 @@
 //
 //	000:  INT
 //	001:  STRING
-//      010:  ...
+//      010:  CONS
 //      011:  ...
 //      100:  ...
 //      101:  ...
 //      110:  ...
-//      111:  ...
+//      111:  NIL
 
 // ABI uses the Sys V style, so max six arguments:
 // arg0 -> rdi
@@ -74,6 +76,9 @@ type StringLiteral struct {
 }
 type Symbol struct {
 	Name string
+}
+
+type Nil struct {
 }
 
 type Call struct {
@@ -274,6 +279,10 @@ func (p *Parser) parseExpr() Expr {
 		return &Int{Value: n}
 	}
 
+	// nil?
+	if t == "nil" {
+		return &Nil{}
+	}
 	// symbol
 	return &Symbol{Name: t}
 }
@@ -436,6 +445,10 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 			offset,
 		))
 
+	case *Nil:
+		g.emitln("    mov rax, 0       ; NIL")
+		g.emitln("    TAG_NIL_REG rax  ; Tagged")
+
 	case *If:
 		elseLbl := g.label("else")
 		endLbl := g.label("endif")
@@ -481,7 +494,6 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		g.emitExpr(n.Body, child)
 
 	case *Call:
-
 		if n.Fn == "<=" {
 			g.emitExpr(n.Args[0], env)
 			g.emitln("    UNTAG_REG rax")
@@ -553,12 +565,20 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		// Rewrite a couple of functions, because
 		// nasm doesn't like their names as labels.
 		//
+		// We probably need a map with "old -> mappings" soon.
+		// Or could just change "trailing?" into "p".
+		//
 		if n.Fn == "int?" {
 			n.Fn = "intp"
 		}
-
 		if n.Fn == "str?" {
 			n.Fn = "strp"
+		}
+		if n.Fn == "cons?" {
+			n.Fn = "consp"
+		}
+		if n.Fn == "nil?" {
+			n.Fn = "nilp"
 		}
 
 		regs := []string{
@@ -570,10 +590,14 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 			"r9",
 		}
 
-		for i, a := range n.Args {
+		for _, a := range n.Args {
 			g.emitExpr(a, env)
+			g.emitln("    push rax")
+		}
+
+		for i := len(n.Args) - 1; i >= 0; i-- {
 			g.emitln(fmt.Sprintf(
-				"    mov %s, rax",
+				"    pop %s",
 				regs[i],
 			))
 		}
@@ -635,6 +659,7 @@ func (g *Generator) emitRuntime() {
 	stdlib := `
 section .text
 
+;; Is the given value an integer?
 intp:
     mov rax, rdi
     and rax, 7
@@ -643,6 +668,7 @@ intp:
     movzx rax, al
     ret
 
+;; Is the given value a string?
 strp:
     mov rax, rdi
     mov rax, rdi
@@ -652,8 +678,27 @@ strp:
     movzx rax, al
     ret
 
+;; Is the given value a cons?
+consp:
+    mov rax, rdi
+    mov rax, rdi
+    and rax, 7
+    cmp rax, 2
+    setz al
+    movzx rax, al
+    ret
 
-section .text
+;; Is the given value nil?
+nilp:
+    mov rax, rdi
+    mov rax, rdi
+    and rax, 7
+    cmp rax, 7
+    setz al
+    movzx rax, al
+    ret
+
+;; Print an integer
 printint:
     push rbp
     mov rbp, rsp
@@ -680,19 +725,15 @@ convert_loop:             ;; build up ASCII via divisions
     leave
     ret
 
-section .data
-align 8
-newline_str:
-    db 10
-
-section .text
-
+;; terminate execution with the given exit-code
 exit:
     UNTAG_REG rdi
     mov rax, 60     ; sys_exit
     syscall
     ret
 
+
+;; print a newline.
 newline:
     mov rax, 1      ; SYS_write
     mov rdi, 1      ; stdout
@@ -701,15 +742,9 @@ newline:
     syscall
     ret
 
-
-section .data
-align 8
-putc_buffer:
-    db 10
-
-section .text
-
+;; Write the given ASCII character to stdout
 putc:
+    mov rax, rdi
     UNTAG_REG rax
     mov [putc_buffer],  al  ; store character
     mov rax, 1      ; SYS_write
@@ -719,7 +754,7 @@ putc:
     syscall
     ret
 
-; RDI = pointer to null-terminated string
+;; Print the given string.
 printstr:
     UNTAG_REG rdi
     push rdi
@@ -734,7 +769,66 @@ printstr:
     mov rax, 1      ; write
     mov rdi, 1      ; stdout
     syscall
+
     ret
+
+
+;; Allocate space for a new cons area, return it in RAX
+;; 16-bytes; first has the CAR, second the CDR.
+cons:
+    mov rax, [heap_ptr]      ; get the value of the heap pointer
+    add qword [heap_ptr], 16 ; bump it by 2x ptrs
+    mov [rax], rdi           ; store first item
+    mov [rax+8], rsi         ; second item
+    TAG_CONS_REG rax         ; return the tagged allocation
+    ret
+
+;; Get the first item in the cons.
+car:
+    mov rbx, rdi
+    and rbx, 7
+    cmp rbx, 2
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, [rdi]
+    ret
+
+;; Get the second item in the cons.
+cdr:
+    mov rbx, rdi
+    and rbx, 7
+    cmp rbx, 2
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, [rdi + 8]
+    ret
+
+type_error:
+    jmp exit
+
+section .data
+
+;; buffer for "\n", used by (newline)
+align 8
+newline_str:
+    db 10
+
+;; buffer for storing a single character, used by (putc x)
+align 8
+putc_buffer:
+    db 10
+
+;; zero section
+section .bss
+
+;; heap storage
+align 16
+heap:
+    resb 1048576
+
+;; offset used of our heap area.
+heap_ptr:
+    resq 1
 	`
 	g.emitln(stdlib)
 }
@@ -751,6 +845,16 @@ func (g *Generator) Generate(defs []*Defun) string {
 %macro TAG_STRING_REG 1
     sal %1, 3
     or %1, 1
+%endmacro
+
+%macro TAG_CONS_REG 1
+    sal %1, 3
+    or %1, 2
+%endmacro
+
+%macro TAG_NIL_REG 1
+    sal %1, 3
+    or %1, 7
 %endmacro
 
 %macro UNTAG_REG 1
@@ -775,6 +879,9 @@ section .text
 	// Add our entry-point
 	entry := `
 _start:
+    mov rax, heap        ; setup our heap pointer
+    mov [heap_ptr], rax  ; cons cells are heap-allocated
+
     call main
     mov rdi, rax
     shr rdi, 1

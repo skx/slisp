@@ -36,19 +36,23 @@ Given a lisp-program output the assembly version of that program, which may be c
       (print (fact 9))
       (print (fact 10))
 
-      ;; exit code
+      ;; exit code - use "(exit 3)" if you prefer
       0)
 ```
 
-See [example.lisp](example.lisp) for a genuine/bigger example.
+See [example.lisp](example.lisp) for a genuine/bigger example, including a more complex `print` definition that understands `nil` and cons pairs.
 
 
 
 ## Features
 
-* Support for functions, bindings, and most mathematical operations.
-* Support for integers and strings.
-  * We have `(int? x)` and `(str? y)` to let you do run-time type-detection.
+* Support for functions, bindings, and basic mathematical operations.
+* Support for integers, nil, strings and cons pairs.
+  * We have some run-time type detection via functions
+    * `(cons? x)` - True if the item is a cons pair.
+    * `(int? x)` - True if the item is an int.
+    * `(nil? x)` - True if the item is nil.
+    * `(str? y)` - True if the item is a string.
 * Primitives
   * `(printint 3)` - prints the given number to STDOUT.
   * `(printstr "Steve")` - prints the given string to STDOUT.
@@ -57,7 +61,10 @@ See [example.lisp](example.lisp) for a genuine/bigger example.
 
 Anti-features:
 
-* No lists, no lambdas, no closures, and no cons-cells.
+* No true lists, just cons pairs
+* No lambdas
+* No closures.
+* No "setq" or "set!" for global variables.
 
 
 
