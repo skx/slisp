@@ -65,6 +65,7 @@ See [example.lisp](example.lisp) for a genuine/bigger example, including a more 
   * `(if ..)`
   * `(let ..)`
   * `(list ..)`
+    * This turns `(list 1 2 3 4)` into `(cons 1 (cons 2 (cons 3 (cons 4 nil))))` at parse-time.
 
 Anti-features:
 
