@@ -23,6 +23,8 @@ So this repository was born:
 * Use lisp because the syntax is trivial to parse.
 * And I've written interpreters for it in the past so there are dragons, but somewhat friendly ones.
 
+Already this compiler is more "real" and "usable", although it lacks the quality, standard-library, test-cases, and creativity of s-lang.  I guess at the end of the day both are toys, and both are here for my own personal learning.
+
 
 
 ## Example
