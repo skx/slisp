@@ -3,10 +3,8 @@
 (defun print (x)
   (if (int? x)
       (printint x)
-      (do
-       (printstr x)
-       (newline))))
-
+      (printstr x))
+  (newline))
 
 ;; Add one to the argument
 (defun add1 (x)
