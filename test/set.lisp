@@ -2,7 +2,6 @@
 ;; update it, via set!
 (defun main()
   (let ((x 1))
-    (do
      ;; x = 1
      (printint x)
      (newline)
@@ -12,4 +11,4 @@
 
      ;; confirm it worked
      (printint x)
-     (newline))))
+     (newline)))

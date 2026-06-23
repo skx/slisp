@@ -120,7 +120,7 @@ type Lambda struct {
 
 type Let struct {
 	Bindings []Binding
-	Body     Expr
+	Body     []Expr
 }
 
 type Set struct {
@@ -406,7 +406,20 @@ func (p *Parser) parseList() Expr {
 
 			p.expect(")")
 
-			body := p.parseExpr()
+			// body goes here
+			body := []Expr{}
+
+			// allow multiple expressions
+			for {
+				expr := p.parseExpr()
+				body = append(body, expr)
+
+				// stop if we see a close
+				if p.peek() == ")" {
+					break
+				}
+			}
+			// ensure we do see that close
 			p.expect(")")
 
 			return &Let{
@@ -757,10 +770,12 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		g.lambdas = append(g.lambdas, n)
 
 	case *Let:
+		// create a new child environment
 		child := NewEnv(env)
 
 		nextSlot := len(child.slots)
 
+		// populate the new environment
 		for _, b := range n.Bindings {
 
 			g.emitExpr(b.Expr, env)
@@ -777,7 +792,10 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 			nextSlot++
 		}
 
-		g.emitExpr(n.Body, child)
+		// compile each expression within the body
+		for _, expr := range n.Body {
+			g.emitExpr(expr, child)
+		}
 
 	case *Nil:
 		g.emitln("    mov rax, 0       ; NIL")

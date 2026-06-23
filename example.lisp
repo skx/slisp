@@ -102,7 +102,7 @@
         (x (double 13))
         (y 12)
         (n (list 1 2 3 4 5 6 7 8 9 10)))
-    (do
+
      (println "Hello World! I am a compiled lisp")
 
      (if nil
@@ -143,7 +143,6 @@
       ;;
       ;; Define the list of numbers (1-10)
       (let ((n (list 1 2 3 4 5 6 7 8 9 10)))
-        (do
          (println "Showing results of factorial - 1-10:")
          (factorials n)
          (print "Summing those numbers: ")
@@ -151,7 +150,7 @@
          (print "The length of the list of numbers we handled: " )
           (println (length n))
           (print "Squaring every item of the list, using map:" )
-          (println (map (lambda (x) (square x)) n))))
+          (println (map (lambda (x) (square x)) n)))
 
       ;; Test the comparison operators.
       ;; They return 1 (int) or NIL depending on whether they are true or not
@@ -195,4 +194,4 @@
       ;; You can be more explicit with (exit 0)
 
 
-      )))
+      ))
