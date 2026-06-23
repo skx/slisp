@@ -540,6 +540,18 @@ func (g *Generator) emitln(s string) {
 
 func asmName(name string) string {
 	switch name {
+
+	// maths
+	case "+":
+		return "integer_plus"
+	case "-":
+		return "integer_minus"
+	case "*":
+		return "integer_multiply"
+	case "/":
+		return "integer_divide"
+
+	// type checks
 	case "cons?":
 		return "consp"
 	case "int?":
@@ -601,59 +613,6 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 				g.emitln("    UNTAG_REG rax")
 				g.emitln("    pop rbx")
 				g.emitln("    call gt_equals")
-				return
-			}
-
-			if symbol.Name == "+" {
-				g.emitExpr(n.Args[0], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    push rax")
-				g.emitExpr(n.Args[1], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    pop rbx")
-				g.emitln("    add rax, rbx")
-				g.emitln("    TAG_INTEGER_REG rax")
-				return
-			}
-
-			if symbol.Name == "-" {
-				g.emitExpr(n.Args[0], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    push rax")
-				g.emitExpr(n.Args[1], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    pop rbx")
-				g.emitln("    sub rbx, rax")
-				g.emitln("    mov rax, rbx")
-				g.emitln("    TAG_INTEGER_REG rax")
-				return
-			}
-
-			if symbol.Name == "*" {
-				g.emitExpr(n.Args[0], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    push rax")
-				g.emitExpr(n.Args[1], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    pop rbx")
-				g.emitln("    imul rbx, rax")
-				g.emitln("    mov rax, rbx")
-				g.emitln("    TAG_INTEGER_REG rax")
-				return
-			}
-
-			if symbol.Name == "/" {
-				g.emitExpr(n.Args[0], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    push rax")
-				g.emitExpr(n.Args[1], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    pop rbx")      // rax and rbx have args
-				g.emitln("    mov rcx, rax") // meh
-				g.emitln("    mov rax, rbx")
-				g.emitln("    xor rdx, rdx")
-				g.emitln("    idiv rcx")
-				g.emitln("    TAG_INTEGER_REG rax")
 				return
 			}
 
@@ -997,6 +956,47 @@ nilp:
     mov rax, 0
     TAG_NIL_REG rax
     ret
+
+;; +
+integer_plus:
+   UNTAG_REG rdi
+   UNTAG_REG rsi
+   mov rax, rdi
+   add rax, rsi
+   TAG_INTEGER_REG rax
+   ret
+
+;; -
+integer_minus:
+   UNTAG_REG rdi
+   UNTAG_REG rsi
+   sub rdi, rsi
+   mov rax, rdi
+   TAG_INTEGER_REG rax
+   ret
+
+;; /
+integer_divide:
+   UNTAG_REG rdi
+   UNTAG_REG rsi
+   mov rcx, rdi
+   mov rax, rsi
+   xor rdx, rdx
+   idiv rcx
+   TAG_INTEGER_REG rax
+   ret
+
+;; *
+integer_multiply:
+   UNTAG_REG rdi
+   UNTAG_REG rsi
+   mov rax, rdi
+   mov rbx, rsi
+   imul rbx, rax
+   mov rax, rbx
+   TAG_INTEGER_REG rax
+   ret
+
 
 ;; <=
 lt_equals:
