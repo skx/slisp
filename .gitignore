@@ -6,3 +6,4 @@ test/tmp.asm
 test/*.test
 test/*.out
 test/*.s
+test/*.o

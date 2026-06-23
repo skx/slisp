@@ -51,11 +51,16 @@
 package main
 
 import (
+	_ "embed"
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 )
+
+//go:embed stdlib.lisp
+var stdlibLisp string
 
 //
 // AST
@@ -1270,20 +1275,30 @@ _start:
 // main
 func main() {
 
-	if len(os.Args) != 2 {
-		fmt.Println("usage: slisp file.lisp")
+	// CLI flags
+	stdlib := flag.Bool("stdlib", true, "Prepend our Lisp standard library to user-programs")
+	flag.Parse()
+
+	// Do we have a file?
+	if len(flag.Args()) != 1 {
+		fmt.Println("usage: slisp [-stdlib=false] file.lisp")
 		os.Exit(1)
 	}
 
 	// Read the file-contents
-	data, err := os.ReadFile(os.Args[1])
+	data, err := os.ReadFile(flag.Args()[0])
 	if err != nil {
 		fmt.Printf("failed to read input %s: %s\n", os.Args[1], err)
 		return
 	}
 
+	prg := string(data)
+	if *stdlib {
+		prg = stdlibLisp + "\n" + prg
+	}
+
 	// Parse into functions
-	defs := parseProgram(string(data))
+	defs := parseProgram(prg)
 
 	// Generate the code, and print it
 	g := &Generator{}

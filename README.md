@@ -30,40 +30,35 @@ Already this compiler is more "real" and "usable", although it lacks the quality
 ## Example
 
 ```lisp
-     ;; if the value is a number?  print it as an integer.
-     ;; otherwise print it as a string
-     (defun print (x)
-       (if (int? x)
-          (printint x)
-         (do
-           (printstr x)
-           (newline))))
+    ;; factorial.  woo.
+    (defun fact (n)
+      (if (<= n 1) 1 (* n (fact (- n 1)))))
 
-     ;; factorial.  woo.
-     (defun fact (n)
-       (if (<= n 1) 1 (* n (fact (- n 1)))))
-
+    ;; entry-point
     (defun main ()
       ;; now some factorials.
-      (print "Showing results of factorial - 1-20")
+      (print "Showing results of factorial")
       (print (fact 1))
       (print (fact 2))
       (print (fact 3))
       (print (fact 4))
       (print (fact 5))
-      (print (fact 6))
-      (print (fact 7))
-      (print (fact 8))
-      (print (fact 9))
+      ;; ..
       (print (fact 10))
 
       ;; exit code - use "(exit 3)" if you prefer
       0)
 ```
 
-See [example.lisp](example.lisp) for a genuine/bigger example, including a more complex `print` definition that understands `nil` and cons pairs, as well as applying functions to lists.
+See [example.lisp](example.lisp) for a genuine/bigger example.
 
-See the [test/](test/) directory for some test-cases which demonstrate specific things.
+We prepend a standard library of functions, implemented in lisp, to all user programs unless `-stdlib=false` is added to the command line.  That library itself is a useful reference/demonstration of functionality:
+
+* [stdlib.lisp](stdlib.lisp) - Our lisp standard library.
+  * Has a flexible `print` definition.
+  * Has `map`, `length` and similar general-purpose functions.
+
+Finally our [test/](test/) directory contains test-cases which demonstrate specific things.
 
 
 
