@@ -538,8 +538,32 @@ func (g *Generator) emitln(s string) {
 	g.text.WriteString("\n")
 }
 
+// asmName converts the given label into something nasm will
+// accept.  It doesn't like special characters inside label names.
 func asmName(name string) string {
 	switch name {
+
+	// comparisons
+	case "<=":
+		return "lt_equals"
+	case "<":
+		return "lt"
+	case ">":
+		return "gt"
+	case ">=":
+		return "gt_equals"
+
+	// maths
+	case "+":
+		return "integer_plus"
+	case "-":
+		return "integer_minus"
+	case "*":
+		return "integer_multiply"
+	case "/":
+		return "integer_divide"
+
+	// type checks
 	case "cons?":
 		return "consp"
 	case "int?":
@@ -553,6 +577,7 @@ func asmName(name string) string {
 	case "str?":
 		return "strp"
 	}
+
 	return name
 }
 
@@ -560,102 +585,6 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 	switch n := e.(type) {
 	case *Call:
 		if symbol, ok := n.Fn.(*Symbol); ok {
-			if symbol.Name == "<=" {
-				g.emitExpr(n.Args[0], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    push rax")
-				g.emitExpr(n.Args[1], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    pop rbx")
-				g.emitln("    call lt_equals")
-				return
-			}
-
-			if symbol.Name == "<" {
-				g.emitExpr(n.Args[0], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    push rax")
-				g.emitExpr(n.Args[1], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    pop rbx")
-				g.emitln("    call lt")
-				return
-			}
-
-			if symbol.Name == ">" {
-				g.emitExpr(n.Args[0], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    push rax")
-				g.emitExpr(n.Args[1], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    pop rbx")
-				g.emitln("    call gt")
-				return
-			}
-
-			if symbol.Name == ">=" {
-				g.emitExpr(n.Args[0], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    push rax")
-				g.emitExpr(n.Args[1], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    pop rbx")
-				g.emitln("    call gt_equals")
-				return
-			}
-
-			if symbol.Name == "+" {
-				g.emitExpr(n.Args[0], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    push rax")
-				g.emitExpr(n.Args[1], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    pop rbx")
-				g.emitln("    add rax, rbx")
-				g.emitln("    TAG_INTEGER_REG rax")
-				return
-			}
-
-			if symbol.Name == "-" {
-				g.emitExpr(n.Args[0], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    push rax")
-				g.emitExpr(n.Args[1], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    pop rbx")
-				g.emitln("    sub rbx, rax")
-				g.emitln("    mov rax, rbx")
-				g.emitln("    TAG_INTEGER_REG rax")
-				return
-			}
-
-			if symbol.Name == "*" {
-				g.emitExpr(n.Args[0], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    push rax")
-				g.emitExpr(n.Args[1], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    pop rbx")
-				g.emitln("    imul rbx, rax")
-				g.emitln("    mov rax, rbx")
-				g.emitln("    TAG_INTEGER_REG rax")
-				return
-			}
-
-			if symbol.Name == "/" {
-				g.emitExpr(n.Args[0], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    push rax")
-				g.emitExpr(n.Args[1], env)
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    pop rbx")      // rax and rbx have args
-				g.emitln("    mov rcx, rax") // meh
-				g.emitln("    mov rax, rbx")
-				g.emitln("    xor rdx, rdx")
-				g.emitln("    idiv rcx")
-				g.emitln("    TAG_INTEGER_REG rax")
-				return
-			}
 
 			regs := []string{
 				"rdi",
@@ -802,7 +731,11 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		g.emitln("    TAG_NIL_REG rax  ; Tagged")
 
 	case *String:
+		// create a label
 		lbl := g.label("str")
+
+		// save the string, because we're gonna put it into the
+		// generated code, later.
 		g.strings = append(
 			g.strings,
 			StringLiteral{
@@ -810,11 +743,12 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 				Value: n.Value,
 			},
 		)
+
+		// load the address of the label and tag.
 		g.emitln(fmt.Sprintf("    lea rax, %s", lbl))
 		g.emitln("    TAG_STRING_REG rax")
 
 	case *Set:
-
 		offset, ok := env.Lookup(n.Name)
 		if !ok {
 			panic("unknown variable: " + n.Name)
@@ -839,8 +773,7 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		))
 
 	default:
-
-		panic(fmt.Sprintf("%T %V\n", n, n))
+		panic(fmt.Sprintf("emitExpr: Unhandled node type:%T value:%V\n", n, n))
 	}
 }
 
@@ -998,9 +931,52 @@ nilp:
     TAG_NIL_REG rax
     ret
 
+;; +
+integer_plus:
+   UNTAG_REG rdi
+   UNTAG_REG rsi
+   mov rax, rdi
+   add rax, rsi
+   TAG_INTEGER_REG rax
+   ret
+
+;; -
+integer_minus:
+   UNTAG_REG rdi
+   UNTAG_REG rsi
+   sub rdi, rsi
+   mov rax, rdi
+   TAG_INTEGER_REG rax
+   ret
+
+;; /
+integer_divide:
+   UNTAG_REG rdi
+   UNTAG_REG rsi
+   mov rcx, rdi
+   mov rax, rsi
+   xor rdx, rdx
+   idiv rcx
+   TAG_INTEGER_REG rax
+   ret
+
+;; *
+integer_multiply:
+   UNTAG_REG rdi
+   UNTAG_REG rsi
+   mov rax, rdi
+   mov rbx, rsi
+   imul rbx, rax
+   mov rax, rbx
+   TAG_INTEGER_REG rax
+   ret
+
+
 ;; <=
 lt_equals:
-    cmp rbx, rax
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    cmp rdi, rsi
     jle .true
     mov rax, 0
     TAG_NIL_REG rax
@@ -1012,7 +988,9 @@ lt_equals:
 
 ;; >=
 gt_equals:
-    cmp rbx, rax
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    cmp rdi, rsi
     jge .true
     mov rax, 0
     TAG_NIL_REG rax
@@ -1024,7 +1002,9 @@ gt_equals:
 
 ;; <
 lt:
-    cmp rbx, rax
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    cmp rdi, rsi
     jl .true
     mov rax, 0
     TAG_NIL_REG rax
@@ -1036,7 +1016,9 @@ lt:
 
 ;; >
 gt:
-    cmp rbx, rax
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    cmp rdi, rsi
     jg .true
     mov rax, 0
     TAG_NIL_REG rax
