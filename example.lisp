@@ -115,30 +115,6 @@
       (println (square y))
       (println (double x))
 
-      ;; little countdown to test maths
-      (println "Counting down from 10-0, via maths:")
-      (println (+ (* 4 2) 2))
-      ;; 9
-      (println (- 10 1))
-      ;; 8
-      (println (+ 6 2))
-      ;; 7
-      (println (/ 14 2))
-      ;; 6
-      (println (* 3 2))
-      ;; 5
-      (println (- 30 (* 5 5)))
-      ;; 4
-      (println (/ 8 2))
-      ;; 3
-      (println (+ (* 2 1) 1))
-      ;; 2
-      (println (- (* 10 10) 98))
-      ;; 1
-      (println (- 3 2))
-      ;; 0
-      (println (- 98 98))
-
       ;; now some factorials, and list operations.
       ;;
       ;; Define the list of numbers (1-10)
@@ -151,32 +127,6 @@
           (println (length n))
           (print "Squaring every item of the list, using map:" )
           (println (map (lambda (x) (square x)) n)))
-
-      ;; Test the comparison operators.
-      ;; They return 1 (int) or NIL depending on whether they are true or not
-      (print "(< 3 4):")
-      (print (< 3 4))
-      (print " (< 4 4):")
-      (println (< 4 4))
-
-      (print "(> 3 4):")
-      (print (> 3 4))
-      (print " (> 34 4):")
-      (println (> 34 4))
-
-      (print "(>= 3 4):")
-      (print (>= 3 4))
-      (print " (>= 4 4):")
-      (print (>= 4 4))
-      (print " (>= 34 4):")
-      (println (>= 34 4))
-
-      (print "(<= 3 4):")
-      (print (<= 3 4))
-      (print " (<= 4 4):")
-      (print (<= 4 4))
-      (print " (<= 34 4):")
-      (println (<= 34 4))
 
       ; create a cons cell, and print it :)
       (println (cons (cons (cons 12 31) 392) nil))
