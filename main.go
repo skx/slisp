@@ -915,7 +915,7 @@ func (g *Generator) Generate(defs []*Defun) string {
 	for _, s := range g.strings {
 		g.emitln("align 8")
 		g.emitln(s.Label + ":")
-		g.emitln(fmt.Sprintf("     db \"%s\", 0", s.Value))
+		g.emitln(fmt.Sprintf("     db `%s`, 0", s.Value))
 	}
 	stringTable = g.text.String()
 	g.text.Reset()
