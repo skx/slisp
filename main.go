@@ -590,7 +590,7 @@ func (g *Generator) emitln(s string) {
 
 // asmName converts the given label into something nasm will
 // accept.  It doesn't like special characters inside label names.
-func asmName(name string) string {
+func (g *Generator) asmName(name string) string {
 	switch name {
 
 	// comparisons
@@ -680,7 +680,7 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 				return
 			} else {
 				// defun
-				g.emitln("    call " + asmName(symbol.Name))
+				g.emitln("    call " + g.asmName(symbol.Name))
 				return
 			}
 		}
