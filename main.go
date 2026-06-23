@@ -568,7 +568,7 @@ func asmName(name string) string {
 	switch name {
 
 	// comparisons
-	case "=", "=":
+	case "=":
 		return "equals"
 	case "!":
 		return "not"
