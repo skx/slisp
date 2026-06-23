@@ -63,14 +63,16 @@ Already this compiler is more "real" and "usable", although it lacks the quality
 
 See [example.lisp](example.lisp) for a genuine/bigger example, including a more complex `print` definition that understands `nil` and cons pairs, as well as applying functions to lists.
 
+See the [test/](test/) directory for some test-cases which demonstrate specific things.
+
 
 
 ## Features
 
 * Support for functions, bindings, and basic mathematical operations.
 * A rough and ready bump-allocator for easy heap-allocated cons-cells.
-* Support for integers, nil, strings and cons pairs.
-  * We have some run-time type detection via functions
+* Support for integers, nil, strings, lambdas, and cons pairs.
+  * Run-time type detection via functions:
     * `(cons? x)` - True if the item is a cons pair.
     * `(int? x)` - True if the item is an int.
     * `(lambda? x)` - True if the item is a lambda.
@@ -90,12 +92,11 @@ See [example.lisp](example.lisp) for a genuine/bigger example, including a more 
   * `(list ..)`
     * This turns `(list 1 2 3 4)` into `(cons 1 (cons 2 (cons 3 (cons 4 nil))))` at parse-time.
     * Our `print` function handles displaying this correctly.  Woo.
+  * `(set! ..)`
 
 Anti-features:
 
 * No closures.
-* No "set!" for global variables.
-  * You want a named variable?  Use `let`.
 
 
 
