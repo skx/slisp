@@ -28,4 +28,20 @@
       (print " (<= 34 4):")
       (print (<= 34 4))
       (newline)
+
+      (print "(= 3 3): ")
+      (print (= 3 3))
+      (print " (= 3 4): ")
+      (print (= 3 4))
+      (newline)
+
+      (let ((a 3) (b 7))
+        (print "(= a a): ")
+        (print (= a a))
+        (print " (= a b): ")
+        (print (= a b)))
+      (newline)
+
+
+
 )
