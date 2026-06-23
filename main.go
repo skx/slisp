@@ -568,6 +568,8 @@ func asmName(name string) string {
 	switch name {
 
 	// comparisons
+	case "=", "==":
+		return "equals"
 	case "<=":
 		return "lt_equals"
 	case "<":
