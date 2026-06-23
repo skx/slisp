@@ -1,11 +1,3 @@
-(defun print (x)
-  (if (str? x)
-      (printstr x))
-  (if (nil? x)
-      (printstr "<nil>"))
-  (if (int? x)
-      (printint x)))
-
 ;; Test the comparison operators.
 ;; They return 1 (int) or NIL depending on whether they are true or not
 (defun main ()
