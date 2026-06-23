@@ -51,16 +51,21 @@
 package main
 
 import (
+	"bytes"
 	_ "embed"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"text/template"
 )
 
 //go:embed stdlib.lisp
 var stdlibLisp string
+
+//go:embed template.tmpl
+var tmplTxt string
 
 //
 // AST
@@ -882,356 +887,9 @@ func (g *Generator) emitLambda(l *Lambda) {
 	g.emitln("    ret")
 }
 
-// emitRuntime outputs our standard library;
-// newline, print, and printstr.
-func (g *Generator) emitRuntime() {
-	stdlib := `
-section .text
-
-;; Is the given value an integer?
-intp:
-    mov rax, rdi
-    and rax, 7
-    cmp rax, 0
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    mov rax, 0
-    TAG_NIL_REG rax
-    ret
-
-;; Is the given value a string?
-strp:
-    mov rax, rdi
-    and rax, 7
-    cmp rax, 1
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    mov rax, 0
-    TAG_NIL_REG rax
-    ret
-
-;; Is the given value a cons?
-consp:
-    mov rax, rdi
-    and rax, 7
-    cmp rax, 2
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    mov rax, 0
-    TAG_NIL_REG rax
-    ret
-
-;; is the given value a lambda?
-lambdap:
-    mov rax, rdi
-    and rax, 7
-    cmp rax, 3
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    mov rax, 0
-    TAG_NIL_REG rax
-    ret
-
-;; Is the given value nil?
-nilp:
-    mov rax, rdi
-    and rax, 7
-    cmp rax, 7
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    mov rax, 0
-    TAG_NIL_REG rax
-    ret
-
-;; +
-integer_plus:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-   mov rax, rdi
-   add rax, rsi
-   TAG_INTEGER_REG rax
-   ret
-
-;; -
-integer_minus:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-   sub rdi, rsi
-   mov rax, rdi
-   TAG_INTEGER_REG rax
-   ret
-
-;; /
-integer_divide:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-   mov rcx, rdi
-   mov rax, rsi
-   xor rdx, rdx
-   idiv rcx
-   TAG_INTEGER_REG rax
-   ret
-
-;; *
-integer_multiply:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-   mov rax, rdi
-   mov rbx, rsi
-   imul rbx, rax
-   mov rax, rbx
-   TAG_INTEGER_REG rax
-   ret
-
-
-;; <=
-lt_equals:
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-    cmp rdi, rsi
-    jle .true
-    mov rax, 0
-    TAG_NIL_REG rax
-    ret
-.true:
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-
-;; >=
-gt_equals:
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-    cmp rdi, rsi
-    jge .true
-    mov rax, 0
-    TAG_NIL_REG rax
-    ret
-.true:
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-
-;; <
-lt:
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-    cmp rdi, rsi
-    jl .true
-    mov rax, 0
-    TAG_NIL_REG rax
-    ret
-.true:
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-
-;; >
-gt:
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-    cmp rdi, rsi
-    jg .true
-    mov rax, 0
-    TAG_NIL_REG rax
-    ret
-.true:
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-
-;; Print an integer
-printint:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 64
-    UNTAG_REG rax
-    lea rsi, [rsp+63]     ;; pointer to end of buffer - terminated with NULL
-    mov byte [rsi], 0
-    mov rcx, 0
-convert_loop:             ;; build up ASCII via divisions
-    mov rbx, 10
-    xor rdx, rdx
-    div rbx
-    add dl, '0'
-    dec rsi
-    mov [rsi], dl
-    inc rcx
-    test rax, rax          ;; keep going until we're zero
-    jnz convert_loop
-
-    mov rax, 1             ;; now write the buffer to STDOUT
-    mov rdi, 1
-    mov rdx, rcx
-    syscall
-    leave
-    ret
-
-;; terminate execution with the given exit-code
-exit:
-    UNTAG_REG rdi
-    mov rax, 60     ; sys_exit
-    syscall
-    ret
-
-
-;; print a newline.
-newline:
-    mov rax, 1      ; SYS_write
-    mov rdi, 1      ; stdout
-    mov rsi, newline_str
-    mov rdx, 1
-    syscall
-    ret
-
-;; Write the given ASCII character to stdout
-putc:
-    mov rax, rdi
-    UNTAG_REG rax
-    mov [putc_buffer],  al  ; store character
-    mov rax, 1      ; SYS_write
-    mov rdi, 1      ; stdout
-    mov rsi, putc_buffer
-    mov rdx, 1
-    syscall
-    ret
-
-;; Print the given string.
-printstr:
-    UNTAG_REG rdi
-    push rdi
-    mov rdx, 0                ; length counter
-.printstr_len_loop:
-    cmp byte [rdi + rdx], 0
-    je .printstr_found_len
-    inc rdx
-    jmp .printstr_len_loop
-.printstr_found_len:
-    pop rsi
-    mov rax, 1      ; write
-    mov rdi, 1      ; stdout
-    syscall
-
-    ret
-
-
-;; Allocate space for a new cons cell, return it in RAX.
-;;
-;; 16-bytes; first has the CAR, second the CDR.
-cons:
-    mov rax, [heap_ptr]      ; get the value of the heap pointer
-    add qword [heap_ptr], 16 ; bump it by 2x ptrs
-    mov [rax], rdi           ; store first item
-    mov [rax+8], rsi         ; second item
-    TAG_CONS_REG rax         ; return the tagged allocation
-    ret
-
-;; Get the first item in the cons cell.
-car:
-    mov rbx, rdi
-    and rbx, 7
-    cmp rbx, 2
-    jne type_error
-    UNTAG_REG rdi
-    mov rax, [rdi]
-    ret
-
-;; Get the second item in the cons cell.
-cdr:
-    mov rbx, rdi
-    and rbx, 7
-    cmp rbx, 2
-    jne type_error
-    UNTAG_REG rdi
-    mov rax, [rdi + 8]
-    ret
-
-type_error:
-    jmp exit
-
-section .data
-
-;; buffer for "\n", used by (newline)
-align 8
-newline_str:
-    db 10
-
-;; buffer for storing a single character, used by (putc x)
-align 8
-putc_buffer:
-    db 10
-
-;; zero section
-section .bss
-
-;; heap storage
-align 16
-heap:
-    resb 1048576
-
-;; offset used of our heap area.
-heap_ptr:
-    resq 1
-	`
-	g.emitln(stdlib)
-}
-
 func (g *Generator) Generate(defs []*Defun) string {
 
-	// Write out our header.
-	header := `
-
-%macro TAG_INTEGER_REG 1
-    sal %1, 3
-%endmacro
-
-%macro TAG_STRING_REG 1
-    sal %1, 3
-    or %1, 1
-%endmacro
-
-%macro TAG_CONS_REG 1
-    sal %1, 3
-    or %1, 2
-%endmacro
-
-%macro TAG_LAMBDA_REG 1
-    sal %1, 3
-    or %1, 3
-%endmacro
-
-%macro TAG_NIL_REG 1
-    sal %1, 3
-    or %1, 7
-%endmacro
-
-%macro UNTAG_REG 1
-    and %1, -8
-    sar %1, 3
-%endmacro
-
-
-
-global _start
-
-section .text
-`
-	g.emitln(header)
+	defuns := ""
 
 	// Now the user-defined functions
 	for _, d := range defs {
@@ -1239,37 +897,49 @@ section .text
 		g.emitln("")
 	}
 
+	defuns = g.text.String()
+	g.text.Reset()
+
 	// Now user-defined lambdas
+	lambdas := ""
 	for _, l := range g.lambdas {
 		g.emitLambda(l)
 		g.emitln("")
 	}
-
-	// Add our entry-point
-	entry := `
-_start:
-    mov rax, heap        ; setup our heap pointer
-    mov [heap_ptr], rax  ; cons cells are heap-allocated
-
-    call main
-    mov rdi, rax
-    shr rdi, 1
-    mov rax, 60
-    syscall
-`
-	g.emitln(entry)
+	lambdas = g.text.String()
+	g.text.Reset()
 
 	// Then the string-table for user-defined strings
+	stringTable := ""
 	g.emitln("section .data")
 	for _, s := range g.strings {
 		g.emitln("align 8")
 		g.emitln(s.Label + ":")
 		g.emitln(fmt.Sprintf("     db \"%s\", 0", s.Value))
 	}
+	stringTable = g.text.String()
+	g.text.Reset()
 
-	// Finally add the runtime functions
-	g.emitRuntime()
-	return g.text.String()
+	type Generated struct {
+		Defuns      string
+		Lambdas     string
+		StringTable string
+	}
+	x := &Generated{
+		Defuns:      defuns,
+		Lambdas:     lambdas,
+		StringTable: stringTable,
+	}
+
+	buf := bytes.Buffer{}
+	t1 := template.New("t1")
+	t1 = template.Must(t1.Parse(tmplTxt))
+	err := t1.Execute(&buf, x)
+	if err != nil {
+		panic(err)
+	}
+
+	return buf.String()
 }
 
 // main
