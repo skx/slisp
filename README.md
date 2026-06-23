@@ -1,8 +1,10 @@
 # slisp
 
-This is either named for "Simple Lisp" or "Steve's lisp", but either way this repository contains a trivial lisp compiler.
+This repository contains `slisp` a compiler which will read lisp programs as input, and generate standalone assembly representations for Linux/AMD64.
 
-Given a lisp-program output the assembly version of that program, which may be compiled/linked/executed.
+> The project is either named for "Simple Lisp" or "Steve's lisp", take your pick.
+
+Lisp is traditionally interactive, and provides a REPL, but having a compiled version is still useful, and still allows most common lisp-programs to execute.
 
 
 
@@ -31,7 +33,7 @@ Given a lisp-program output the assembly version of that program, which may be c
 
 See [example.lisp](example.lisp) for a genuine/bigger example.
 
-We prepend a standard library of functions, implemented in slisp itself of course, to all user programs unless `-stdlib=false` is added to the command line.  That library itself is a useful reference/demonstration of functionality:
+We prepend a standard library of functions, implemented in `slisp` itself of course, to all user programs unless `-stdlib=false` is added to the command line.  That library itself is a useful reference/demonstration of functionality:
 
 * [stdlib.lisp](stdlib.lisp) - Our lisp standard library.
   * Has a flexible `print` definition.
@@ -43,14 +45,12 @@ Additionally our [test/](test/) directory contains test-cases which demonstrate 
 
 ## Features
 
-* Support for functions, bindings, and basic mathematical operations.
-* Support for lambdas, with closures.
+* Support for bindings, functions, lambdas, etc.
+  * The lambdas have support for closures.
 * A rough and ready bump-allocator used for heap-allocated cons-cells.
-* Mathematical operations:
-  * `+`, `-`, `*`, `/`.
-* Comparision operations:
-  * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
-* Support for integers, nil, strings, lambdas, and cons pairs.
+* Mathematical operations: `+`, `-`, `*`, `/`.
+* Comparision operations: `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
+* Support for integers, nil, strings, lambdas, and cons pairs (lists).
   * Run-time type detection via functions:
     * `(cons? x)` - True if the item is a cons pair.
     * `(int? x)` - True if the item is an int.
@@ -58,9 +58,9 @@ Additionally our [test/](test/) directory contains test-cases which demonstrate 
     * `(nil? x)` - True if the item is nil.
     * `(str? y)` - True if the item is a string.
 * Primitives written in assembly language:
-  * `(exit N)` - Exit with the given status-code.
-  * `(printint N)` - prints the given number to STDOUT.
-  * `(printstr STR)` - prints the given string to STDOUT.
+  * `(exit N)` - Terminate a program with the given status-code.
+  * `(printint N)` - Prints the given number to STDOUT.
+  * `(printstr STR)` - Prints the given string to STDOUT.
   * `(newline)` - prints a newline.
   * `(putc 42)` - write the given ASCII character to STDOUT.
   * These are all contained within the [template.tmpl](template.tmpl) file we use for generating our output.
