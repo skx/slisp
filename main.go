@@ -1,53 +1,30 @@
 // trivial lisp compiler which generates nasm-style assembly.
 //
-// Has support for integers, strings, printing and simple maths.
-//
-// Integer operations:
-// [X] -
-// [X] +
-// [X] *
-// [X] /
-// [X] <=
-// [X] <
-// [X] >
-// [X] >=
-//
-// Special forms
-// [X] DEFUN
-// [X] IF
-// [X] LET
-// [X] INT?    // true if value is integer.
-// [X] STR?    // true if value is string.
-// [X] CONS?   // true if value is cons
-// [X] LAMBDA? // true if value is lambda
-// [X] NIL?    // true if value is nil
-//
-// Standard library:
-// [X] PRINTINT
-// [X] PRINTSTR
-// [X] EXIT
-// [X] NEWLINE
-// [X] PUTC
-//
 // The lower three bits of values is used for type storage, with macros used for getting/setting
 // them, to avoid user-error.  Hopefully:
 //
-//	000:  INT
-//	001:  STRING
-//      010:  CONS
-//      011:  LAMBDA
-//      100:  ...
-//      101:  ...
-//      110:  ...
-//      111:  NIL
-
-// ABI uses the Sys V style, so max six arguments:
-// arg0 -> rdi
-// arg1 -> rsi
-// arg2 -> rdx
-// arg3 -> rcx
-// arg4 -> r8
-// arg5 -> r9
+//		000:  INT
+//		001:  STRING
+//	     010:  CONS
+//	     011:  LAMBDA
+//	     100:  ...
+//	     101:  ...
+//	     110:  ...
+//	     111:  NIL
+//
+// Calls made into our internal standard-library functions, as written in assembly language
+// and contained in our "template.tmpL" file use the standard Sys V ABI:
+//
+// A maximum six arguments passed via registers:
+//
+//	arg0 -> rdi
+//	arg1 -> rsi
+//	arg2 -> rdx
+//	arg3 -> rcx
+//	arg4 -> r8
+//	arg5 -> r9
+//
+// Nothing else too special or exciting.
 package main
 
 import (
@@ -125,9 +102,14 @@ type If struct {
 
 type Lambda struct {
 	// name is auto-generated when we encounter the lambda
-	name   string
+	name string
+
 	Params []string
 	Exprs  []Expr
+
+	// Captured variables - we don't do free-variable analysis,
+	// and just capture all the variables we could.
+	Captures []string
 }
 
 type Let struct {
@@ -504,22 +486,57 @@ func (p *Parser) parseList() Expr {
 //
 
 type Env struct {
-	parent *Env
-	slots  map[string]int
+	parent   *Env
+	slots    map[string]int
+	captures map[string]int
 }
 
 // NewEnv creates a new environment, with an optional parent.
 func NewEnv(parent *Env) *Env {
 	return &Env{
-		parent: parent,
-		slots:  map[string]int{},
+		parent:   parent,
+		slots:    map[string]int{},
+		captures: map[string]int{},
 	}
+}
+
+// Names returns all the names of variables known at this level,
+// and all parent levels.
+//
+// We use this as a hack for lambda-closures, instead of performing
+// real free-variable analysis.
+func (e *Env) Names() []string {
+	res := []string{}
+
+	for k, _ := range e.slots {
+		res = append(res, k)
+	}
+	if e.parent != nil {
+		parents := e.parent.Names()
+		res = append(res, parents...)
+	}
+	return res
+}
+
+// LookupCapture performs the same lookup function for lambdas,
+// as part of our closure implementation.
+func (e *Env) LookupCapture(name string) (int, bool) {
+
+	if v, ok := e.captures[name]; ok {
+		return v, true
+	}
+
+	if e.parent != nil {
+		return e.parent.LookupCapture(name)
+	}
+	return 0, false
 }
 
 // Lookup returns the slot-index of the given variable-name.
 //
 // If not found in the current scope the parent(s) will be searched, recursively.
 func (e *Env) Lookup(name string) (int, bool) {
+
 	if v, ok := e.slots[name]; ok {
 		return v, true
 	}
@@ -551,12 +568,14 @@ type Generator struct {
 	lambdas []*Lambda
 }
 
+// label generates a new label, with the given prefix.
 func (g *Generator) label(prefix string) string {
 	s := fmt.Sprintf("%s_%d", prefix, g.labelID)
 	g.labelID++
 	return s
 }
 
+// emitln writes a line of assembly/source into our internal buffer.
 func (g *Generator) emitln(s string) {
 	g.text.WriteString(s)
 	g.text.WriteString("\n")
@@ -645,8 +664,11 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 					offset,
 				))
 
-				g.emitln("    UNTAG_REG rax")
-				g.emitln("    call rax")
+				// call lambda
+				g.emitln("UNTAG_REG rax")
+				g.emitln("mov r15, rax")
+				g.emitln("mov rax, [r15]")
+				g.emitln("call rax")
 
 				return
 			} else {
@@ -680,8 +702,11 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		// evaluate callable expression
 		g.emitExpr(n.Fn, env)
 
-		g.emitln("    UNTAG_REG rax")
-		g.emitln("    call rax")
+		// call lambda
+		g.emitln("UNTAG_REG rax")
+		g.emitln("mov r15, rax")
+		g.emitln("mov rax, [r15]")
+		g.emitln("call rax")
 
 	case *Do:
 		for _, expr := range n.Exprs {
@@ -715,16 +740,59 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		g.emitln(endLbl + ":")
 
 	case *Lambda:
+
 		// create a unique name for this lambda
 		name := fmt.Sprintf("lambda_%d", g.labelID)
 		g.labelID++
 
-		// load the address - it will be compiled eventually.
-		g.emitln(fmt.Sprintf("    lea rax, %s", name))
+		// We don't do analysis for captured variables,
+		// we just claim ALL of them.
+		n.Captures = env.Names()
+
+		// Allocate closure:
+		//   +0  code pointer
+		//   +8  capture #1
+		//   +16 capture #2
+		//   ...
+		size := 8 * (1 + len(n.Captures))
+
+		g.emitln("    mov rax, [heap_ptr]")
+		g.emitln(fmt.Sprintf(
+			"    add qword [heap_ptr], %d",
+			size,
+		))
+		g.emitln("    mov rbx, rax")
+
+		// store code pointer
+		g.emitln(fmt.Sprintf(
+			"    mov qword [rbx], %s",
+			name,
+		))
+
+		// copy captures
+		for i, cap := range n.Captures {
+
+			offset, ok := env.Lookup(cap)
+			if !ok {
+				panic("capture not found: " + cap)
+			}
+
+			g.emitln(fmt.Sprintf(
+				"    mov rcx, [rbp-%d]",
+				offset,
+			))
+
+			g.emitln(fmt.Sprintf(
+				"    mov [rbx+%d], rcx",
+				8*(i+1),
+			))
+		}
+
+		// return tagged closure
+		g.emitln("    mov rax, rbx")
 		g.emitln("    TAG_LAMBDA_REG rax")
 
-		// save away the lambda in the list of lambdas we
-		// know about, because we do need to compile it .. later
+		// save away the lambda in the list of lambdas
 		n.name = name
 		g.lambdas = append(g.lambdas, n)
 
@@ -779,29 +847,42 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		g.emitln("    TAG_STRING_REG rax")
 
 	case *Set:
-		offset, ok := env.Lookup(n.Name)
-		if !ok {
-			panic("unknown variable: " + n.Name)
-		}
 
 		g.emitExpr(n.Expr, env)
 
-		g.emitln(fmt.Sprintf(
-			"    mov [rbp-%d], rax",
-			offset,
-		))
-
-	case *Symbol:
-		offset, ok := env.Lookup(n.Name)
-		if !ok {
-			panic("unknown symbol: " + n.Name)
+		if offset, ok := env.Lookup(n.Name); ok {
+			g.emitln(fmt.Sprintf(
+				"    mov [rbp-%d], rax",
+				offset,
+			))
+			return
 		}
 
-		g.emitln(fmt.Sprintf(
-			"    mov rax, [rbp-%d]",
-			offset,
-		))
+		if offset, ok := env.LookupCapture(n.Name); ok {
+			g.emitln(fmt.Sprintf(
+				"    mov [r15+%d], rax",
+				offset,
+			))
+			return
+		}
+		panic("unknown variable: " + n.Name)
+	case *Symbol:
+		if offset, ok := env.Lookup(n.Name); ok {
+			g.emitln(fmt.Sprintf(
+				"    mov rax, [rbp-%d]",
+				offset,
+			))
+			return
+		}
 
+		if offset, ok := env.LookupCapture(n.Name); ok {
+			g.emitln(fmt.Sprintf(
+				"    mov rax, [r15+%d]",
+				offset,
+			))
+			return
+		}
+		panic("unknown symbol: " + n.Name)
 	default:
 		panic(fmt.Sprintf("emitExpr: Unhandled node type:%T value:%V\n", n, n))
 	}
@@ -860,7 +941,7 @@ func (g *Generator) emitLambda(l *Lambda) {
 	g.emitln("    mov rbp, rsp")
 	g.emitln("    sub rsp, 256 ;; guess at space for locals")
 
-	env := NewEnv(nil)
+	lambdaEnv := NewEnv(nil)
 
 	regs := []string{
 		"rdi",
@@ -874,7 +955,7 @@ func (g *Generator) emitLambda(l *Lambda) {
 	for i, p := range l.Params {
 		offset := (i + 1) * 8
 
-		env.slots[p] = offset
+		lambdaEnv.slots[p] = offset
 
 		g.emitln(fmt.Sprintf(
 			"    mov [rbp-%d], %s",
@@ -882,25 +963,31 @@ func (g *Generator) emitLambda(l *Lambda) {
 			regs[i],
 		))
 	}
+	for i, cap := range l.Captures {
+		lambdaEnv.captures[cap] = 8 * (i + 1)
+	}
 
 	for _, xpr := range l.Exprs {
-		g.emitExpr(xpr, env)
+		g.emitExpr(xpr, lambdaEnv)
 	}
 
 	g.emitln("    leave")
 	g.emitln("    ret")
 }
 
+// Generate creates and returns the assembly language source for the given
+// list of functions.
 func (g *Generator) Generate(defs []*Defun) string {
 
 	defuns := ""
 
-	// Now the user-defined functions
+	// Generate the user-defined functions to our internal buffer.
 	for _, d := range defs {
 		g.emitDefun(d)
 		g.emitln("")
 	}
 
+	// Get them, and clear the buffer.
 	defuns = g.text.String()
 	g.text.Reset()
 
@@ -924,25 +1011,40 @@ func (g *Generator) Generate(defs []*Defun) string {
 	stringTable = g.text.String()
 	g.text.Reset()
 
+	// Define a simple structure we can pass to the text/template
+	// file we render for our output
 	type Generated struct {
-		Defuns      string
-		Lambdas     string
+		// The defintions of defun's we've seen.
+		Defuns string
+
+		// Lambdas has all the lambda expressions we've seen.
+		Lambdas string
+
+		// StringTable contains the strings we've seen.
 		StringTable string
 	}
+
+	// Create an instance to populate the template with
 	x := &Generated{
 		Defuns:      defuns,
 		Lambdas:     lambdas,
 		StringTable: stringTable,
 	}
 
+	// Create a buffer to render the template to.
 	buf := bytes.Buffer{}
+
+	// Load the template, and parse it.
 	t1 := template.New("t1")
 	t1 = template.Must(t1.Parse(tmplTxt))
+
+	// Render the template.
 	err := t1.Execute(&buf, x)
 	if err != nil {
 		panic(err)
 	}
 
+	// Now return the text of that rendered template.
 	return buf.String()
 }
 
