@@ -29,7 +29,9 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
 	_ "embed"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
@@ -65,13 +67,6 @@ type Symbol struct {
 }
 
 type Nil struct {
-}
-
-// StringLiteral is used for inline strings.
-// TODO: Interning.
-type StringLiteral struct {
-	Label string
-	Value string
 }
 
 // specials
@@ -561,13 +556,23 @@ type Generator struct {
 	// labelID is used to give unique labels to if/lambda/etc
 	labelID int
 
-	// strings holds the strings we've encountered, we need to
-	// emit those with their labels later.
-	strings []StringLiteral
+	// strings holds the strings we've encountered, indexed
+	// by their SHA1 sum as ID.
+	strings map[string]string
 
 	// lambdas holds the lambdas we've encountered and we need
 	// to emit those later too.
 	lambdas []*Lambda
+}
+
+// addString creates a unique label for our strings,
+// based on the SHA1-hash.  Interning them.
+func (g *Generator) addString(str string) string {
+	hasher := sha1.New()
+	hasher.Write([]byte(str))
+	sha := hex.EncodeToString(hasher.Sum(nil))
+	id := fmt.Sprintf("str_%s", sha)
+	return id
 }
 
 // label generates a new label, with the given prefix.
@@ -831,18 +836,13 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		g.emitln("    TAG_NIL_REG rax  ; Tagged")
 
 	case *String:
-		// create a label
-		lbl := g.label("str")
+		// create a label, based on the hash of the content.
+		// This has the side-effect of interning.
+		lbl := g.addString(n.Value)
 
 		// save the string, because we're gonna put it into the
 		// generated code, later.
-		g.strings = append(
-			g.strings,
-			StringLiteral{
-				Label: lbl,
-				Value: n.Value,
-			},
-		)
+		g.strings[lbl] = n.Value
 
 		// load the address of the label and tag.
 		g.emitln(fmt.Sprintf("    lea rax, %s", lbl))
@@ -981,6 +981,9 @@ func (g *Generator) emitLambda(l *Lambda) {
 // list of functions.
 func (g *Generator) Generate(defs []*Defun) string {
 
+	// Ensure our string table is pristine
+	g.strings = make(map[string]string)
+
 	defuns := ""
 
 	// Generate the user-defined functions to our internal buffer.
@@ -1005,10 +1008,14 @@ func (g *Generator) Generate(defs []*Defun) string {
 	// Then the string-table for user-defined strings
 	stringTable := ""
 	g.emitln("section .data")
-	for _, s := range g.strings {
+	for id, str := range g.strings {
 		g.emitln("align 8")
-		g.emitln(s.Label + ":")
-		g.emitln(fmt.Sprintf("     db `%s`, 0", s.Value))
+		g.emitln(id + ":")
+
+		// escape the "`" which are wrapped around the string.
+		str = strings.ReplaceAll(str, "`", "\\`")
+
+		g.emitln(fmt.Sprintf("     db `%s`, 0", str))
 	}
 	stringTable = g.text.String()
 	g.text.Reset()
