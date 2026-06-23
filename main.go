@@ -40,7 +40,7 @@ import (
 	"text/template"
 )
 
-//go:embed stdlib.lisp
+//go:embed stdlib.slisp
 var stdlibLisp string
 
 //go:embed template.tmpl
