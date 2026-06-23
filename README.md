@@ -65,7 +65,7 @@ Finally our [test/](test/) directory contains test-cases which demonstrate speci
 ## Features
 
 * Support for functions, bindings, and basic mathematical operations.
-* A rough and ready bump-allocator for easy heap-allocated cons-cells.
+* A rough and ready bump-allocator used for heap-allocated cons-cells.
 * Support for integers, nil, strings, lambdas, and cons pairs.
   * Run-time type detection via functions:
     * `(cons? x)` - True if the item is a cons pair.
@@ -73,12 +73,16 @@ Finally our [test/](test/) directory contains test-cases which demonstrate speci
     * `(lambda? x)` - True if the item is a lambda.
     * `(nil? x)` - True if the item is nil.
     * `(str? y)` - True if the item is a string.
-* Primitives
+* Primitives written in assembly language:
   * `(exit N)` - Exit with the given status-code.
   * `(printint N)` - prints the given number to STDOUT.
   * `(printstr STR)` - prints the given string to STDOUT.
   * `(newline)` - prints a newline.
   * `(putc 42)` - write the given ASCII character to STDOUT.
+  * These are all contained within the [template.tmpl](template.tmpl) file we use for generating our output.
+* Primitives writing in slisp itself:
+  * [stdlib.lisp](stdlib.lisp) contains some useful functions available to all programs.
+  * This is pre-pended to any user-supplied source file, unless `-stdlib=false` is used.
 * Special forms
   * `(do ..)`
   * `(if ..)`
@@ -92,6 +96,9 @@ Finally our [test/](test/) directory contains test-cases which demonstrate speci
 Anti-features:
 
 * No closures.
+* No garbage collection.
+* No macros.
+* No quote.
 
 
 
