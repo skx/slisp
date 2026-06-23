@@ -63,6 +63,7 @@ import (
 
 type Expr interface{}
 
+// Types
 type Int struct {
 	Value int64
 }
@@ -82,20 +83,16 @@ type Symbol struct {
 type Nil struct {
 }
 
-type Call struct {
-	Fn   Expr
-	Args []Expr
-}
-
-type If struct {
-	Cond Expr
-	Then Expr
-	Else Expr
-}
+// specials
 
 type Binding struct {
 	Name string
 	Expr Expr
+}
+
+type Call struct {
+	Fn   Expr
+	Args []Expr
 }
 
 type Defun struct {
@@ -108,6 +105,12 @@ type Do struct {
 	Exprs []Expr
 }
 
+type If struct {
+	Cond Expr
+	Then Expr
+	Else Expr
+}
+
 type Lambda struct {
 	// name is auto-generated when we encounter the lambda
 	name   string
@@ -118,6 +121,11 @@ type Lambda struct {
 type Let struct {
 	Bindings []Binding
 	Body     Expr
+}
+
+type Set struct {
+	Name string
+	Expr Expr
 }
 
 //
@@ -416,6 +424,17 @@ func (p *Parser) parseList() Expr {
 			p.expect(")")
 
 			return p.buildList(args)
+
+		case "set!":
+			name := p.next()
+			expr := p.parseExpr()
+
+			p.expect(")")
+
+			return &Set{
+				Name: name,
+				Expr: expr,
+			}
 		default:
 			var args []Expr
 
@@ -508,115 +527,25 @@ func (g *Generator) emitln(s string) {
 
 func asmName(name string) string {
 	switch name {
-	case "int?":
-		return "intp"
-	case "str?":
-		return "strp"
 	case "cons?":
 		return "consp"
+	case "int?":
+		return "intp"
 	case "lambda?":
 		return "lambdap"
 	case "nil?":
 		return "nilp"
+	case "set!":
+		return "set"
+	case "str?":
+		return "strp"
 	}
 	return name
 }
 
 func (g *Generator) emitExpr(e Expr, env *Env) {
 	switch n := e.(type) {
-
-	case *Int:
-		g.emitln(fmt.Sprintf("    mov rax, %d", n.Value))
-		g.emitln("   TAG_INTEGER_REG rax")
-
-	case *Lambda:
-		// create a unique name for this lambda
-		name := fmt.Sprintf("lambda_%d", g.labelID)
-		g.labelID++
-
-		// load the address - it will be compiled eventually.
-		g.emitln(fmt.Sprintf("    lea rax, %s", name))
-		g.emitln("    TAG_LAMBDA_REG rax")
-
-		// save away the lambda in the list of lambdas we
-		// know about, because we do need to compile it .. later
-		n.name = name
-		g.lambdas = append(g.lambdas, n)
-
-	case *String:
-		lbl := g.label("str")
-		g.strings = append(
-			g.strings,
-			StringLiteral{
-				Label: lbl,
-				Value: n.Value,
-			},
-		)
-		g.emitln(fmt.Sprintf("    lea rax, %s", lbl))
-		g.emitln("    TAG_STRING_REG rax")
-
-	case *Symbol:
-		offset, ok := env.Lookup(n.Name)
-		if !ok {
-			panic("unknown symbol: " + n.Name)
-		}
-
-		g.emitln(fmt.Sprintf(
-			"    mov rax, [rbp-%d]",
-			offset,
-		))
-
-	case *Nil:
-		g.emitln("    mov rax, 0       ; NIL")
-		g.emitln("    TAG_NIL_REG rax  ; Tagged")
-
-	case *If:
-		elseLbl := g.label("else")
-		endLbl := g.label("endif")
-
-		g.emitExpr(n.Cond, env)
-
-		g.emitln("    and rax, 7    ; get type bits")
-		g.emitln("    cmp rax, 7    ; is this a nil?")
-		g.emitln("    jz " + elseLbl)
-
-		g.emitExpr(n.Then, env)
-
-		g.emitln("    jmp " + endLbl)
-
-		g.emitln(elseLbl + ":")
-
-		// else branch is optional
-		if n.Else != nil {
-			g.emitExpr(n.Else, env)
-		}
-		g.emitln(endLbl + ":")
-
-	case *Let:
-		child := NewEnv(env)
-
-		nextSlot := len(child.slots)
-
-		for _, b := range n.Bindings {
-
-			g.emitExpr(b.Expr, env)
-
-			offset := (nextSlot + 1) * 8
-
-			child.slots[b.Name] = offset
-
-			g.emitln(fmt.Sprintf(
-				"    mov [rbp-%d], rax",
-				offset,
-			))
-
-			nextSlot++
-		}
-
-		g.emitExpr(n.Body, child)
-
 	case *Call:
-
 		if symbol, ok := n.Fn.(*Symbol); ok {
 			if symbol.Name == "<=" {
 				g.emitExpr(n.Args[0], env)
@@ -777,16 +706,120 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		}
 
 		// evaluate callable expression
-
 		g.emitExpr(n.Fn, env)
 
 		g.emitln("    UNTAG_REG rax")
 		g.emitln("    call rax")
-	case *Do:
 
+	case *Do:
 		for _, expr := range n.Exprs {
 			g.emitExpr(expr, env)
 		}
+
+	case *Int:
+		g.emitln(fmt.Sprintf("    mov rax, %d", n.Value))
+		g.emitln("   TAG_INTEGER_REG rax")
+
+	case *If:
+		elseLbl := g.label("else")
+		endLbl := g.label("endif")
+
+		g.emitExpr(n.Cond, env)
+
+		g.emitln("    and rax, 7    ; get type bits")
+		g.emitln("    cmp rax, 7    ; is this a nil?")
+		g.emitln("    jz " + elseLbl)
+
+		g.emitExpr(n.Then, env)
+
+		g.emitln("    jmp " + endLbl)
+
+		g.emitln(elseLbl + ":")
+
+		// else branch is optional
+		if n.Else != nil {
+			g.emitExpr(n.Else, env)
+		}
+		g.emitln(endLbl + ":")
+
+	case *Lambda:
+		// create a unique name for this lambda
+		name := fmt.Sprintf("lambda_%d", g.labelID)
+		g.labelID++
+
+		// load the address - it will be compiled eventually.
+		g.emitln(fmt.Sprintf("    lea rax, %s", name))
+		g.emitln("    TAG_LAMBDA_REG rax")
+
+		// save away the lambda in the list of lambdas we
+		// know about, because we do need to compile it .. later
+		n.name = name
+		g.lambdas = append(g.lambdas, n)
+
+	case *Let:
+		child := NewEnv(env)
+
+		nextSlot := len(child.slots)
+
+		for _, b := range n.Bindings {
+
+			g.emitExpr(b.Expr, env)
+
+			offset := (nextSlot + 1) * 8
+
+			child.slots[b.Name] = offset
+
+			g.emitln(fmt.Sprintf(
+				"    mov [rbp-%d], rax",
+				offset,
+			))
+
+			nextSlot++
+		}
+
+		g.emitExpr(n.Body, child)
+
+	case *Nil:
+		g.emitln("    mov rax, 0       ; NIL")
+		g.emitln("    TAG_NIL_REG rax  ; Tagged")
+
+	case *String:
+		lbl := g.label("str")
+		g.strings = append(
+			g.strings,
+			StringLiteral{
+				Label: lbl,
+				Value: n.Value,
+			},
+		)
+		g.emitln(fmt.Sprintf("    lea rax, %s", lbl))
+		g.emitln("    TAG_STRING_REG rax")
+
+	case *Set:
+
+		offset, ok := env.Lookup(n.Name)
+		if !ok {
+			panic("unknown variable: " + n.Name)
+		}
+
+		g.emitExpr(n.Expr, env)
+
+		g.emitln(fmt.Sprintf(
+			"    mov [rbp-%d], rax",
+			offset,
+		))
+
+	case *Symbol:
+		offset, ok := env.Lookup(n.Name)
+		if !ok {
+			panic("unknown symbol: " + n.Name)
+		}
+
+		g.emitln(fmt.Sprintf(
+			"    mov rax, [rbp-%d]",
+			offset,
+		))
+
 	default:
 
 		panic(fmt.Sprintf("%T %V\n", n, n))
