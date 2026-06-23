@@ -570,6 +570,8 @@ func asmName(name string) string {
 	// comparisons
 	case "=", "==":
 		return "equals"
+	case "!":
+		return "not"
 	case "<=":
 		return "lt_equals"
 	case "<":
