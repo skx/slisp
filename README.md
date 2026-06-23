@@ -35,7 +35,7 @@ See [example.lisp](example.lisp) for a genuine/bigger example.
 
 We prepend a standard library of functions, implemented in `slisp` itself of course, to all user programs unless `-stdlib=false` is added to the command line.  That library itself is a useful reference/demonstration of functionality:
 
-* [stdlib.slisp](stdlib.slisp) - Our standard library, writtein `slisp` itself.
+* [stdlib.slisp](stdlib.slisp) - Our standard library, written in `slisp` itself.
   * Has a flexible `print` definition.
   * Has `map`, `length` and similar general-purpose functions.
 
