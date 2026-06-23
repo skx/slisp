@@ -65,6 +65,7 @@ Finally our [test/](test/) directory contains test-cases which demonstrate speci
 ## Features
 
 * Support for functions, bindings, and basic mathematical operations.
+* Support for lambdas, with closures.
 * A rough and ready bump-allocator used for heap-allocated cons-cells.
 * Mathematical operations:
   * `+`, `-`, `*`, `/`.
@@ -99,7 +100,6 @@ Finally our [test/](test/) directory contains test-cases which demonstrate speci
 
 Anti-features:
 
-* No closures.
 * No garbage collection.
 * No macros.
 * No quote.

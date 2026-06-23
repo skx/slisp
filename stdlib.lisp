@@ -9,6 +9,8 @@
       (printstr "<nil>"))
   (if (str? x)
       (printstr x))
+  (if (lambda? x)
+      (printstr "<lambda>"))
   (if (cons? x)
       (do
        (putc 40)      ; "("
