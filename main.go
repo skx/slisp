@@ -730,8 +730,8 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 
 		g.emitExpr(n.Cond, env)
 
-		g.emitln("    and rax, 7    ; get type bits")
-		g.emitln("    cmp rax, 7    ; is this a nil?")
+		g.emitln("    TAG_BITS rax         ; get type bits")
+		g.emitln("    cmp rax, TAG_ID_NIL  ; is this a nil?")
 		g.emitln("    jz " + elseLbl)
 
 		g.emitExpr(n.Then, env)
