@@ -183,6 +183,41 @@ integer_multiply:
    ret
 
 
+;; NOT
+;; a nil becomes 1.
+;; anything else becomes nil
+not:
+    mov rax, rdi
+    and rax, 7
+    cmp rax, 7
+    jz .nil
+    mov rax, 0
+    TAG_NIL_REG rax
+    ret
+.nil:
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+
+;; =
+equals:
+    mov rax, rdi
+    mov rbx, rsi
+    and rbx, 7     ; type of arg
+    and rax, 7     ; type of arg
+    cmp rax, rbx
+    jnz .nil       ; different types?  Then not equal
+    cmp rdi, rsi   ; same types, so compare the values directly
+    jnz .nil
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+.nil:
+    mov rax, 0
+    TAG_NIL_REG rax
+    ret
+
+
 ;; <=
 lt_equals:
     UNTAG_REG rdi
