@@ -66,6 +66,10 @@ Finally our [test/](test/) directory contains test-cases which demonstrate speci
 
 * Support for functions, bindings, and basic mathematical operations.
 * A rough and ready bump-allocator used for heap-allocated cons-cells.
+* Mathematical operations:
+  * `+`, `-`, `*`, `/`.
+* Comparision operations:
+  * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
 * Support for integers, nil, strings, lambdas, and cons pairs.
   * Run-time type detection via functions:
     * `(cons? x)` - True if the item is a cons pair.
