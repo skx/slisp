@@ -35,7 +35,7 @@ See [example.lisp](example.lisp) for a genuine/bigger example.
 
 We prepend a standard library of functions, implemented in `slisp` itself of course, to all user programs unless `-stdlib=false` is added to the command line.  That library itself is a useful reference/demonstration of functionality:
 
-* [stdlib.lisp](stdlib.lisp) - Our lisp standard library.
+* [stdlib.slisp](stdlib.slisp) - Our standard library, writtein `slisp` itself.
   * Has a flexible `print` definition.
   * Has `map`, `length` and similar general-purpose functions.
 
@@ -65,7 +65,7 @@ Additionally our [test/](test/) directory contains test-cases which demonstrate 
   * `(putc 42)` - write the given ASCII character to STDOUT.
   * These are all contained within the [template.tmpl](template.tmpl) file we use for generating our output.
 * Primitives writing in slisp itself:
-  * [stdlib.lisp](stdlib.lisp) contains some useful functions available to all programs.
+  * [stdlib.slisp](stdlib.slisp) contains some useful functions available to all programs.
   * This is pre-pended to any user-supplied source file, unless `-stdlib=false` is used.
 * Special forms
   * `(do ..)`
