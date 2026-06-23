@@ -72,15 +72,17 @@ type String struct {
 	Value string
 }
 
-type StringLiteral struct {
-	Label string
-	Value string
-}
 type Symbol struct {
 	Name string
 }
 
 type Nil struct {
+}
+
+// Used for inline strings
+type StringLiteral struct {
+	Label string
+	Value string
 }
 
 // specials
@@ -132,6 +134,8 @@ type Set struct {
 // Lexer
 //
 
+// tokenize is a trivial tokenizer which can handle strings, comments, and
+// basic splitting.
 func tokenize(src string) []string {
 	var out []string
 	var cur strings.Builder
@@ -198,11 +202,13 @@ func tokenize(src string) []string {
 // Parser
 //
 
+// Parser holds our parse-state
 type Parser struct {
 	tokens []string
 	pos    int
 }
 
+// peek returns the next token, without consuming it.
 func (p *Parser) peek() string {
 	if p.pos >= len(p.tokens) {
 		return ""
@@ -210,18 +216,24 @@ func (p *Parser) peek() string {
 	return p.tokens[p.pos]
 }
 
+// next returns the next token.
 func (p *Parser) next() string {
 	t := p.peek()
 	p.pos++
 	return t
 }
 
+// expect confirms the next token is what is specified, if it isn't this
+// will panic.
 func (p *Parser) expect(s string) {
 	if p.next() != s {
 		panic("expected " + s)
 	}
 }
 
+// parseProgram uses the Parser and returns a series of functions "(defun .." from it.
+//
+// We don't allow top-level expressions in our language.
 func parseProgram(src string) []*Defun {
 	p := &Parser{
 		tokens: tokenize(src),
@@ -236,6 +248,8 @@ func parseProgram(src string) []*Defun {
 	return defs
 }
 
+// parseDefun parses a single function definition, containing an arbitrary number
+// of expressions within the body.
 func (p *Parser) parseDefun() *Defun {
 	p.expect("(")
 	if p.next() != "defun" {
@@ -292,6 +306,8 @@ func (p *Parser) buildList(args []Expr) Expr {
 
 	return result
 }
+
+// parseExpr parses a single expression, and returns the appropriate AST node.
 func (p *Parser) parseExpr() Expr {
 	t := p.peek()
 
@@ -315,10 +331,14 @@ func (p *Parser) parseExpr() Expr {
 	if t == "nil" {
 		return &Nil{}
 	}
+
 	// symbol
 	return &Symbol{Name: t}
 }
 
+// parseList parses a list, handling any special forms, but otherwise
+// converting "(foo bar baz)" into the AST node representing a call
+// to function "foo" with bar/baz arguments.
 func (p *Parser) parseList() Expr {
 	p.expect("(")
 
@@ -448,22 +468,12 @@ func (p *Parser) parseList() Expr {
 				Name: name,
 				Expr: expr,
 			}
-		default:
-			var args []Expr
-
-			for p.peek() != ")" {
-				args = append(args, p.parseExpr())
-			}
-
-			p.expect(")")
-
-			return &Call{
-				Fn:   &Symbol{Name: sym.Name},
-				Args: args,
-			}
 		}
 	}
 
+	// Not a special form.
+	//
+	// Just handle it as a Call expression with any arguments
 	var args []Expr
 
 	for p.peek() != ")" {
@@ -488,6 +498,7 @@ type Env struct {
 	slots  map[string]int
 }
 
+// NewEnv creates a new environment, with an optional parent.
 func NewEnv(parent *Env) *Env {
 	return &Env{
 		parent: parent,
@@ -495,6 +506,9 @@ func NewEnv(parent *Env) *Env {
 	}
 }
 
+// Lookup returns the slot-index of the given variable-name.
+//
+// If not found in the current scope the parent(s) will be searched, recursively.
 func (e *Env) Lookup(name string) (int, bool) {
 	if v, ok := e.slots[name]; ok {
 		return v, true
@@ -581,8 +595,10 @@ func asmName(name string) string {
 	return name
 }
 
+// emitExpr emits the code for each of our expression AST types.
 func (g *Generator) emitExpr(e Expr, env *Env) {
 	switch n := e.(type) {
+
 	case *Call:
 		if symbol, ok := n.Fn.(*Symbol); ok {
 
@@ -777,6 +793,9 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 	}
 }
 
+// emitDefun emits the body for the given function definition "(defun ..)".
+//
+// TODO: this is basically a copy/paste of emitLambda
 func (g *Generator) emitDefun(fn *Defun) {
 
 	g.emitln(fn.Name + ":")
@@ -816,6 +835,9 @@ func (g *Generator) emitDefun(fn *Defun) {
 	g.emitln("    ret")
 }
 
+// emitLambda emits the body for the given lambda definition "(lambda ..)".
+//
+// TODO: this is basically a copy/paste of emitDefun.
 func (g *Generator) emitLambda(l *Lambda) {
 
 	g.emitln(l.name + ":")
@@ -1103,7 +1125,8 @@ printstr:
     ret
 
 
-;; Allocate space for a new cons area, return it in RAX
+;; Allocate space for a new cons cell, return it in RAX.
+;;
 ;; 16-bytes; first has the CAR, second the CDR.
 cons:
     mov rax, [heap_ptr]      ; get the value of the heap pointer
@@ -1113,7 +1136,7 @@ cons:
     TAG_CONS_REG rax         ; return the tagged allocation
     ret
 
-;; Get the first item in the cons.
+;; Get the first item in the cons cell.
 car:
     mov rbx, rdi
     and rbx, 7
@@ -1123,7 +1146,7 @@ car:
     mov rax, [rdi]
     ret
 
-;; Get the second item in the cons.
+;; Get the second item in the cons cell.
 cdr:
     mov rbx, rdi
     and rbx, 7
