@@ -51,6 +51,7 @@ var tmplTxt string
 type Expr interface{}
 
 // Types
+
 type Int struct {
 	Value int64
 }
@@ -66,7 +67,8 @@ type Symbol struct {
 type Nil struct {
 }
 
-// Used for inline strings
+// StringLiteral is used for inline strings.
+// TODO: Interning.
 type StringLiteral struct {
 	Label string
 	Value string
@@ -506,9 +508,9 @@ func NewEnv(parent *Env) *Env {
 // We use this as a hack for lambda-closures, instead of performing
 // real free-variable analysis.
 func (e *Env) Names() []string {
-	res := []string{}
+	var res []string
 
-	for k, _ := range e.slots {
+	for k := range e.slots {
 		res = append(res, k)
 	}
 	if e.parent != nil {
