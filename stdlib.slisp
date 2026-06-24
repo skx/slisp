@@ -58,3 +58,15 @@
       (+ (car xs)
          (sum (cdr xs)))
       0))
+
+
+(defun reverseInner (xs acc)
+  "Helper to use an accumulator to reverse a list.
+  Used by 'reverse'"
+  (if (nil? xs)
+      acc
+      (reverseInner (cdr xs) (cons (car xs) acc))))
+
+(defun reverse (xs)
+   "Reverse the contents of the specified list."
+   (reverseInner xs nil))
