@@ -398,6 +398,30 @@ printstr:
     ret
 
 
+;; chr - convert an integer to a character
+chr:
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, rdi
+    and rax, 0xFF        ; Only 0-255 is ASCII
+    TAG_CHAR_REG rax
+    ret
+
+
+;; ord - convert a character to an integer.
+ord:
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_CHAR
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, rdi
+    TAG_INTEGER_REG rax
+    ret
+
 ;; Allocate space for a new cons cell, return it in RAX.
 ;;
 ;; 16-bytes; first has the CAR, second the CDR.
