@@ -66,6 +66,7 @@ Additionally our [test/](test/) directory contains test-cases which demonstrate 
      * `(implode (list #\h #\i))` is the reverse.
   * `(printint N)` - Prints the given number to STDOUT.
   * `(printstr STR)` - Prints the given string to STDOUT.
+  * `(reverse lst)` - Reverse a list.
   * `(newline)` - prints a newline.
   * `(putc 42)` - write the given ASCII character to STDOUT.
   * These are all contained within the [template.tmpl](template.tmpl) file we use for generating our output.
