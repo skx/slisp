@@ -26,4 +26,10 @@
     (println (explode str))
     ;; Print them character by character.
     (dumpchars str)
+
+    ;; join the exploded characters
+    (println (implode (cons #\H (cons #\e (cons #\l (cons #\l (cons #\o nil)))))))
+
+    (println (implode (explode "This is a test!")))
+
   ))
