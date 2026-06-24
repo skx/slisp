@@ -79,6 +79,9 @@ This must always be defined, and is where execution starts from."
          (print "We have a list of numbers: ")
          (println n)
 
+         (print "Reversed: ")
+         (println (reverse n))
+
          (println "Showing results of factorial for each entry in that list:")
          (factorials n)
 
