@@ -213,10 +213,11 @@ integer_minus:
 integer_divide:
    UNTAG_REG rdi
    UNTAG_REG rsi
-   mov rcx, rdi
-   mov rax, rsi
-   xor rdx, rdx
-   idiv rcx
+
+   mov rax, rdi
+   cqo
+   idiv rsi
+
    TAG_INTEGER_REG rax
    ret
 
