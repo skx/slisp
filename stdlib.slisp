@@ -59,6 +59,21 @@
          (sum (cdr xs)))
       0))
 
+;; Create ranges of numbers in a list
+(defun range (start end step)
+   "Create a list of numbers between the start and end bounds, inclusive, incrementing by the given offset each time."
+    (if (<= start end)
+        (cons start (range (+ start step) end step))
+      nil))
+
+(defun seq (n)
+    "Create, and return, list of number ranging from 0-N, inclusive."
+    (range 0 n 1))
+
+(defun nat (n)
+    "Create, and return, a list of numbers ranging from 1-N, inclusive."
+    (range 1 n 1))
+
 
 (defun reverseInner (xs acc)
   "Helper to use an accumulator to reverse a list.

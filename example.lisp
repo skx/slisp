@@ -109,7 +109,6 @@ This must always be defined, and is where execution starts from."
       (println (cons (cons (cons 12 31) 392) nil))
       (println (cons 1 (cons 2 (cons 3 nil))))
 
-
       ;; return value is the last thing compiled.
       0
       ;; You can be more explicit with (exit 0)
