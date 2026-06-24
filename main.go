@@ -654,6 +654,8 @@ func (g *Generator) asmName(name string) string {
 		return "integer_multiply"
 	case "/":
 		return "integer_divide"
+	case "%":
+		return "integer_modulus"
 
 	// type checks
 	case "cons?":

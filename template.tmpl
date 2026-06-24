@@ -220,6 +220,19 @@ integer_divide:
    TAG_INTEGER_REG rax
    ret
 
+;; %
+integer_modulus:
+   UNTAG_REG rdi
+   UNTAG_REG rsi
+
+   mov rax, rdi
+   cqo
+   idiv rsi
+
+   mov rax, rdx
+   TAG_INTEGER_REG rax
+   ret
+
 ;; *
 integer_multiply:
    UNTAG_REG rdi
