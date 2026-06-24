@@ -54,6 +54,10 @@ type Expr interface{}
 
 // Types
 
+type Char struct {
+	Value byte
+}
+
 type Int struct {
 	Value int64
 }
@@ -305,6 +309,28 @@ func (p *Parser) parseExpr() Expr {
 	}
 
 	p.next()
+
+	// char
+	if strings.HasPrefix(t, "#\\") {
+		x := strings.TrimPrefix(t, "#\\")
+		c := x[0]
+		if c == '\\' && len(x) > 1 {
+			switch x[1] {
+			case 'a':
+				c = '\a'
+			case 'b':
+				c = '\b'
+			case 'r':
+				c = '\r'
+			case 't':
+				c = '\t'
+			case 'n':
+				c = '\n'
+
+			}
+		}
+		return &Char{Value: byte(c)}
+	}
 
 	// string
 	if strings.HasPrefix(t, "\"") {
@@ -620,6 +646,8 @@ func (g *Generator) asmName(name string) string {
 	// type checks
 	case "cons?":
 		return "consp"
+	case "char?":
+		return "charp"
 	case "int?":
 		return "intp"
 	case "lambda?":
@@ -715,6 +743,10 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		g.emitln("mov rax, [r15]")
 		g.emitln("call rax")
 
+	case *Char:
+		g.emitln(fmt.Sprintf("    mov rax, %d", n.Value))
+		g.emitln("   TAG_CHAR_REG rax")
+
 	case *Do:
 		for _, expr := range n.Exprs {
 			g.emitExpr(expr, env)
@@ -730,7 +762,7 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 
 		g.emitExpr(n.Cond, env)
 
-		g.emitln("    TAG_BITS rax         ; get type bits")
+		g.emitln("    GET_TAG_BITS rax     ; get type bits")
 		g.emitln("    cmp rax, TAG_ID_NIL  ; is this a nil?")
 		g.emitln("    jz " + elseLbl)
 

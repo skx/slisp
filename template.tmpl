@@ -18,8 +18,15 @@
 
 
 ;;; 1. macros
+;;
+;; We use the lower three bits of values to denote their type,
+;; string, int, char, lambda, cons, etc.
+;;
+;; These macros are to be used to tag a register with a given
+;; type, or get the type for processing and testing.
+;;
 
-; tag a register as a string
+; tag a register as an integer
 %macro TAG_INTEGER_REG 1
     sal %1, 3
 %endmacro
@@ -27,25 +34,32 @@
 ; tag a register as a string
 %macro TAG_STRING_REG 1
     sal %1, 3
-    or %1, 1
+    or %1, TAG_ID_STRING
 %endmacro
 
 ; tag a register as a cons pair
 %macro TAG_CONS_REG 1
     sal %1, 3
-    or %1, 2
+    or %1, TAG_ID_CONS
 %endmacro
 
 ; tag a register as a lambda
 %macro TAG_LAMBDA_REG 1
     sal %1, 3
-    or %1, 3
+    or %1, TAG_ID_LAMBDA
+%endmacro
+
+
+; tag a register as a character
+%macro TAG_CHAR_REG 1
+    sal %1, 3
+    or %1, TAG_ID_CHAR
 %endmacro
 
 ; tag a register as NIL
 %macro TAG_NIL_REG 1
     sal %1, 3
-    or %1, 7
+    or %1, TAG_ID_NIL
 %endmacro
 
 ; remove the tag-bits from a register.
@@ -55,7 +69,7 @@
 %endmacro
 
 ; get the tag bits for the given register.
-%macro TAG_BITS 1
+%macro GET_TAG_BITS 1
     and %1, 7
 %endmacro
 
@@ -64,6 +78,7 @@ TAG_ID_INTEGER equ 0b000
 TAG_ID_STRING  equ 0b001
 TAG_ID_CONS    equ 0b010
 TAG_ID_LAMBDA  equ 0b011
+TAG_ID_CHAR    equ 0b100
 TAG_ID_NIL     equ 0b111
 
 
@@ -95,8 +110,22 @@ section .text
 ;; Is the given value an integer?
 intp:
     mov rax, rdi
-    TAG_BITS rax
+    GET_TAG_BITS rax
     cmp rax, TAG_ID_INTEGER
+    jnz .nil
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+.nil:
+    mov rax, 0
+    TAG_NIL_REG rax
+    ret
+
+;; Is the given value an character?
+charp:
+    mov rax, rdi
+    GET_TAG_BITS rax
+    cmp rax, TAG_ID_CHAR
     jnz .nil
     mov rax, 1
     TAG_INTEGER_REG rax
@@ -109,7 +138,7 @@ intp:
 ;; Is the given value a string?
 strp:
     mov rax, rdi
-    TAG_BITS rax
+    GET_TAG_BITS rax
     cmp rax, TAG_ID_STRING
     jnz .nil
     mov rax, 1
@@ -123,7 +152,7 @@ strp:
 ;; Is the given value a cons?
 consp:
     mov rax, rdi
-    TAG_BITS rax
+    GET_TAG_BITS rax
     cmp rax, TAG_ID_CONS
     jnz .nil
     mov rax, 1
@@ -137,7 +166,7 @@ consp:
 ;; is the given value a lambda?
 lambdap:
     mov rax, rdi
-    TAG_BITS rax
+    GET_TAG_BITS rax
     cmp rax, TAG_ID_LAMBDA
     jnz .nil
     mov rax, 1
@@ -151,7 +180,7 @@ lambdap:
 ;; Is the given value nil?
 nilp:
     mov rax, rdi
-    TAG_BITS rax
+    GET_TAG_BITS rax
     cmp rax, TAG_ID_NIL
     jnz .nil
     mov rax, 1
@@ -208,7 +237,7 @@ integer_multiply:
 ;; anything else becomes nil
 not:
     mov rax, rdi
-    TAG_BITS rax
+    GET_TAG_BITS rax
     cmp rax, TAG_ID_NIL
     jz .nil
     mov rax, 0
@@ -223,8 +252,8 @@ not:
 equals:
     mov rax, rdi
     mov rbx, rsi
-    TAG_BITS rbx     ; type of arg
-    TAG_BITS rax     ; type of arg
+    GET_TAG_BITS rbx     ; type of arg
+    GET_TAG_BITS rax     ; type of arg
     cmp rax, rbx
     jnz .nil         ; different types?  Then not equal
     cmp rdi, rsi     ; same types, so compare the values directly
@@ -383,7 +412,7 @@ cons:
 ;; Get the first item in the cons cell.
 car:
     mov rbx, rdi
-    TAG_BITS rbx
+    GET_TAG_BITS rbx
     cmp rbx, TAG_ID_CONS
     jne type_error
     UNTAG_REG rdi
@@ -393,7 +422,7 @@ car:
 ;; Get the second item in the cons cell.
 cdr:
     mov rbx, rdi
-    TAG_BITS rbx
+    GET_TAG_BITS rbx
     cmp rbx, TAG_ID_CONS
     jne type_error
     UNTAG_REG rdi

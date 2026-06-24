@@ -5,6 +5,8 @@
 (defun print (x)
   (if (int? x)
       (printint x))
+  (if (char? x)
+      (putc x))
   (if (nil? x)
       (printstr "<nil>"))
   (if (str? x)
