@@ -263,8 +263,20 @@ func (p *Parser) parseDefun() *Defun {
 	body := []Expr{}
 
 	// allow multiple expressions
-	for {
+	for p.peek() != "" {
+		// get the expression
 		expr := p.parseExpr()
+
+		// If there are no expressions
+		if len(body) == 0 {
+			// And the first expression is a string
+			// we just ignore it and continue, around this
+			// loop again.
+			switch expr.(type) {
+			case *String:
+				continue
+			}
+		}
 		body = append(body, expr)
 
 		// stop if we see a close
@@ -366,7 +378,7 @@ func (p *Parser) parseList() Expr {
 
 			var exprs []Expr
 
-			for p.peek() != ")" {
+			for p.peek() != ")" && p.peek() != "" {
 				exprs = append(exprs, p.parseExpr())
 			}
 
@@ -395,7 +407,7 @@ func (p *Parser) parseList() Expr {
 			p.expect("(")
 
 			var params []string
-			for p.peek() != ")" {
+			for p.peek() != ")" && p.peek() != "" {
 				params = append(params, p.next())
 			}
 			p.expect(")")
@@ -404,7 +416,7 @@ func (p *Parser) parseList() Expr {
 			body := []Expr{}
 
 			// allow multiple expressions
-			for {
+			for p.peek() != "" {
 				expr := p.parseExpr()
 				body = append(body, expr)
 
@@ -427,7 +439,7 @@ func (p *Parser) parseList() Expr {
 
 			var binds []Binding
 
-			for p.peek() == "(" {
+			for p.peek() == "(" && p.peek() != "" {
 				p.expect("(")
 				name := p.next()
 				expr := p.parseExpr()
@@ -445,7 +457,7 @@ func (p *Parser) parseList() Expr {
 			body := []Expr{}
 
 			// allow multiple expressions
-			for {
+			for p.peek() != "" {
 				expr := p.parseExpr()
 				body = append(body, expr)
 
@@ -465,7 +477,7 @@ func (p *Parser) parseList() Expr {
 		case "list":
 			var args []Expr
 
-			for p.peek() != ")" {
+			for p.peek() != ")" && p.peek() != "" {
 				args = append(args, p.parseExpr())
 			}
 
@@ -491,7 +503,7 @@ func (p *Parser) parseList() Expr {
 	// Just handle it as a Call expression with any arguments
 	var args []Expr
 
-	for p.peek() != ")" {
+	for p.peek() != ")" && p.peek() != "" {
 		args = append(args, p.parseExpr())
 	}
 
@@ -642,6 +654,8 @@ func (g *Generator) asmName(name string) string {
 		return "integer_multiply"
 	case "/":
 		return "integer_divide"
+	case "%":
+		return "integer_modulus"
 
 	// type checks
 	case "cons?":

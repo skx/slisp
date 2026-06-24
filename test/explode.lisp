@@ -1,4 +1,5 @@
 (defun dumpchars_inner (lst idx)
+  "For each list item print the value of the list item, and it's index"
   (if (nil? lst)
       nil
     (do
@@ -11,6 +12,9 @@
 
 
 (defun dumpchars (str)
+  "Call the internal helper to dump the characters and indexes of each character in the string.
+
+(The explode function returns a list of characters.)"
   (dumpchars_inner (explode str) 0))
 
 

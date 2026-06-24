@@ -1,5 +1,6 @@
 ;; little countdown to test maths
 (defun main ()
+  "Simple mathematical operations, which will do a count-down from 10-0."
 
       (printint (+ (* 4 2) 2))
       (newline)
