@@ -31,15 +31,13 @@ Lisp is traditionally interactive, and provides a REPL, but having a compiled ve
       0)
 ```
 
-See [example.lisp](example.lisp) for a genuine/bigger example.
+See [example.lisp](example.lisp) for a bigger example.
 
-We prepend a standard library of functions, implemented in `slisp` itself of course, to all user programs unless `-stdlib=false` is added to the command line.  That library itself is a useful reference/demonstration of functionality:
+It should be noted that we prepend a standard library of functions to all user programs unless `-stdlib=false` is added to the command line.  That library itself is a useful reference/demonstration of functionality:
 
 * [stdlib.slisp](stdlib.slisp) - Our standard library, written in `slisp` itself.
-  * Has a flexible `print` definition.
+  * Has a good `print` definition which handles known types appropriately.
   * Has `map`, `length` and similar general-purpose functions.
-
-Additionally our [test/](test/) directory contains test-cases which demonstrate specific things.
 
 
 
@@ -96,11 +94,7 @@ Finally execute your program:
 
 ## Testing
 
-There are some test programs beneath `test/`.  To compile them all:
-
-```sh
-cd test && make
-```
+There are some test programs beneath [test/](test/).  These compile fixed programs and compare their output to known-good results.
 
 To run the tests:
 
@@ -108,7 +102,7 @@ To run the tests:
 cd test && make test
 ```
 
-Finally `make clean` will remove the test artifacts, and compiled programs.
+Running `make clean` at the top-level will remove the test artifacts, and compiled programs.
 
 
 
