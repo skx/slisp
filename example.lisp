@@ -6,7 +6,7 @@
 
 ;; print every item in a list.
 ;;
-;; (print ..) is included in stdlib.list, and knows how to print
+;; (print ..) is included in stdlib.slisp, and knows how to print
 ;; integers, nil, strings, cons cells, etc.
 ;;
 (defun print_list (xs)
@@ -41,14 +41,20 @@
         (factorials (cdr xs)))
       ))
 
-;; Setup a binding for "X" to be a function-result.
-;; Setup Y for a literal.
-;; Print them both
+;;
+;; main is the entry-point to our compiled code.
+;;
 (defun main ()
+
+  ;;
+  ;; Declare some variables:
+  ;;
+  ;;   x -> (* 2 13)
+  ;;   y -> 12
+  ;;
   (let (
         (x (double 13))
-        (y 12)
-        (n (list 1 2 3 4 5 6 7 8 9 10)))
+        (y 12))
 
      (println "Hello World! I am a compiled lisp")
 
