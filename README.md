@@ -63,6 +63,7 @@ Additionally our [test/](test/) directory contains test-cases which demonstrate 
   * `(chr x) ` and `(ord x)` to convert between characters and integers.
   * `(exit N)` - Terminate a program with the given status-code.
   * `(explode str)` - Convert the given string into a list of characters.
+     * `(implode (list #\h #\i))` is the reverse.
   * `(printint N)` - Prints the given number to STDOUT.
   * `(printstr STR)` - Prints the given string to STDOUT.
   * `(newline)` - prints a newline.
