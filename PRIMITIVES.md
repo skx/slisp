@@ -71,6 +71,8 @@ Core primitives are implemented in assembly language, and can be found within th
     * Convert the supplied string to a list of characters.
   * `implode`
     * Convert the given list of characters to a string.
+  * `nat`
+    * Return the list of natural numbers 1 to N.
   * `newline`
     * Print a newline.
   * `not`
@@ -83,6 +85,10 @@ Core primitives are implemented in assembly language, and can be found within th
     * Print the specified integer.
   * `printstr`
     * Print the given string.
+  * `range`
+    * Return a list of numbers between the given start/end, using the specified step-size.
+  * `seq`
+    * Return a list of numbers from 0 to N.
 
 
 
