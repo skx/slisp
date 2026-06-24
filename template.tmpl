@@ -509,6 +509,62 @@ explode:
     ret
 
 
+;; join a character list to a string
+implode:
+    mov rbx,rdi
+    xor rcx,rcx
+
+.count:
+    mov rax,rbx
+    GET_TAG_BITS rax
+    cmp rax,TAG_ID_NIL
+    je .have_len
+
+    ; verify cons
+    mov rax,rbx
+    GET_TAG_BITS rax
+    cmp rax,TAG_ID_CONS
+    jne type_error
+    inc rcx
+    mov rax,rbx
+    UNTAG_REG rax
+    mov rbx,[rax+8]
+    jmp .count
+
+.have_len:
+    mov rax,[heap_ptr]
+    mov rdx,rcx
+    inc rdx
+    add [heap_ptr],rdx
+    mov r8,rax
+
+    mov rbx,rdi
+    xor rcx,rcx
+.copy:
+    mov rax,rbx
+    GET_TAG_BITS rax
+    cmp rax,TAG_ID_NIL
+    je .finish
+
+    mov rax,rbx
+    UNTAG_REG rax
+    mov rdx,[rax]
+    ; verify char
+    mov r9,rdx
+    GET_TAG_BITS r9
+    cmp r9,TAG_ID_CHAR
+    jne type_error
+    UNTAG_REG rdx
+    mov [r8+rcx],dl
+    inc rcx
+    mov rbx,[rax+8]
+    jmp .copy
+.finish:
+    mov byte [r8+rcx],0
+    mov rax,r8
+    TAG_STRING_REG rax
+    ret
+
 section .data
 
 ;; buffer for "\n", used by (newline)
