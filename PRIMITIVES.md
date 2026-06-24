@@ -8,7 +8,7 @@ Note that you might need to consult the source of the standard-library to see fu
 
 ## Symbols / Types
 
-The only notable special symbols is `nil` - the nil value.
+The only notable special symbol is `nil` - the nil value.
 
 Characters are specified via the `#\X` syntax, for escaped characters you just need to add the escape:
 
