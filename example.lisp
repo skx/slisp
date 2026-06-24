@@ -45,6 +45,9 @@
 ;; main is the entry-point to our compiled code.
 ;;
 (defun main ()
+  "main is the (mandatory) entry-point to our code.
+
+This must always be defined, and is where execution starts from."
 
   ;;
   ;; Declare some variables:
