@@ -1,4 +1,5 @@
 (defun makeAdder (n)
+  "makeAdder returns a function that will always add the given N to any value it is called with."
   (lambda (x)
     (+ x n)))
 

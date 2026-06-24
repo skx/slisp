@@ -1,4 +1,5 @@
 (defun counter ()
+  "Counter returns a function which will return an incrementing number every time it is called."
   (let ((n 0))
     (lambda ()
       (do

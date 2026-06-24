@@ -1,6 +1,6 @@
-;; create a binding for "x" [=1]
-;; update it, via set!
 (defun main()
+  "Test that set! will update the value of a local binding, as produced by 'let'."
+
   (let ((x 1))
      ;; x = 1
      (printint x)

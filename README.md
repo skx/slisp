@@ -48,17 +48,21 @@ Additionally our [test/](test/) directory contains test-cases which demonstrate 
 * Support for bindings, functions, lambdas, etc.
   * The lambdas have support for closures.
 * A rough and ready bump-allocator used for heap-allocated cons-cells.
-* Mathematical operations: `+`, `-`, `*`, `/`.
+* Mathematical operations: `+`, `-`, `*`, `/`, and `%`.
 * Comparision operations: `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
 * Support for integers, nil, strings, lambdas, and cons pairs (lists).
   * Run-time type detection via functions:
+    * `(char? x)` - True if the item is a character.
     * `(cons? x)` - True if the item is a cons pair.
     * `(int? x)` - True if the item is an int.
     * `(lambda? x)` - True if the item is a lambda.
     * `(nil? x)` - True if the item is nil.
     * `(str? y)` - True if the item is a string.
 * Primitives written in assembly language:
+  * `(cons a b)`, `(car x)`, `(cdr x)` to create cons cells and/or lists.
+  * `(chr x) ` and `(ord x)` to convert between characters and integers.
   * `(exit N)` - Terminate a program with the given status-code.
+  * `(explode str)` - Convert the given string into a list of characters.
   * `(printint N)` - Prints the given number to STDOUT.
   * `(printstr STR)` - Prints the given string to STDOUT.
   * `(newline)` - prints a newline.
