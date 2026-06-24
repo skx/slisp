@@ -456,6 +456,45 @@ cdr:
 type_error:
     jmp exit
 
+
+;; Explode a string to a list of characters.
+;; find the length and work backwards.
+;; This is one of our more complex routines and yet it worked first time :D
+explode:
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    mov rsi, rdi
+.find_end:
+    cmp byte [rsi], 0
+    je .found_end
+    inc rsi
+    jmp .find_end
+.found_end:
+    xor rax, rax
+    TAG_NIL_REG rax
+.loop:
+    ; reached beginning?
+    cmp rsi, rdi
+    je .done
+    dec rsi
+    movzx rcx, byte [rsi]
+    mov rdx, rcx
+    TAG_CHAR_REG rdx
+    mov r8, [heap_ptr]
+    add qword [heap_ptr], 16
+    mov [r8], rdx
+    mov [r8+8], rax
+    mov rax, r8
+    TAG_CONS_REG rax
+    jmp .loop
+.done:
+    ret
+
+
 section .data
 
 ;; buffer for "\n", used by (newline)
