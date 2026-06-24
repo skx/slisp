@@ -45,49 +45,32 @@ Additionally our [test/](test/) directory contains test-cases which demonstrate 
 
 ## Features
 
-* Support for bindings, functions, lambdas, etc.
+* Support for bindings, functions, integers, strings, lambdas, lists, etc.
   * The lambdas have support for closures.
+  * Run-time type detection via functions such as `int?`, and `cons?`.
 * A rough and ready bump-allocator used for heap-allocated cons-cells.
-* Mathematical operations: `+`, `-`, `*`, `/`, and `%`.
-* Comparision operations: `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
-* Support for integers, nil, strings, lambdas, and cons pairs (lists).
-  * Run-time type detection via functions:
-    * `(char? x)` - True if the item is a character.
-    * `(cons? x)` - True if the item is a cons pair.
-    * `(int? x)` - True if the item is an int.
-    * `(lambda? x)` - True if the item is a lambda.
-    * `(nil? x)` - True if the item is nil.
-    * `(str? y)` - True if the item is a string.
-* Primitives written in assembly language:
-  * `(cons a b)`, `(car x)`, `(cdr x)` to create cons cells and/or lists.
-  * `(chr x) ` and `(ord x)` to convert between characters and integers.
-  * `(exit N)` - Terminate a program with the given status-code.
-  * `(explode str)` - Convert the given string into a list of characters.
-     * `(implode (list #\h #\i))` is the reverse.
-  * `(printint N)` - Prints the given number to STDOUT.
-  * `(printstr STR)` - Prints the given string to STDOUT.
-  * `(reverse lst)` - Reverse a list.
-  * `(newline)` - prints a newline.
-  * `(putc 42)` - write the given ASCII character to STDOUT.
-  * These are all contained within the [template.tmpl](template.tmpl) file we use for generating our output.
-* Primitives writing in slisp itself:
-  * [stdlib.slisp](stdlib.slisp) contains some useful functions available to all programs.
-  * This is pre-pended to any user-supplied source file, unless `-stdlib=false` is used.
+* Mathematical operations:
+  * `+`, `-`, `*`, `/`, and `%`.
+* Comparision operations:
+  * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
 * Special forms
+  * `(defun ..)`
   * `(do ..)`
   * `(if ..)`
-  * `(lambda ..)` - Including closures.
+  * `(lambda ..)`
   * `(let ..)`
   * `(list ..)`
-    * This turns `(list 1 2 3 4)` into `(cons 1 (cons 2 (cons 3 (cons 4 nil))))` at parse-time.
-    * Our `print` function handles displaying this correctly.  Woo.
   * `(set! ..)`
+
+You can see a complete list of our primitives, and their details in [PRIMITIVES.md](PRIMITIVES.md) - documenting both the built-in special-forms, and the parts of the standard library which are implemented in assembly, or `slisp` itself.
 
 Anti-features:
 
 * No garbage collection.
-* No macros - Could be implemented in the future, unsure yet if I want to.
-* No quote - Only really useful if you can call `eval` and as a compiler?  That's not going to happen easily.
+* No macros.
+  * It wouldn't be impossible to add them, but without `quote`, `quasiquote`, etc, it's a lot of work.
+* No `quote`
+  * Only really useful if you can call `eval` and as a compiler?  That's not going to happen easily.
 
 
 
