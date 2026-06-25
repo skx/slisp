@@ -350,7 +350,7 @@ func (p *Parser) parseExpr() Expr {
 	}
 
 	// integer
-	if n, err := strconv.ParseInt(t, 10, 64); err == nil {
+	if n, err := strconv.ParseInt(t, 0, 64); err == nil {
 		return &Int{Value: n}
 	}
 
