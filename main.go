@@ -635,7 +635,7 @@ func (g *Generator) asmName(name string) string {
 	case "=":
 		return "equals"
 	case "!":
-		return "not"
+		return "fn_not"
 	case "<=":
 		return "lt_equals"
 	case "<":
