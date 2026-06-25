@@ -34,7 +34,6 @@ Special forms are things that are built into the compiler core, and handled spec
   * Execute each statement in the list.
 * `if`
   * Our conditional operation.
-  * Note that we support multiple "else" statements, if the condition is not true.
 * `lambda`
   * Creates a lambda function.
 * `let`

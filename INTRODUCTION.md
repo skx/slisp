@@ -49,6 +49,21 @@ So:
 
 
 
+## DO
+
+The function `do` allows any number of expressions to be evaluated, and is useful if you want to run multiple expressions in inside one of the branches of an `if` expression, for example.
+
+Any time you want to run multiple expressions but only one is permitted use `do`:
+
+      (do
+        (print "I'm the first expression")
+        (print "I'm the second expression")
+        (print "Multiple expressions can happen here.."))
+
+Our `defun`, `lambda`, and `let` expressions allow an unlimited number of expressions to be executed within their bodies.  Our `if` expression only allows a single expression to be executed, but using `do` you can run more.
+
+
+
 ## IF
 
 `if` is a standard of lisp, and we support it:
@@ -57,17 +72,15 @@ So:
       (print "This is executed")
      (print "This is not"))
 
-Multiple expressions in the "else" branch:
-
-    (if nil
-      (print "This is not executed")
-     (print "This is executed")
-     (print "This is executed too")
-     (print "This is also executed")
-     (print "This is executed as well ..")
-     )
-
 The return value of the expression is the return value of the last executed expression.
+
+If you want to run multiple expressions in either the "true" or "false" branch use `do` as seen above.
+
+    (if (not nil)
+      (do
+        (print "I'm true")
+        (print "Multiple expressions can happen here..")
+        ))
 
 
 
