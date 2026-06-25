@@ -70,19 +70,22 @@ func (p *Parser) next() string {
 	return t
 }
 
-// expect confirms the next token is what is specified, if it isn't this
+// expectNext confirms the next token is what is specified, if it isn't this
 // will panic.
-func (p *Parser) expect(s string) {
+func (p *Parser) expectNext(s string) bool {
 	if p.next() != s {
-		panic("expected " + s)
+		return false
 	}
+	return true
 }
 
 // parseDefun parses a single function definition, containing an arbitrary number
 // of expressions within the body.
 func (p *Parser) parseDefun() (*Defun, error) {
 
-	p.expect("(")
+	if !p.expectNext("(") {
+		return nil, fmt.Errorf("expected '(' before opening defun")
+	}
 
 	tok := p.next()
 	if tok != "defun" {
@@ -91,13 +94,17 @@ func (p *Parser) parseDefun() (*Defun, error) {
 
 	name := p.next()
 
-	p.expect("(")
+	if !p.expectNext("(") {
+		return nil, fmt.Errorf("expected '(' before defun arguments")
+	}
 
 	var params []string
 	for p.peek() != ")" {
 		params = append(params, p.next())
 	}
-	p.expect(")")
+	if !p.expectNext(")") {
+		return nil, fmt.Errorf("expected ')' after defun arguments")
+	}
 
 	// body goes here
 	body := []Expr{}
@@ -129,7 +136,9 @@ func (p *Parser) parseDefun() (*Defun, error) {
 	}
 
 	// and ensure we do see that close
-	p.expect(")")
+	if !p.expectNext(")") {
+		return nil, fmt.Errorf("expected ')' after defun body")
+	}
 
 	return &Defun{
 		Name:   name,
@@ -210,7 +219,10 @@ func (p *Parser) parseExpr() (Expr, error) {
 // converting "(foo bar baz)" into the AST node representing a call
 // to function "foo" with bar/baz arguments.
 func (p *Parser) parseList() (Expr, error) {
-	p.expect("(")
+
+	if !p.expectNext("(") {
+		return nil, fmt.Errorf("expected '(' for list opening")
+	}
 
 	head, err := p.parseExpr()
 	if err != nil {
@@ -232,7 +244,9 @@ func (p *Parser) parseList() (Expr, error) {
 				exprs = append(exprs, x)
 			}
 
-			p.expect(")")
+			if !p.expectNext(")") {
+				return nil, fmt.Errorf("expected ')' after do-expressions")
+			}
 
 			return &Do{
 				Exprs: exprs,
@@ -255,7 +269,9 @@ func (p *Parser) parseList() (Expr, error) {
 					return nil, err
 				}
 			}
-			p.expect(")")
+			if !p.expectNext(")") {
+				return nil, fmt.Errorf("expected ')' to close IF")
+			}
 
 			return &If{
 				Cond: cond,
@@ -264,13 +280,17 @@ func (p *Parser) parseList() (Expr, error) {
 			}, nil
 
 		case "lambda":
-			p.expect("(")
+			if !p.expectNext("(") {
+				return nil, fmt.Errorf("expected '(' to open lambda parameters")
+			}
 
 			var params []string
 			for p.peek() != ")" && p.peek() != "" {
 				params = append(params, p.next())
 			}
-			p.expect(")")
+			if !p.expectNext(")") {
+				return nil, fmt.Errorf("expected ')' to close lambda parameters")
+			}
 
 			// body goes here
 			body := []Expr{}
@@ -290,7 +310,9 @@ func (p *Parser) parseList() (Expr, error) {
 			}
 
 			// and ensure we do see that close
-			p.expect(")")
+			if !p.expectNext(")") {
+				return nil, fmt.Errorf("expected ')' to close lambda body")
+			}
 
 			return &Lambda{
 				Params: params,
@@ -298,18 +320,27 @@ func (p *Parser) parseList() (Expr, error) {
 			}, nil
 
 		case "let":
-			p.expect("(")
+			if !p.expectNext("(") {
+				return nil, fmt.Errorf("expected '(' to open let-bindings")
+			}
 
 			var binds []Binding
 
 			for p.peek() == "(" && p.peek() != "" {
-				p.expect("(")
+
+				if !p.expectNext("(") {
+					return nil, fmt.Errorf("expected '(' to open let-binding")
+				}
+
 				name := p.next()
 				expr, err := p.parseExpr()
 				if err != nil {
 					return nil, err
 				}
-				p.expect(")")
+
+				if !p.expectNext(")") {
+					return nil, fmt.Errorf("expected ')' to close let-binding")
+				}
 
 				binds = append(binds, Binding{
 					Name: name,
@@ -317,7 +348,9 @@ func (p *Parser) parseList() (Expr, error) {
 				})
 			}
 
-			p.expect(")")
+			if !p.expectNext(")") {
+				return nil, fmt.Errorf("expected ')' to close binding list")
+			}
 
 			// body goes here
 			body := []Expr{}
@@ -336,7 +369,9 @@ func (p *Parser) parseList() (Expr, error) {
 				}
 			}
 			// ensure we do see that close
-			p.expect(")")
+			if !p.expectNext(")") {
+				return nil, fmt.Errorf("expected ')' to close let")
+			}
 
 			return &Let{
 				Bindings: binds,
@@ -354,7 +389,9 @@ func (p *Parser) parseList() (Expr, error) {
 				args = append(args, x)
 			}
 
-			p.expect(")")
+			if !p.expectNext(")") {
+				return nil, fmt.Errorf("expected ')' to close list")
+			}
 
 			lst := p.buildList(args)
 			return lst, nil
@@ -366,7 +403,9 @@ func (p *Parser) parseList() (Expr, error) {
 				return nil, err
 			}
 
-			p.expect(")")
+			if !p.expectNext(")") {
+				return nil, fmt.Errorf("expected ')' to close set!")
+			}
 
 			return &Set{
 				Name: name,
@@ -388,7 +427,9 @@ func (p *Parser) parseList() (Expr, error) {
 		args = append(args, x)
 	}
 
-	p.expect(")")
+	if !p.expectNext(")") {
+		return nil, fmt.Errorf("expected ')' to close calling arguments")
+	}
 
 	return &Call{
 		Fn:   head,
