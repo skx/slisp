@@ -50,11 +50,13 @@
         (fn (car lst))
         (map fn (cdr lst)))))
 
-;; count the length of the given list
+;; Return the length of the given list or string
 (defun length (xs)
-  (if xs
-      (+ 1 (length (cdr xs)))
-      0))
+  (if (str? xs)
+    (strlen xs)
+    (if xs
+        (+ 1 (length (cdr xs)))
+        0)))
 
 ;; sum all the numbers in the list
 (defun sum (xs)
