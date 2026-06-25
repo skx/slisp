@@ -38,6 +38,8 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+
+	"github.com/skx/slisp/lexer"
 )
 
 //go:embed stdlib.slisp
@@ -124,74 +126,6 @@ type Set struct {
 }
 
 //
-// Lexer
-//
-
-// tokenize is a trivial tokenizer which can handle strings, comments, and
-// basic splitting.
-func tokenize(src string) []string {
-	var out []string
-	var cur strings.Builder
-
-	flush := func() {
-		if cur.Len() > 0 {
-			out = append(out, cur.String())
-			cur.Reset()
-		}
-	}
-
-	inComment := false
-	inString := false
-
-	for _, ch := range src {
-
-		// naive - no processing of "\n" to newline, etc.
-		if inString {
-			if ch == '"' {
-				cur.WriteRune(ch)
-				out = append(out, cur.String())
-				cur.Reset()
-				inString = false
-				continue
-			}
-			cur.WriteRune(ch)
-			continue
-		}
-
-		// comment start at ";" and end at the end of the line
-		if inComment {
-			if ch == '\n' {
-				inComment = false
-			}
-			continue
-		}
-
-		// obvious stuff
-		switch ch {
-		case '(', ')':
-			flush()
-			out = append(out, string(ch))
-		case '"':
-			flush()
-			cur.WriteRune(ch)
-			inString = true
-
-		case ' ', '\n', '\r', '\t':
-			flush()
-
-		case ';':
-			flush()
-			inComment = true
-		default:
-			cur.WriteRune(ch)
-		}
-	}
-
-	flush()
-	return out
-}
-
-//
 // Parser
 //
 
@@ -227,18 +161,27 @@ func (p *Parser) expect(s string) {
 // parseProgram uses the Parser and returns a series of functions "(defun .." from it.
 //
 // We don't allow top-level expressions in our language.
-func parseProgram(src string) []*Defun {
-	p := &Parser{
-		tokens: tokenize(src),
-	}
+func parseProgram(src string) ([]*Defun, error) {
 
 	var defs []*Defun
+
+	// Tokenize the input
+	l := lexer.New(src)
+	toks, err := l.Tokenize()
+	if err != nil {
+		return defs, err
+	}
+
+	// Create parser object
+	p := &Parser{
+		tokens: toks,
+	}
 
 	for p.pos < len(p.tokens) {
 		defs = append(defs, p.parseDefun())
 	}
 
-	return defs
+	return defs, nil
 }
 
 // parseDefun parses a single function definition, containing an arbitrary number
@@ -1130,7 +1073,11 @@ func main() {
 	}
 
 	// Parse into functions
-	defs := parseProgram(prg)
+	defs, err := parseProgram(prg)
+	if err != nil {
+		fmt.Printf("error parsing program %s\n", err)
+		return
+	}
 
 	// Generate the code, and print it
 	g := &Generator{}
