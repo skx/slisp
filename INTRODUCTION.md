@@ -132,7 +132,7 @@ But using the `list` function allows that to be done more neatly:
     ; The same thing
     (list 1 2 3)
 
-(For the common case of creating lists of numbers see the `nat`, `seq` and `range` functions in our [PRIMITIVES.md](PRIMITIVES.md) list.
+(For the common case of creating lists of numbers see the `nat`, `seq` and `range` functions in our [PRIMITIVES.md](PRIMITIVES.md) list.)
 
 
 
