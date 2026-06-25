@@ -1,18 +1,20 @@
+(defun pr (xs)
+  "Print each element of a list"
+  (if xs
+      (do
+       (print (car xs))
+       (pr (cdr xs)))))
+
 (defun showLen (x)
-  (print "The length of : '")
-  (print x)
-  (print "' is ")
-  (println (strlen x)))
+  (pr (list "The length of : '" x "' is " (strlen x)))
+  (newline))
 
 (defun showCmp( a b )
-  (print "comparing a:")
-  (print a)
-  (print " with b:")
-  (print b)
-  (print " (strcmp a b): ")
-  (print (strcmp a b))
-  (print " (= a b): ")
-  (print (= a b))
+  (pr (list
+       "comparing a:" a
+       " with b:" b
+       " (strcmp a b): " (strcmp a b)
+       " (= a b): " (= a b)))
   (newline)
   )
 

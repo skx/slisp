@@ -64,10 +64,14 @@ Core primitives are implemented in assembly language, and can be found within th
     * Return the ASCII character corresponding to the given integer.
   * `cons`
     * Add the element to the start of the given (potentially empty) list.
+  * `even?`
+    * Return 1 if the given number is even, nil otherwise.
   * `exit`
     * Terminate execution.
   * `explode`
     * Convert the supplied string to a list of characters.
+  * `filter`
+    * Return a list consisting of all members of the input list for which the given predicate returns non-nil.
   * `implode`
     * Convert the given list of characters to a string.
   * `nat`
@@ -76,6 +80,8 @@ Core primitives are implemented in assembly language, and can be found within th
     * Print a newline.
   * `not`
     * If the value is `nil` return 1, otherwise return `nil`.
+  * `odd?`
+    * Return 1 if the given number is odd, nil otherwise.
   * `ord`
     * Return the ASCII code of the specified character.
   * `putc`
