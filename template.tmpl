@@ -581,6 +581,26 @@ fn_implode:
     TAG_STRING_REG rax
     ret
 
+
+;; Find the length of the given string.
+fn_strlen:
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    xor rax, rax
+.find:
+    cmp byte [rdi], 0
+    je .found_end
+    inc rdi
+    inc rax
+    jmp .find
+.found_end:
+    TAG_INTEGER_REG rax
+    ret
+
 section .data
 
 ;; buffer for "\n", used by (newline)
