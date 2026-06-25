@@ -343,26 +343,42 @@ printint:
     mov rbp, rsp
     sub rsp, 64
     UNTAG_REG rax
-    lea rsi, [rsp+63]     ;; pointer to end of buffer - terminated with NULL
+
+    mov r8, 0            ; remember sign
+    test rax, rax
+    jge .positive
+    neg rax
+    mov r8, 1
+.positive:
+    lea rsi, [rsp+63]
     mov byte [rsi], 0
-    mov rcx, 0
-convert_loop:             ;; build up ASCII via divisions
-    mov rbx, 10
+    xor rcx, rcx
+
+.convert:
     xor rdx, rdx
+    mov rbx, 10
     div rbx
     add dl, '0'
     dec rsi
     mov [rsi], dl
     inc rcx
-    test rax, rax          ;; keep going until we're zero
-    jnz convert_loop
+    test rax, rax
+    jnz .convert
 
-    mov rax, 1             ;; now write the buffer to STDOUT
+    ; prepend minus sign if needed
+    cmp r8, 0
+    je .write
+    dec rsi
+    mov byte [rsi], '-'
+    inc rcx
+.write:
+    mov rax, 1
     mov rdi, 1
     mov rdx, rcx
     syscall
     leave
     ret
+
 
 ;; terminate execution with the given exit-code
 exit:
