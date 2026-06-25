@@ -6,6 +6,13 @@ This repository contains `slisp` a compiler which will read lisp programs as inp
 
 Lisp is traditionally interactive, and provides a REPL, but having a compiled version is still useful, and still allows most common lisp-programs to execute.
 
+Quick links:
+
+* [INTRODUCTION.md](INTRODUCTION.md)
+  * Brief high-level overview of the facilities.
+* [PRIMITIVES.md](PRIMITIVES.md)
+  * Detailed list of all available functions and special-forms.
+
 
 
 ## Example
