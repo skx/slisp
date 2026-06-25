@@ -97,6 +97,8 @@ The standard library consists of routines, and helpers, which are written in 100
 
 The implementation of these primitives can be found in the file [stdlib.slisp](stdlib.slisp).
 
+* `abs`
+  * Return the absolute value of the given integer.  (e.g. 3 -> 3, and -3 -> 3).
 * `length`
   * Return the length of the specified list.
 * `map`

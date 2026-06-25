@@ -96,7 +96,7 @@ _start:
     mov rax, heap        ; setup our heap pointer
     mov [heap_ptr], rax  ; cons cells are heap-allocated
 
-    call main
+    call fn_main
     mov rdi, rax
     shr rdi, 1
     mov rax, 60
@@ -249,7 +249,7 @@ integer_multiply:
 ;; NOT
 ;; a nil becomes 1.
 ;; anything else becomes nil
-not:
+fn_not:
     mov rax, rdi
     GET_TAG_BITS rax
     cmp rax, TAG_ID_NIL
@@ -338,7 +338,7 @@ gt:
     ret
 
 ;; Print an integer
-printint:
+fn_printint:
     push rbp
     mov rbp, rsp
     sub rsp, 64
@@ -381,7 +381,7 @@ printint:
 
 
 ;; terminate execution with the given exit-code
-exit:
+fn_exit:
     UNTAG_REG rdi
     mov rax, 60     ; sys_exit
     syscall
@@ -389,7 +389,7 @@ exit:
 
 
 ;; print a newline.
-newline:
+fn_newline:
     mov rax, 1      ; SYS_write
     mov rdi, 1      ; stdout
     mov rsi, newline_str
@@ -398,7 +398,7 @@ newline:
     ret
 
 ;; Write the given ASCII character to stdout
-putc:
+fn_putc:
     mov rax, rdi
     UNTAG_REG rax
     mov [putc_buffer],  al  ; store character
@@ -410,7 +410,7 @@ putc:
     ret
 
 ;; Print the given string.
-printstr:
+fn_printstr:
     UNTAG_REG rdi
     push rdi
     mov rdx, 0                ; length counter
@@ -429,7 +429,7 @@ printstr:
 
 
 ;; chr - convert an integer to a character
-chr:
+fn_chr:
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_INTEGER
@@ -442,7 +442,7 @@ chr:
 
 
 ;; ord - convert a character to an integer.
-ord:
+fn_ord:
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_CHAR
@@ -455,7 +455,7 @@ ord:
 ;; Allocate space for a new cons cell, return it in RAX.
 ;;
 ;; 16-bytes; first has the CAR, second the CDR.
-cons:
+fn_cons:
     mov rax, [heap_ptr]      ; get the value of the heap pointer
     add qword [heap_ptr], 16 ; bump it by 2x ptrs
     mov [rax], rdi           ; store first item
@@ -464,7 +464,7 @@ cons:
     ret
 
 ;; Get the first item in the cons cell.
-car:
+fn_car:
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_CONS
@@ -474,7 +474,7 @@ car:
     ret
 
 ;; Get the second item in the cons cell.
-cdr:
+fn_cdr:
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_CONS
@@ -484,13 +484,13 @@ cdr:
     ret
 
 type_error:
-    jmp exit
+    jmp fn_exit
 
 
 ;; Explode a string to a list of characters.
 ;; find the length and work backwards.
 ;; This is one of our more complex routines and yet it worked first time :D
-explode:
+fn_explode:
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -526,7 +526,7 @@ explode:
 
 
 ;; join a character list to a string
-implode:
+fn_implode:
     mov rbx,rdi
     xor rcx,rcx
 
