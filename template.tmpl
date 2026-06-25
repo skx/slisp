@@ -270,8 +270,22 @@ equals:
     GET_TAG_BITS rax     ; type of arg
     cmp rax, rbx
     jnz .nil         ; different types?  Then not equal
+
+    ; If one of the types is a string then we know both are.
+    ; RSI/RDI will still have their original values so we can
+    ; call strcmp.  If the value is 0 we know they are equal
+    cmp rax, TAG_ID_STRING
+    jnz .not_strings
+    call fn_strcmp
+    UNTAG_REG rax
+    cmp rax, 0
+    jz .equal
+    jmp .nil
+
+.not_strings:
     cmp rdi, rsi     ; same types, so compare the values directly
     jnz .nil
+.equal:
     mov rax, 1
     TAG_INTEGER_REG rax
     ret
@@ -580,6 +594,59 @@ fn_implode:
     mov rax,r8
     TAG_STRING_REG rax
     ret
+
+
+;; Find the length of the given string.
+fn_strlen:
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    xor rax, rax
+.find:
+    cmp byte [rdi], 0
+    je .found_end
+    inc rdi
+    inc rax
+    jmp .find
+.found_end:
+    TAG_INTEGER_REG rax
+    ret
+
+;; Compare the two specified strings.
+fn_strcmp:
+    mov rbx, rdi             ; type-check arg1
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    mov rbx, rsi             ; type-check arg2
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+
+.strcmp_next_char:
+    mov al, byte [rdi]
+    cmp al, byte [rsi]
+    jne .strcmp_diff
+    test al, al
+    je .strcmp_done
+    inc rdi
+    inc rsi
+    jmp .strcmp_next_char
+.strcmp_diff:
+    movzx rdx, byte [rsi]
+    sub al, dl
+.strcmp_done:
+    movsx rax, al            ; Truncate, but keep the sign
+    TAG_INTEGER_REG rax
+    ret
+
+
 
 section .data
 
