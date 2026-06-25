@@ -15,7 +15,31 @@ import (
 //go:embed stdlib.slisp
 var stdlibLisp string
 
-// main
+// compile is a helper to compile a program
+func compile(prg string) (string, error) {
+
+	// Create a parser
+	p := parser.New(prg)
+
+	// Parse into functions
+	defs, err := p.Parse()
+	if err != nil {
+		return "", fmt.Errorf("error parsing program %s", err)
+	}
+
+	// Create a compiler
+	c := compiler.New()
+
+	// Generate the code
+	txt := ""
+	txt, err = c.Compile(defs)
+	if err != nil {
+		return "", fmt.Errorf("error compiling program %s", err)
+	}
+	return txt, nil
+}
+
+// main is our entry-point
 func main() {
 
 	// CLI flags
@@ -35,30 +59,15 @@ func main() {
 		return
 	}
 
-	// Append the stdlib if we should.
+	// Prepend the stdlib if we should.
 	prg := string(data)
 	if *stdlib {
 		prg = stdlibLisp + "\n" + prg
 	}
 
-	// Create a parser
-	p := parser.New(prg)
-
-	// Parse into functions
-	defs, err := p.Parse()
+	txt, err := compile(prg)
 	if err != nil {
-		fmt.Printf("error parsing program %s\n", err)
-		return
-	}
-
-	// Create a compiler
-	c := compiler.New()
-
-	// Generate the code
-	txt := ""
-	txt, err = c.Compile(defs)
-	if err != nil {
-		fmt.Printf("Error compiling program %s\n", err)
+		fmt.Printf("error processing: %s\n", err)
 		return
 	}
 
