@@ -1,0 +1,5 @@
+The length of : 'Steve' is 5
+The length of : '' is 0
+comparing a:Steve with b:Steve (strcmp a b): 0 (= a b): 1
+comparing a:Steve with b:Rteve (strcmp a b): 1 (= a b): <nil>
+comparing a:Hello with b:Hello (strcmp a b): 0 (= a b): 1

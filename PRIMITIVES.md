@@ -88,6 +88,10 @@ Core primitives are implemented in assembly language, and can be found within th
     * Return a list of numbers between the given start/end, using the specified step-size.
   * `seq`
     * Return a list of numbers from 0 to N.
+  * `strcmp`
+    * Compare the two given strings, like the C-function this returns zero on equality.
+  * `strlen`
+    * Return the length of the given string.
 
 
 
@@ -100,7 +104,7 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
 * `abs`
   * Return the absolute value of the given integer.  (e.g. 3 -> 3, and -3 -> 3).
 * `length`
-  * Return the length of the specified list.
+  * Return the length of the specified list, or string.
 * `map`
   * Create a new list by calling the given function over every element of the supplied list.
 * `print`
