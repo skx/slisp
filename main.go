@@ -1,30 +1,5 @@
 // trivial lisp compiler which generates nasm-style assembly.
-//
-// The lower three bits of values is used for type storage, with macros used for getting/setting
-// them, to avoid user-error.  Hopefully:
-//
-//		000:  INT
-//		001:  STRING
-//	     010:  CONS
-//	     011:  LAMBDA
-//	     100:  ...
-//	     101:  ...
-//	     110:  ...
-//	     111:  NIL
-//
-// Calls made into our internal standard-library functions, as written in assembly language
-// and contained in our "template.tmpL" file use the standard Sys V ABI:
-//
-// A maximum six arguments passed via registers:
-//
-//	arg0 -> rdi
-//	arg1 -> rsi
-//	arg2 -> rdx
-//	arg3 -> rcx
-//	arg4 -> r8
-//	arg5 -> r9
-//
-// Nothing else too special or exciting.
+
 package main
 
 import (
@@ -35,11 +10,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"text/template"
 
-	"github.com/skx/slisp/lexer"
+	"github.com/skx/slisp/parser"
 )
 
 //go:embed stdlib.slisp
@@ -47,417 +21,6 @@ var stdlibLisp string
 
 //go:embed template.tmpl
 var tmplTxt string
-
-//
-// AST
-//
-
-type Expr interface{}
-
-// Types
-
-type Char struct {
-	Value byte
-}
-
-type Int struct {
-	Value int64
-}
-
-type String struct {
-	Value string
-}
-
-type Symbol struct {
-	Name string
-}
-
-type Nil struct {
-}
-
-// specials
-
-type Binding struct {
-	Name string
-	Expr Expr
-}
-
-type Call struct {
-	Fn   Expr
-	Args []Expr
-}
-
-type Defun struct {
-	Name   string
-	Params []string
-	Exprs  []Expr
-}
-
-type Do struct {
-	Exprs []Expr
-}
-
-type If struct {
-	Cond Expr
-	Then Expr
-	Else Expr
-}
-
-type Lambda struct {
-	// name is auto-generated when we encounter the lambda
-	name string
-
-	Params []string
-	Exprs  []Expr
-
-	// Captured variables - we don't do free-variable analysis,
-	// and just capture all the variables we could.
-	Captures []string
-}
-
-type Let struct {
-	Bindings []Binding
-	Body     []Expr
-}
-
-type Set struct {
-	Name string
-	Expr Expr
-}
-
-//
-// Parser
-//
-
-// Parser holds our parse-state
-type Parser struct {
-	tokens []string
-	pos    int
-}
-
-// peek returns the next token, without consuming it.
-func (p *Parser) peek() string {
-	if p.pos >= len(p.tokens) {
-		return ""
-	}
-	return p.tokens[p.pos]
-}
-
-// next returns the next token.
-func (p *Parser) next() string {
-	t := p.peek()
-	p.pos++
-	return t
-}
-
-// expect confirms the next token is what is specified, if it isn't this
-// will panic.
-func (p *Parser) expect(s string) {
-	if p.next() != s {
-		panic("expected " + s)
-	}
-}
-
-// parseProgram uses the Parser and returns a series of functions "(defun .." from it.
-//
-// We don't allow top-level expressions in our language.
-func parseProgram(src string) ([]*Defun, error) {
-
-	var defs []*Defun
-
-	// Tokenize the input
-	l := lexer.New(src)
-	toks, err := l.Tokenize()
-	if err != nil {
-		return defs, err
-	}
-
-	// Create parser object
-	p := &Parser{
-		tokens: toks,
-	}
-
-	for p.pos < len(p.tokens) {
-		defs = append(defs, p.parseDefun())
-	}
-
-	return defs, nil
-}
-
-// parseDefun parses a single function definition, containing an arbitrary number
-// of expressions within the body.
-func (p *Parser) parseDefun() *Defun {
-	p.expect("(")
-	if p.next() != "defun" {
-		panic("expected defun")
-	}
-
-	name := p.next()
-
-	p.expect("(")
-
-	var params []string
-	for p.peek() != ")" {
-		params = append(params, p.next())
-	}
-	p.expect(")")
-
-	// body goes here
-	body := []Expr{}
-
-	// allow multiple expressions
-	for p.peek() != "" {
-		// get the expression
-		expr := p.parseExpr()
-
-		// If there are no expressions
-		if len(body) == 0 {
-			// And the first expression is a string
-			// we just ignore it and continue, around this
-			// loop again.
-			switch expr.(type) {
-			case *String:
-				continue
-			}
-		}
-		body = append(body, expr)
-
-		// stop if we see a close
-		if p.peek() == ")" {
-			break
-		}
-	}
-
-	// and ensure we do see that close
-	p.expect(")")
-
-	return &Defun{
-		Name:   name,
-		Params: params,
-		Exprs:  body,
-	}
-}
-
-// buildList is used to turn "(list 1 2 3)" into "(cons 1 (cons 2 (cons 3 nil)))"
-func (p *Parser) buildList(args []Expr) Expr {
-	result := Expr(&Nil{})
-
-	for i := len(args) - 1; i >= 0; i-- {
-		result = &Call{
-			Fn: &Symbol{Name: "cons"},
-			Args: []Expr{
-				args[i],
-				result,
-			},
-		}
-	}
-
-	return result
-}
-
-// parseExpr parses a single expression, and returns the appropriate AST node.
-func (p *Parser) parseExpr() Expr {
-	t := p.peek()
-
-	if t == "(" {
-		return p.parseList()
-	}
-
-	p.next()
-
-	// char
-	if strings.HasPrefix(t, "#\\") {
-		x := strings.TrimPrefix(t, "#\\")
-		c := x[0]
-		if c == '\\' && len(x) > 1 {
-			switch x[1] {
-			case 'a':
-				c = '\a'
-			case 'b':
-				c = '\b'
-			case 'r':
-				c = '\r'
-			case 't':
-				c = '\t'
-			case 'n':
-				c = '\n'
-
-			}
-		}
-		return &Char{Value: byte(c)}
-	}
-
-	// string
-	if strings.HasPrefix(t, "\"") {
-		return &String{Value: strings.Trim(t, "\"")}
-	}
-
-	// integer
-	if n, err := strconv.ParseInt(t, 0, 64); err == nil {
-		return &Int{Value: n}
-	}
-
-	// nil?
-	if t == "nil" {
-		return &Nil{}
-	}
-
-	// symbol
-	return &Symbol{Name: t}
-}
-
-// parseList parses a list, handling any special forms, but otherwise
-// converting "(foo bar baz)" into the AST node representing a call
-// to function "foo" with bar/baz arguments.
-func (p *Parser) parseList() Expr {
-	p.expect("(")
-
-	head := p.parseExpr()
-
-	if sym, ok := head.(*Symbol); ok {
-		switch sym.Name {
-
-		case "do":
-
-			var exprs []Expr
-
-			for p.peek() != ")" && p.peek() != "" {
-				exprs = append(exprs, p.parseExpr())
-			}
-
-			p.expect(")")
-
-			return &Do{
-				Exprs: exprs,
-			}
-
-		case "if":
-			cond := p.parseExpr()
-			thenExpr := p.parseExpr()
-			var elseExpr Expr
-			if p.peek() != ")" {
-				elseExpr = p.parseExpr()
-			}
-			p.expect(")")
-
-			return &If{
-				Cond: cond,
-				Then: thenExpr,
-				Else: elseExpr,
-			}
-
-		case "lambda":
-			p.expect("(")
-
-			var params []string
-			for p.peek() != ")" && p.peek() != "" {
-				params = append(params, p.next())
-			}
-			p.expect(")")
-
-			// body goes here
-			body := []Expr{}
-
-			// allow multiple expressions
-			for p.peek() != "" {
-				expr := p.parseExpr()
-				body = append(body, expr)
-
-				// stop if we see a close
-				if p.peek() == ")" {
-					break
-				}
-			}
-
-			// and ensure we do see that close
-			p.expect(")")
-
-			return &Lambda{
-				Params: params,
-				Exprs:  body,
-			}
-
-		case "let":
-			p.expect("(")
-
-			var binds []Binding
-
-			for p.peek() == "(" && p.peek() != "" {
-				p.expect("(")
-				name := p.next()
-				expr := p.parseExpr()
-				p.expect(")")
-
-				binds = append(binds, Binding{
-					Name: name,
-					Expr: expr,
-				})
-			}
-
-			p.expect(")")
-
-			// body goes here
-			body := []Expr{}
-
-			// allow multiple expressions
-			for p.peek() != "" {
-				expr := p.parseExpr()
-				body = append(body, expr)
-
-				// stop if we see a close
-				if p.peek() == ")" {
-					break
-				}
-			}
-			// ensure we do see that close
-			p.expect(")")
-
-			return &Let{
-				Bindings: binds,
-				Body:     body,
-			}
-
-		case "list":
-			var args []Expr
-
-			for p.peek() != ")" && p.peek() != "" {
-				args = append(args, p.parseExpr())
-			}
-
-			p.expect(")")
-
-			return p.buildList(args)
-
-		case "set!":
-			name := p.next()
-			expr := p.parseExpr()
-
-			p.expect(")")
-
-			return &Set{
-				Name: name,
-				Expr: expr,
-			}
-		}
-	}
-
-	// Not a special form.
-	//
-	// Just handle it as a Call expression with any arguments
-	var args []Expr
-
-	for p.peek() != ")" && p.peek() != "" {
-		args = append(args, p.parseExpr())
-	}
-
-	p.expect(")")
-
-	return &Call{
-		Fn:   head,
-		Args: args,
-	}
-
-}
 
 //
 // Environment
@@ -543,7 +106,7 @@ type Generator struct {
 
 	// lambdas holds the lambdas we've encountered and we need
 	// to emit those later too.
-	lambdas []*Lambda
+	lambdas []*parser.Lambda
 }
 
 // addString creates a unique label for our strings,
@@ -622,11 +185,11 @@ func (g *Generator) asmName(name string) string {
 }
 
 // emitExpr emits the code for each of our expression AST types.
-func (g *Generator) emitExpr(e Expr, env *Env) {
+func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 	switch n := e.(type) {
 
-	case *Call:
-		if symbol, ok := n.Fn.(*Symbol); ok {
+	case *parser.Call:
+		if symbol, ok := n.Fn.(*parser.Symbol); ok {
 
 			regs := []string{
 				"rdi",
@@ -701,20 +264,20 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		g.emitln("mov rax, [r15]")
 		g.emitln("call rax")
 
-	case *Char:
+	case *parser.Char:
 		g.emitln(fmt.Sprintf("    mov rax, %d", n.Value))
 		g.emitln("   TAG_CHAR_REG rax")
 
-	case *Do:
+	case *parser.Do:
 		for _, expr := range n.Exprs {
 			g.emitExpr(expr, env)
 		}
 
-	case *Int:
+	case *parser.Int:
 		g.emitln(fmt.Sprintf("    mov rax, %d", n.Value))
 		g.emitln("   TAG_INTEGER_REG rax")
 
-	case *If:
+	case *parser.If:
 		elseLbl := g.label("else")
 		endLbl := g.label("endif")
 
@@ -736,7 +299,7 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		}
 		g.emitln(endLbl + ":")
 
-	case *Lambda:
+	case *parser.Lambda:
 
 		// create a unique name for this lambda
 		name := fmt.Sprintf("lambda_%d", g.labelID)
@@ -790,10 +353,10 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		g.emitln("    TAG_LAMBDA_REG rax")
 
 		// save away the lambda in the list of lambdas
-		n.name = name
+		n.Name = name
 		g.lambdas = append(g.lambdas, n)
 
-	case *Let:
+	case *parser.Let:
 		// create a new child environment
 		child := NewEnv(env)
 
@@ -821,11 +384,11 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 			g.emitExpr(expr, child)
 		}
 
-	case *Nil:
+	case *parser.Nil:
 		g.emitln("    mov rax, 0       ; NIL")
 		g.emitln("    TAG_NIL_REG rax  ; Tagged")
 
-	case *String:
+	case *parser.String:
 		// create a label, based on the hash of the content.
 		// This has the side-effect of interning.
 		lbl := g.addString(n.Value)
@@ -838,7 +401,7 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 		g.emitln(fmt.Sprintf("    lea rax, %s", lbl))
 		g.emitln("    TAG_STRING_REG rax")
 
-	case *Set:
+	case *parser.Set:
 
 		g.emitExpr(n.Expr, env)
 
@@ -858,7 +421,8 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 			return
 		}
 		panic("unknown variable: " + n.Name)
-	case *Symbol:
+
+	case *parser.Symbol:
 		if offset, ok := env.Lookup(n.Name); ok {
 			g.emitln(fmt.Sprintf(
 				"    mov rax, [rbp-%d]",
@@ -883,7 +447,7 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 // emitDefun emits the body for the given function definition "(defun ..)".
 //
 // TODO: this is basically a copy/paste of emitLambda
-func (g *Generator) emitDefun(fn *Defun) {
+func (g *Generator) emitDefun(fn *parser.Defun) {
 
 	g.emitln(g.asmName(fn.Name) + ":")
 
@@ -925,9 +489,9 @@ func (g *Generator) emitDefun(fn *Defun) {
 // emitLambda emits the body for the given lambda definition "(lambda ..)".
 //
 // TODO: this is basically a copy/paste of emitDefun.
-func (g *Generator) emitLambda(l *Lambda) {
+func (g *Generator) emitLambda(l *parser.Lambda) {
 
-	g.emitln(l.name + ":")
+	g.emitln(l.Name + ":")
 
 	g.emitln("    push rbp")
 	g.emitln("    mov rbp, rsp")
@@ -969,7 +533,7 @@ func (g *Generator) emitLambda(l *Lambda) {
 
 // Generate creates and returns the assembly language source for the given
 // list of functions.
-func (g *Generator) Generate(defs []*Defun) string {
+func (g *Generator) Generate(defs []*parser.Defun) string {
 
 	// Ensure our string table is pristine
 	g.strings = make(map[string]string)
@@ -1072,8 +636,11 @@ func main() {
 		prg = stdlibLisp + "\n" + prg
 	}
 
+	// Create a parser
+	p := parser.New(prg)
+
 	// Parse into functions
-	defs, err := parseProgram(prg)
+	defs, err := p.Parse()
 	if err != nil {
 		fmt.Printf("error parsing program %s\n", err)
 		return
