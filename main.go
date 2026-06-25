@@ -51,9 +51,17 @@ func main() {
 		return
 	}
 
-	// Generate the code, and print it
+	// Create a compiler
 	c := compiler.New()
-	txt := c.Compile(defs)
 
+	// Generate the code
+	txt := ""
+	txt, err = c.Compile(defs)
+	if err != nil {
+		fmt.Printf("Error compiling program %s\n", err)
+		return
+	}
+
+	// Print the code to STDOUT
 	fmt.Print(txt)
 }

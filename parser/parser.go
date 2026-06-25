@@ -6,6 +6,7 @@
 package parser
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -44,7 +45,11 @@ func (p *Parser) Parse() ([]*Defun, error) {
 
 	// Now parse the input
 	for p.pos < len(p.tokens) {
-		defs = append(defs, p.parseDefun())
+		defun, err := p.parseDefun()
+		if err != nil {
+			return defs, err
+		}
+		defs = append(defs, defun)
 	}
 
 	return defs, nil
@@ -75,10 +80,13 @@ func (p *Parser) expect(s string) {
 
 // parseDefun parses a single function definition, containing an arbitrary number
 // of expressions within the body.
-func (p *Parser) parseDefun() *Defun {
+func (p *Parser) parseDefun() (*Defun, error) {
+
 	p.expect("(")
-	if p.next() != "defun" {
-		panic("expected defun")
+
+	tok := p.next()
+	if tok != "defun" {
+		return nil, fmt.Errorf("expected defun, but got %v", tok)
 	}
 
 	name := p.next()
@@ -97,7 +105,10 @@ func (p *Parser) parseDefun() *Defun {
 	// allow multiple expressions
 	for p.peek() != "" {
 		// get the expression
-		expr := p.parseExpr()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 
 		// If there are no expressions
 		if len(body) == 0 {
@@ -124,7 +135,7 @@ func (p *Parser) parseDefun() *Defun {
 		Name:   name,
 		Params: params,
 		Exprs:  body,
-	}
+	}, nil
 }
 
 // buildList is used to turn "(list 1 2 3)" into "(cons 1 (cons 2 (cons 3 nil)))"
@@ -145,7 +156,7 @@ func (p *Parser) buildList(args []Expr) Expr {
 }
 
 // parseExpr parses a single expression, and returns the appropriate AST node.
-func (p *Parser) parseExpr() Expr {
+func (p *Parser) parseExpr() (Expr, error) {
 	t := p.peek()
 
 	if t == "(" {
@@ -173,35 +184,38 @@ func (p *Parser) parseExpr() Expr {
 
 			}
 		}
-		return &Char{Value: byte(c)}
+		return &Char{Value: byte(c)}, nil
 	}
 
 	// string
 	if strings.HasPrefix(t, "\"") {
-		return &String{Value: strings.Trim(t, "\"")}
+		return &String{Value: strings.Trim(t, "\"")}, nil
 	}
 
 	// integer
 	if n, err := strconv.ParseInt(t, 0, 64); err == nil {
-		return &Int{Value: n}
+		return &Int{Value: n}, nil
 	}
 
 	// nil?
 	if t == "nil" {
-		return &Nil{}
+		return &Nil{}, nil
 	}
 
 	// symbol
-	return &Symbol{Name: t}
+	return &Symbol{Name: t}, nil
 }
 
 // parseList parses a list, handling any special forms, but otherwise
 // converting "(foo bar baz)" into the AST node representing a call
 // to function "foo" with bar/baz arguments.
-func (p *Parser) parseList() Expr {
+func (p *Parser) parseList() (Expr, error) {
 	p.expect("(")
 
-	head := p.parseExpr()
+	head, err := p.parseExpr()
+	if err != nil {
+		return head, err
+	}
 
 	if sym, ok := head.(*Symbol); ok {
 		switch sym.Name {
@@ -211,21 +225,35 @@ func (p *Parser) parseList() Expr {
 			var exprs []Expr
 
 			for p.peek() != ")" && p.peek() != "" {
-				exprs = append(exprs, p.parseExpr())
+				x, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				exprs = append(exprs, x)
 			}
 
 			p.expect(")")
 
 			return &Do{
 				Exprs: exprs,
-			}
+			}, nil
 
 		case "if":
-			cond := p.parseExpr()
-			thenExpr := p.parseExpr()
+			cond, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			thenExpr, err2 := p.parseExpr()
+			if err2 != nil {
+				return nil, err2
+			}
 			var elseExpr Expr
 			if p.peek() != ")" {
-				elseExpr = p.parseExpr()
+				var err error
+				elseExpr, err = p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
 			}
 			p.expect(")")
 
@@ -233,7 +261,7 @@ func (p *Parser) parseList() Expr {
 				Cond: cond,
 				Then: thenExpr,
 				Else: elseExpr,
-			}
+			}, nil
 
 		case "lambda":
 			p.expect("(")
@@ -249,7 +277,10 @@ func (p *Parser) parseList() Expr {
 
 			// allow multiple expressions
 			for p.peek() != "" {
-				expr := p.parseExpr()
+				expr, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
 				body = append(body, expr)
 
 				// stop if we see a close
@@ -264,7 +295,7 @@ func (p *Parser) parseList() Expr {
 			return &Lambda{
 				Params: params,
 				Exprs:  body,
-			}
+			}, nil
 
 		case "let":
 			p.expect("(")
@@ -274,7 +305,10 @@ func (p *Parser) parseList() Expr {
 			for p.peek() == "(" && p.peek() != "" {
 				p.expect("(")
 				name := p.next()
-				expr := p.parseExpr()
+				expr, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
 				p.expect(")")
 
 				binds = append(binds, Binding{
@@ -290,7 +324,10 @@ func (p *Parser) parseList() Expr {
 
 			// allow multiple expressions
 			for p.peek() != "" {
-				expr := p.parseExpr()
+				expr, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
 				body = append(body, expr)
 
 				// stop if we see a close
@@ -304,29 +341,37 @@ func (p *Parser) parseList() Expr {
 			return &Let{
 				Bindings: binds,
 				Body:     body,
-			}
+			}, nil
 
 		case "list":
 			var args []Expr
 
 			for p.peek() != ")" && p.peek() != "" {
-				args = append(args, p.parseExpr())
+				x, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				args = append(args, x)
 			}
 
 			p.expect(")")
 
-			return p.buildList(args)
+			lst := p.buildList(args)
+			return lst, nil
 
 		case "set!":
 			name := p.next()
-			expr := p.parseExpr()
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
 
 			p.expect(")")
 
 			return &Set{
 				Name: name,
 				Expr: expr,
-			}
+			}, nil
 		}
 	}
 
@@ -336,7 +381,11 @@ func (p *Parser) parseList() Expr {
 	var args []Expr
 
 	for p.peek() != ")" && p.peek() != "" {
-		args = append(args, p.parseExpr())
+		x, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, x)
 	}
 
 	p.expect(")")
@@ -344,6 +393,6 @@ func (p *Parser) parseList() Expr {
 	return &Call{
 		Fn:   head,
 		Args: args,
-	}
+	}, nil
 
 }
