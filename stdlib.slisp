@@ -38,6 +38,10 @@
   (newline))
 
 
+;; Return the absolute value of N, as a positive number
+(defun abs (n)
+  (if (< n 0) (- 0 n) n))
+
 ;; Create a new list by calling the given function for every list element
 (defun map (fn lst)
   (if (nil? lst)
