@@ -105,8 +105,6 @@ func (g *Compiler) asmName(name string) string {
 		return "lambdap"
 	case "nil?":
 		return "nilp"
-	case "set!":
-		return "set"
 	case "str?":
 		return "strp"
 	}
