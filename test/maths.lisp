@@ -38,7 +38,7 @@
       (newline)
 
       ;; 1
-      (printint (- 3 2))
+      (printint (- 0xFF 0b11111110))
       (newline)
 
       ;; 0
