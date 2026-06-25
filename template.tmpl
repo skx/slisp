@@ -601,6 +601,39 @@ fn_strlen:
     TAG_INTEGER_REG rax
     ret
 
+;; Compare the two specified strings.
+fn_strcmp:
+    mov rbx, rdi             ; type-check arg1
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    mov rbx, rsi             ; type-check arg2
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+
+.strcmp_next_char:
+    mov al, byte [rdi]
+    cmp al, byte [rsi]
+    jne .strcmp_diff
+    test al, al
+    je .strcmp_done
+    inc rdi
+    inc rsi
+    jmp .strcmp_next_char
+.strcmp_diff:
+    movzx rdx, byte [rsi]
+    sub al, dl
+.strcmp_done:
+    movsx rax, al            ; Truncate, but keep the sign
+    TAG_INTEGER_REG rax
+    ret
+
+
+
 section .data
 
 ;; buffer for "\n", used by (newline)
