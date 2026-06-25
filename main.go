@@ -674,7 +674,8 @@ func (g *Generator) asmName(name string) string {
 		return "strp"
 	}
 
-	return name
+	// other functions just get "fn_" prefix
+	return "fn_" + name
 }
 
 // emitExpr emits the code for each of our expression AST types.
@@ -941,7 +942,7 @@ func (g *Generator) emitExpr(e Expr, env *Env) {
 // TODO: this is basically a copy/paste of emitLambda
 func (g *Generator) emitDefun(fn *Defun) {
 
-	g.emitln(fn.Name + ":")
+	g.emitln(g.asmName(fn.Name) + ":")
 
 	g.emitln("    push rbp")
 	g.emitln("    mov rbp, rsp")
