@@ -270,8 +270,22 @@ equals:
     GET_TAG_BITS rax     ; type of arg
     cmp rax, rbx
     jnz .nil         ; different types?  Then not equal
+
+    ; If one of the types is a string then we know both are.
+    ; RSI/RDI will still have their original values so we can
+    ; call strcmp.  If the value is 0 we know they are equal
+    cmp rax, TAG_ID_STRING
+    jnz .not_strings
+    call fn_strcmp
+    UNTAG_REG rax
+    cmp rax, 0
+    jz .equal
+    jmp .nil
+
+.not_strings:
     cmp rdi, rsi     ; same types, so compare the values directly
     jnz .nil
+.equal:
     mov rax, 1
     TAG_INTEGER_REG rax
     ret
