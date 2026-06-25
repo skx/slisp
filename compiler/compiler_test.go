@@ -87,3 +87,34 @@ func TestBasic(t *testing.T) {
 	}
 
 }
+
+func TestErrors(t *testing.T) {
+	tests := []string{
+		`(defun main () ( (set! foo 3)))`,
+		`(defun main () ( (do (set! foo 3))))`,
+		`(defun main () ( (set! foo 3)))`,
+		`(defun main () ( (foo bar)))`,
+		`(defun main () ( (if foo 1 2)))`,
+		`(defun main () ( (if 1 (foo bar) 1)))`,
+		`(defun main () ( (if 1 1 (foo bar))))`,
+		`(defun main () ( (if 1 (foo bar))))`,
+		`(defun main () ( (let ((a foo)) 1)))`,
+		`(defun main () ( (let ((x 3)) y)))`,
+		`(defun main () ((let ((x 3)) (set! x y))))`,
+	}
+
+	for _, tst := range tests {
+		c := New()
+
+		p := parser.New(tst)
+		defs, err := p.Parse()
+		if err != nil {
+			t.Fatalf("error parsing %s", err)
+		}
+
+		_, err = c.Compile(defs)
+		if err == nil {
+			t.Fatalf("expected error, got none %s", tst)
+		}
+	}
+}
