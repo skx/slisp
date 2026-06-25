@@ -9,8 +9,12 @@
   (print a)
   (print " with b:")
   (print b)
-  (print " result: ")
-  (println (strcmp a b)))
+  (print " (strcmp a b): ")
+  (print (strcmp a b))
+  (print " (= a b): ")
+  (print (= a b))
+  (newline)
+  )
 
 
 (defun main ()
