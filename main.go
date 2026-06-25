@@ -13,6 +13,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/skx/slisp/env"
 	"github.com/skx/slisp/parser"
 )
 
@@ -21,73 +22,6 @@ var stdlibLisp string
 
 //go:embed template.tmpl
 var tmplTxt string
-
-//
-// Environment
-//
-
-type Env struct {
-	parent   *Env
-	slots    map[string]int
-	captures map[string]int
-}
-
-// NewEnv creates a new environment, with an optional parent.
-func NewEnv(parent *Env) *Env {
-	return &Env{
-		parent:   parent,
-		slots:    map[string]int{},
-		captures: map[string]int{},
-	}
-}
-
-// Names returns all the names of variables known at this level,
-// and all parent levels.
-//
-// We use this as a hack for lambda-closures, instead of performing
-// real free-variable analysis.
-func (e *Env) Names() []string {
-	var res []string
-
-	for k := range e.slots {
-		res = append(res, k)
-	}
-	if e.parent != nil {
-		parents := e.parent.Names()
-		res = append(res, parents...)
-	}
-	return res
-}
-
-// LookupCapture performs the same lookup function for lambdas,
-// as part of our closure implementation.
-func (e *Env) LookupCapture(name string) (int, bool) {
-
-	if v, ok := e.captures[name]; ok {
-		return v, true
-	}
-
-	if e.parent != nil {
-		return e.parent.LookupCapture(name)
-	}
-	return 0, false
-}
-
-// Lookup returns the slot-index of the given variable-name.
-//
-// If not found in the current scope the parent(s) will be searched, recursively.
-func (e *Env) Lookup(name string) (int, bool) {
-
-	if v, ok := e.slots[name]; ok {
-		return v, true
-	}
-
-	if e.parent != nil {
-		return e.parent.Lookup(name)
-	}
-
-	return 0, false
-}
 
 //
 // Code Generator
@@ -185,7 +119,7 @@ func (g *Generator) asmName(name string) string {
 }
 
 // emitExpr emits the code for each of our expression AST types.
-func (g *Generator) emitExpr(e parser.Expr, env *Env) {
+func (g *Generator) emitExpr(e parser.Expr, ev *env.Env) {
 	switch n := e.(type) {
 
 	case *parser.Call:
@@ -201,7 +135,7 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 			}
 
 			for _, a := range n.Args {
-				g.emitExpr(a, env)
+				g.emitExpr(a, ev)
 				g.emitln("    push rax")
 			}
 
@@ -213,7 +147,7 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 			}
 
 			// lambda?
-			if offset, ok := env.Lookup(symbol.Name); ok {
+			if offset, ok := ev.Lookup(symbol.Name); ok {
 
 				g.emitln(fmt.Sprintf(
 					"    mov rax,[rbp-%d]",
@@ -244,7 +178,7 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 		}
 
 		for _, a := range n.Args {
-			g.emitExpr(a, env)
+			g.emitExpr(a, ev)
 			g.emitln("    push rax")
 		}
 
@@ -256,7 +190,7 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 		}
 
 		// evaluate callable expression
-		g.emitExpr(n.Fn, env)
+		g.emitExpr(n.Fn, ev)
 
 		// call lambda
 		g.emitln("UNTAG_REG rax")
@@ -270,7 +204,7 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 
 	case *parser.Do:
 		for _, expr := range n.Exprs {
-			g.emitExpr(expr, env)
+			g.emitExpr(expr, ev)
 		}
 
 	case *parser.Int:
@@ -281,13 +215,13 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 		elseLbl := g.label("else")
 		endLbl := g.label("endif")
 
-		g.emitExpr(n.Cond, env)
+		g.emitExpr(n.Cond, ev)
 
 		g.emitln("    GET_TAG_BITS rax     ; get type bits")
 		g.emitln("    cmp rax, TAG_ID_NIL  ; is this a nil?")
 		g.emitln("    jz " + elseLbl)
 
-		g.emitExpr(n.Then, env)
+		g.emitExpr(n.Then, ev)
 
 		g.emitln("    jmp " + endLbl)
 
@@ -295,7 +229,7 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 
 		// else branch is optional
 		if n.Else != nil {
-			g.emitExpr(n.Else, env)
+			g.emitExpr(n.Else, ev)
 		}
 		g.emitln(endLbl + ":")
 
@@ -307,7 +241,7 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 
 		// We don't do analysis for captured variables,
 		// we just claim ALL of them.
-		n.Captures = env.Names()
+		n.Captures = ev.Names()
 
 		// Allocate closure:
 		//   +0  code pointer
@@ -332,7 +266,7 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 		// copy captures
 		for i, cap := range n.Captures {
 
-			offset, ok := env.Lookup(cap)
+			offset, ok := ev.Lookup(cap)
 			if !ok {
 				panic("capture not found: " + cap)
 			}
@@ -358,18 +292,18 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 
 	case *parser.Let:
 		// create a new child environment
-		child := NewEnv(env)
+		child := env.New(ev)
 
-		nextSlot := len(child.slots)
+		nextSlot := child.CountLocals()
 
 		// populate the new environment
 		for _, b := range n.Bindings {
 
-			g.emitExpr(b.Expr, env)
+			g.emitExpr(b.Expr, ev)
 
 			offset := (nextSlot + 1) * 8
 
-			child.slots[b.Name] = offset
+			child.Define(b.Name, offset)
 
 			g.emitln(fmt.Sprintf(
 				"    mov [rbp-%d], rax",
@@ -403,9 +337,9 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 
 	case *parser.Set:
 
-		g.emitExpr(n.Expr, env)
+		g.emitExpr(n.Expr, ev)
 
-		if offset, ok := env.Lookup(n.Name); ok {
+		if offset, ok := ev.Lookup(n.Name); ok {
 			g.emitln(fmt.Sprintf(
 				"    mov [rbp-%d], rax",
 				offset,
@@ -413,7 +347,7 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 			return
 		}
 
-		if offset, ok := env.LookupCapture(n.Name); ok {
+		if offset, ok := ev.LookupCapture(n.Name); ok {
 			g.emitln(fmt.Sprintf(
 				"    mov [r15+%d], rax",
 				offset,
@@ -423,7 +357,7 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 		panic("unknown variable: " + n.Name)
 
 	case *parser.Symbol:
-		if offset, ok := env.Lookup(n.Name); ok {
+		if offset, ok := ev.Lookup(n.Name); ok {
 			g.emitln(fmt.Sprintf(
 				"    mov rax, [rbp-%d]",
 				offset,
@@ -431,7 +365,7 @@ func (g *Generator) emitExpr(e parser.Expr, env *Env) {
 			return
 		}
 
-		if offset, ok := env.LookupCapture(n.Name); ok {
+		if offset, ok := ev.LookupCapture(n.Name); ok {
 			g.emitln(fmt.Sprintf(
 				"    mov rax, [r15+%d]",
 				offset,
@@ -455,7 +389,7 @@ func (g *Generator) emitDefun(fn *parser.Defun) {
 	g.emitln("    mov rbp, rsp")
 	g.emitln("    sub rsp, 256 ;; guess at space for locals")
 
-	env := NewEnv(nil)
+	ev := env.New(nil)
 
 	regs := []string{
 		"rdi",
@@ -469,7 +403,7 @@ func (g *Generator) emitDefun(fn *parser.Defun) {
 	for i, p := range fn.Params {
 		offset := (i + 1) * 8
 
-		env.slots[p] = offset
+		ev.Define(p, offset)
 
 		g.emitln(fmt.Sprintf(
 			"    mov [rbp-%d], %s",
@@ -479,7 +413,7 @@ func (g *Generator) emitDefun(fn *parser.Defun) {
 	}
 
 	for _, xpr := range fn.Exprs {
-		g.emitExpr(xpr, env)
+		g.emitExpr(xpr, ev)
 	}
 
 	g.emitln("    leave")
@@ -497,7 +431,7 @@ func (g *Generator) emitLambda(l *parser.Lambda) {
 	g.emitln("    mov rbp, rsp")
 	g.emitln("    sub rsp, 256 ;; guess at space for locals")
 
-	lambdaEnv := NewEnv(nil)
+	lambdaEnv := env.New(nil)
 
 	regs := []string{
 		"rdi",
@@ -511,7 +445,7 @@ func (g *Generator) emitLambda(l *parser.Lambda) {
 	for i, p := range l.Params {
 		offset := (i + 1) * 8
 
-		lambdaEnv.slots[p] = offset
+		lambdaEnv.Define(p, offset)
 
 		g.emitln(fmt.Sprintf(
 			"    mov [rbp-%d], %s",
@@ -520,7 +454,7 @@ func (g *Generator) emitLambda(l *parser.Lambda) {
 		))
 	}
 	for i, cap := range l.Captures {
-		lambdaEnv.captures[cap] = 8 * (i + 1)
+		lambdaEnv.DefineCapture(cap, 8*(i+1))
 	}
 
 	for _, xpr := range l.Exprs {
