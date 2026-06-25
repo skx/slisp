@@ -101,15 +101,24 @@ Finally execute your program:
 
 ## Testing
 
-There are some test programs beneath [test/](test/).  These compile fixed programs and compare their output to known-good results.
-
-To run the tests:
+There are some functiona test programs beneath [test/](test/), which compile fixed programs and compare their output to known-good results.  You can run these tests by executing:
 
 ```sh
 cd test && make test
 ```
 
 Running `make clean` at the top-level will remove the test artifacts, and compiled programs.
+
+In addition to the functional tests there are also golang tests of the internal implementation packages, these can be executed in the standard fashion:
+
+```sh
+$ go test ./...
+ok      github.com/skx/slisp	(cached)
+?       github.com/skx/slisp/compiler	[no test files]
+ok      github.com/skx/slisp/env	0.002s
+ok      github.com/skx/slisp/lexer	(cached)
+ok      github.com/skx/slisp/parser	(cached)
+```
 
 
 
