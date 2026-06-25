@@ -114,7 +114,7 @@ func (g *Compiler) asmName(name string) string {
 }
 
 // emitExpr emits the code for each of our expression AST types.
-func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
+func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 	switch n := e.(type) {
 
 	case *parser.Call:
@@ -130,7 +130,10 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
 			}
 
 			for _, a := range n.Args {
-				g.emitExpr(a, ev)
+				err := g.emitExpr(a, ev)
+				if err != nil {
+					return err
+				}
 				g.emitln("    push rax")
 			}
 
@@ -155,11 +158,11 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
 				g.emitln("mov rax, [r15]")
 				g.emitln("call rax")
 
-				return
+				return nil
 			} else {
 				// defun
 				g.emitln("    call " + g.asmName(symbol.Name))
-				return
+				return nil
 			}
 		}
 
@@ -173,7 +176,11 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
 		}
 
 		for _, a := range n.Args {
-			g.emitExpr(a, ev)
+			err := g.emitExpr(a, ev)
+			if err != nil {
+				return err
+			}
+
 			g.emitln("    push rax")
 		}
 
@@ -185,7 +192,10 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
 		}
 
 		// evaluate callable expression
-		g.emitExpr(n.Fn, ev)
+		err := g.emitExpr(n.Fn, ev)
+		if err != nil {
+			return err
+		}
 
 		// call lambda
 		g.emitln("UNTAG_REG rax")
@@ -199,7 +209,10 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
 
 	case *parser.Do:
 		for _, expr := range n.Exprs {
-			g.emitExpr(expr, ev)
+			err := g.emitExpr(expr, ev)
+			if err != nil {
+				return err
+			}
 		}
 
 	case *parser.Int:
@@ -210,13 +223,19 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
 		elseLbl := g.label("else")
 		endLbl := g.label("endif")
 
-		g.emitExpr(n.Cond, ev)
+		err := g.emitExpr(n.Cond, ev)
+		if err != nil {
+			return err
+		}
 
 		g.emitln("    GET_TAG_BITS rax     ; get type bits")
 		g.emitln("    cmp rax, TAG_ID_NIL  ; is this a nil?")
 		g.emitln("    jz " + elseLbl)
 
-		g.emitExpr(n.Then, ev)
+		err = g.emitExpr(n.Then, ev)
+		if err != nil {
+			return err
+		}
 
 		g.emitln("    jmp " + endLbl)
 
@@ -224,7 +243,11 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
 
 		// else branch is optional
 		if n.Else != nil {
-			g.emitExpr(n.Else, ev)
+			err = g.emitExpr(n.Else, ev)
+			if err != nil {
+				return err
+			}
+
 		}
 		g.emitln(endLbl + ":")
 
@@ -294,7 +317,10 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
 		// populate the new environment
 		for _, b := range n.Bindings {
 
-			g.emitExpr(b.Expr, ev)
+			err := g.emitExpr(b.Expr, ev)
+			if err != nil {
+				return err
+			}
 
 			offset := (nextSlot + 1) * 8
 
@@ -310,7 +336,11 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
 
 		// compile each expression within the body
 		for _, expr := range n.Body {
-			g.emitExpr(expr, child)
+			err := g.emitExpr(expr, child)
+			if err != nil {
+				return err
+			}
+
 		}
 
 	case *parser.Nil:
@@ -332,14 +362,17 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
 
 	case *parser.Set:
 
-		g.emitExpr(n.Expr, ev)
+		err := g.emitExpr(n.Expr, ev)
+		if err != nil {
+			return err
+		}
 
 		if offset, ok := ev.Lookup(n.Name); ok {
 			g.emitln(fmt.Sprintf(
 				"    mov [rbp-%d], rax",
 				offset,
 			))
-			return
+			return nil
 		}
 
 		if offset, ok := ev.LookupCapture(n.Name); ok {
@@ -347,9 +380,9 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
 				"    mov [r15+%d], rax",
 				offset,
 			))
-			return
+			return nil
 		}
-		panic("unknown variable: " + n.Name)
+		return fmt.Errorf("unknown variable: %s", n.Name)
 
 	case *parser.Symbol:
 		if offset, ok := ev.Lookup(n.Name); ok {
@@ -357,7 +390,7 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
 				"    mov rax, [rbp-%d]",
 				offset,
 			))
-			return
+			return nil
 		}
 
 		if offset, ok := ev.LookupCapture(n.Name); ok {
@@ -365,18 +398,19 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) {
 				"    mov rax, [r15+%d]",
 				offset,
 			))
-			return
+			return nil
 		}
-		panic("unknown symbol: " + n.Name)
+		return fmt.Errorf("unknown variable: %s", n.Name)
 	default:
-		panic(fmt.Sprintf("emitExpr: Unhandled node type:%T value:%V\n", n, n))
+		return fmt.Errorf("emitExpr: Unhandled node type:%T value:%V\n", n, n)
 	}
+	return nil
 }
 
 // emitDefun emits the body for the given function definition "(defun ..)".
 //
 // TODO: this is basically a copy/paste of emitLambda
-func (g *Compiler) emitDefun(fn *parser.Defun) {
+func (g *Compiler) emitDefun(fn *parser.Defun) error {
 
 	g.emitln(g.asmName(fn.Name) + ":")
 
@@ -408,17 +442,22 @@ func (g *Compiler) emitDefun(fn *parser.Defun) {
 	}
 
 	for _, xpr := range fn.Exprs {
-		g.emitExpr(xpr, ev)
+		err := g.emitExpr(xpr, ev)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	g.emitln("    leave")
 	g.emitln("    ret")
+	return nil
 }
 
 // emitLambda emits the body for the given lambda definition "(lambda ..)".
 //
 // TODO: this is basically a copy/paste of emitDefun.
-func (g *Compiler) emitLambda(l *parser.Lambda) {
+func (g *Compiler) emitLambda(l *parser.Lambda) error {
 
 	g.emitln(l.Name + ":")
 
@@ -453,11 +492,16 @@ func (g *Compiler) emitLambda(l *parser.Lambda) {
 	}
 
 	for _, xpr := range l.Exprs {
-		g.emitExpr(xpr, lambdaEnv)
+		err := g.emitExpr(xpr, lambdaEnv)
+		if err != nil {
+			return err
+		}
+
 	}
 
 	g.emitln("    leave")
 	g.emitln("    ret")
+	return nil
 }
 
 // Compile creates and returns the assembly language source for the given
@@ -471,7 +515,10 @@ func (g *Compiler) Compile(defs []*parser.Defun) (string, error) {
 
 	// Generate the user-defined functions to our internal buffer.
 	for _, d := range defs {
-		g.emitDefun(d)
+		err := g.emitDefun(d)
+		if err != nil {
+			return "", err
+		}
 		g.emitln("")
 	}
 
@@ -482,7 +529,11 @@ func (g *Compiler) Compile(defs []*parser.Defun) (string, error) {
 	// Now user-defined lambdas
 	lambdas := ""
 	for _, l := range g.lambdas {
-		g.emitLambda(l)
+		err := g.emitLambda(l)
+		if err != nil {
+			return "", err
+		}
+
 		g.emitln("")
 	}
 	lambdas = g.text.String()
