@@ -464,7 +464,7 @@ func (g *Compiler) emitLambda(l *parser.Lambda) {
 
 // Compile creates and returns the assembly language source for the given
 // list of functions.
-func (g *Compiler) Compile(defs []*parser.Defun) string {
+func (g *Compiler) Compile(defs []*parser.Defun) (string, error) {
 
 	// Ensure our string table is pristine
 	g.strings = make(map[string]string)
@@ -535,9 +535,9 @@ func (g *Compiler) Compile(defs []*parser.Defun) string {
 	// Render the template.
 	err := t1.Execute(&buf, x)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	// Now return the text of that rendered template.
-	return buf.String()
+	return buf.String(), nil
 }
