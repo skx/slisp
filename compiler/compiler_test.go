@@ -24,6 +24,25 @@ func TestBasic(t *testing.T) {
 	(set! n (+ n 1))
 	n))))
 
+(defun maths ()
+  (print (= 0 0))
+  (print (! 0))
+  (print (<= 0 0))
+  (print (< 0 0))
+  (print (> 0 0))
+  (print (>= 0 0))
+  (print (+ 0 0))
+  (print (- 0 0))
+  (print (* 0 0))
+  (print (/ 0 0))
+  (print (% 0 0))
+  (print (cons? 0))
+  (print (char? 0))
+  (print (int? 0))
+  (print (lambda? 0))
+  (print (nil? 0))
+  (print (str?  0)))
+
 (defun main ()
   (let ((f (counter)))
     (println (f))
@@ -31,8 +50,19 @@ func TestBasic(t *testing.T) {
   )
   (if 1 (print "OK") (print "fail"))
   (if 1 (print "OK"))
+
   (let ((x 1))
-   (set! x 2))
+     ;; x = 1
+     (printint x)
+     (newline)
+
+     ;; mutate
+     (set! x 42)
+
+     ;; confirm it worked
+     (printint x)
+     (newline))
+
   (foo 32 11)
   (print (list 1 2 3 ))
   (print ( (lambda (x) 3) 3))
