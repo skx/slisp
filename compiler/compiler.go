@@ -205,6 +205,47 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		g.emitln("mov rax, [r15]")
 		g.emitln("call rax")
 
+	case *parser.Cond:
+
+		label := g.label("case_")
+
+		// There are N test/bodies - compile the comparisons to jump to
+		// each body
+		for i, c := range n.Cases {
+
+			err := g.emitExpr(c.Case, ev)
+			if err != nil {
+				return err
+			}
+
+			g.emitln("    GET_TAG_BITS rax     ; get type bits")
+			g.emitln("    cmp rax, TAG_ID_NIL  ; is this a nil?")
+			g.emitln(fmt.Sprintf("     jnz %s_case_%d", label, i))
+		}
+
+		// No match? Then fall-through to return nil
+		g.emitln(label + "_nil:")
+		g.emitln("   xor rax, rax")
+		g.emitln("   TAG_NIL_REG rax")
+		g.emitln(fmt.Sprintf("   jmp %s_end", label))
+
+		// now compile each body - making sure execution jumps to the end
+		for i, c := range n.Cases {
+
+			// case for each one
+			g.emitln(fmt.Sprintf("%s_case_%d:", label, i))
+			for _, expr := range c.Exprs {
+				err := g.emitExpr(expr, ev)
+				if err != nil {
+					return err
+				}
+			}
+			g.emitln(fmt.Sprintf("   jmp %s_end", label))
+		}
+
+		// define end
+		g.emitln(label + "_end:")
+
 	case *parser.Char:
 		g.emitln(fmt.Sprintf("    mov rax, %d", n.Value))
 		g.emitln("   TAG_CHAR_REG rax")
