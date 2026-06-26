@@ -99,7 +99,7 @@ func (p *Parser) parseDefun() (*Defun, error) {
 	}
 
 	var params []string
-	for p.peek() != ")" {
+	for p.peek() != ")" && p.peek() != "" {
 		params = append(params, p.next())
 	}
 	if !p.expectNext(")") {
