@@ -97,8 +97,8 @@ _start:
     mov [heap_ptr], rax  ; cons cells are heap-allocated
 
     call fn_main
-    mov rdi, rax
-    shr rdi, 1
+    mov rdi, rax         ; exit code is the last expression
+    UNTAG_REG rdi
     mov rax, 60
     syscall
 
@@ -117,7 +117,7 @@ intp:
     TAG_INTEGER_REG rax
     ret
 .nil:
-    mov rax, 0
+    xor rax, rax
     TAG_NIL_REG rax
     ret
 
@@ -131,7 +131,7 @@ charp:
     TAG_INTEGER_REG rax
     ret
 .nil:
-    mov rax, 0
+    xor rax, rax
     TAG_NIL_REG rax
     ret
 
@@ -145,7 +145,7 @@ strp:
     TAG_INTEGER_REG rax
     ret
 .nil:
-    mov rax, 0
+    xor rax, rax
     TAG_NIL_REG rax
     ret
 
@@ -159,7 +159,7 @@ consp:
     TAG_INTEGER_REG rax
     ret
 .nil:
-    mov rax, 0
+    xor rax, rax
     TAG_NIL_REG rax
     ret
 
@@ -173,7 +173,7 @@ lambdap:
     TAG_INTEGER_REG rax
     ret
 .nil:
-    mov rax, 0
+    xor rax, rax
     TAG_NIL_REG rax
     ret
 
@@ -187,7 +187,7 @@ nilp:
     TAG_INTEGER_REG rax
     ret
 .nil:
-    mov rax, 0
+    xor rax, rax
     TAG_NIL_REG rax
     ret
 
@@ -254,7 +254,7 @@ fn_not:
     GET_TAG_BITS rax
     cmp rax, TAG_ID_NIL
     jz .nil
-    mov rax, 0
+    xor rax, rax
     TAG_NIL_REG rax
     ret
 .nil:
@@ -290,7 +290,7 @@ equals:
     TAG_INTEGER_REG rax
     ret
 .nil:
-    mov rax, 0
+    xor rax, rax
     TAG_NIL_REG rax
     ret
 
@@ -301,7 +301,7 @@ lt_equals:
     UNTAG_REG rsi
     cmp rdi, rsi
     jle .true
-    mov rax, 0
+    xor rax, rax
     TAG_NIL_REG rax
     ret
 .true:
@@ -315,7 +315,7 @@ gt_equals:
     UNTAG_REG rsi
     cmp rdi, rsi
     jge .true
-    mov rax, 0
+    xor rax, rax
     TAG_NIL_REG rax
     ret
 .true:
@@ -329,7 +329,7 @@ lt:
     UNTAG_REG rsi
     cmp rdi, rsi
     jl .true
-    mov rax, 0
+    xor rax, rax
     TAG_NIL_REG rax
     ret
 .true:
@@ -343,7 +343,7 @@ gt:
     UNTAG_REG rsi
     cmp rdi, rsi
     jg .true
-    mov rax, 0
+    xor rax, rax
     TAG_NIL_REG rax
     ret
 .true:

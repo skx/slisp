@@ -47,7 +47,7 @@ Special forms are things that are built into the compiler core, and handled spec
 
 ## Core Primitives
 
-Core primitives are implemented in assembly language, and can be found within the `template.tmpl` file.
+Core primitives are implemented in assembly language, and can be found within the file [compiler/template.tmpl](compiler/template.tmpl)
 
 * Type checking functions:
   * `char?`, `cons?`, `int?`, `lambda?`, `nil?`, and `str?`.
