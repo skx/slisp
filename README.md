@@ -101,7 +101,7 @@ Finally execute your program:
 
 ## Testing
 
-There are some functiona test programs beneath [test/](test/), which compile fixed programs and compare their output to known-good results.  You can run these tests by executing:
+There are some functional test programs beneath [test/](test/), which compile fixed programs and compare their output to known-good results.  You can run these tests by executing:
 
 ```sh
 cd test && make test
@@ -118,6 +118,13 @@ ok      github.com/skx/slisp	(cached)
 ok      github.com/skx/slisp/env	0.002s
 ok      github.com/skx/slisp/lexer	(cached)
 ok      github.com/skx/slisp/parser	(cached)
+```
+
+
+There is also support for the fuzz-testing that golang provides, you can run five minutes of fuzz-testing by executing the following (remove the `-fuzztime=300s` to run _forever_, and remove `-parallel=1` to run more than a single instance at a time):
+
+```sh
+$ go test -fuzztime=300s -parallel=1 -fuzz=FuzzProject -v
 ```
 
 
