@@ -232,6 +232,50 @@ func (p *Parser) parseList() (Expr, error) {
 	if sym, ok := head.(*Symbol); ok {
 		switch sym.Name {
 
+		case "cond":
+			var cases []CondCase
+
+			for p.peek() == "(" && p.peek() != "" {
+
+				if !p.expectNext("(") {
+					return nil, fmt.Errorf("expected '(' to open cond-case")
+				}
+
+				// condition
+				cond, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+
+				var exprs []Expr
+
+				// arbitrary number of expressions
+				for p.peek() != ")" && p.peek() != "" {
+					x, err := p.parseExpr()
+					if err != nil {
+						return nil, err
+					}
+					exprs = append(exprs, x)
+				}
+
+				if !p.expectNext(")") {
+					return nil, fmt.Errorf("expected ')' to close cond-case")
+				}
+
+				cases = append(cases, CondCase{
+					Case:  cond,
+					Exprs: exprs,
+				})
+			}
+
+			if !p.expectNext(")") {
+				return nil, fmt.Errorf("expected ')' to close cond")
+			}
+
+			return &Cond{
+				Cases: cases,
+			}, nil
+
 		case "do":
 
 			var exprs []Expr
