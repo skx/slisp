@@ -112,30 +112,18 @@
       ;; get the instruction
       (let ((ins (nth program i)))
 
-        ;; dispatch it.  horrid
-        (if (= ins #\+)
-            (execPlus program i cells ptr)
+        ;; dispatch it
+        (cond
+          ((= ins #\+)  (execPlus  program i cells ptr))
+          ((= ins #\-)  (execMinus program i cells ptr))
+          ((= ins #\>)  (execGt    program i cells ptr))
+          ((= ins #\<)  (execLt    program i cells ptr))
+          ((= ins #\.)  (execDot   program i cells ptr))
+          ((= ins #\[)  (execOpen  program i cells ptr))
+          ((= ins #\])  (execClose program i cells ptr))
 
-            (if (= ins #\-)
-                (execMinus program i cells ptr)
-
-                (if (= ins #\>)
-                    (execGt program i cells ptr)
-
-                    (if (= ins #\<)
-                        (execLt program i cells ptr)
-
-                        (if (= ins #\.)
-                            (execDot program i cells ptr)
-
-                            (if (= ins #\[)
-                                (execOpen program i cells ptr)
-
-                                (if (= ins #\])
-                                    (execClose program i cells ptr)
-
-                                    ;; ignore unknown character/instruction
-                                    (run program (+ i 1) cells ptr)))))))))))
+          ;; ignore unknown character/instruction
+          (1 (run program (+ i 1) cells ptr))))))
 
 
 ;; driver

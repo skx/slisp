@@ -39,6 +39,15 @@ type Call struct {
 	Args []Expr
 }
 
+type CondCase struct {
+	Case  Expr
+	Exprs []Expr
+}
+
+type Cond struct {
+	Cases []CondCase
+}
+
 type Defun struct {
 	Name   string
 	Params []string

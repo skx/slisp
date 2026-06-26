@@ -59,6 +59,7 @@ It should be noted that we prepend a standard library of functions to all user p
 * Comparision operations:
   * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
 * Special forms
+  * `(cond ..)`
   * `(defun ..)`
   * `(do ..)`
   * `(if ..)`
