@@ -15,6 +15,15 @@ test: $(TESTS)
 	cd .. && go build .
 
 
+
+# Optionally remove unused sections and strip the binaries.
+ifeq ($(SMALL),1)
+LINK_CMD = ld --gc-sections -s -o $@ tmp.o
+else
+LINK_CMD = ld -o $@ tmp.o
+endif
+
+
 # Generic rule
 #   "foo.lisp" becomes "foo"
 #   "foo" is executed to produce "foo.out"
@@ -24,13 +33,13 @@ test: $(TESTS)
 	@echo "compiling $@"
 	@../slisp $< > tmp.asm
 	@nasm -f elf64 tmp.asm
-	@ld -o $@ tmp.o
+	$(LINK_CMD)
 
 # Generic rule for testing each binary
 %.test: %.lisp ../slisp
 	@echo "compiling $@"
 	@../slisp $< > tmp.asm
 	@nasm -f elf64 tmp.asm
-	@ld -o $@ tmp.o
+	$(LINK_CMD)
 	@./$@ > $@.out 2>&1  || true
 	@cmp $@.out $@.expected || (echo "program $< did not match" ; cat $@.out ; exit 1)

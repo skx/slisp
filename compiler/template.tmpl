@@ -105,7 +105,7 @@ _start:
 
 
 ;;; 5. stdlib
-section .text
+section .text.typep,"ax",@progbits
 
 ;; Is the given value an integer?
 intp:
@@ -120,6 +120,8 @@ intp:
     xor rax, rax
     TAG_NIL_REG rax
     ret
+
+section .text.charp,"ax",@progbits
 
 ;; Is the given value an character?
 charp:
@@ -191,6 +193,9 @@ nilp:
     TAG_NIL_REG rax
     ret
 
+
+section .text.maths,"ax",@progbits
+
 ;; +
 integer_plus:
    UNTAG_REG rdi
@@ -246,6 +251,8 @@ integer_multiply:
    ret
 
 
+section .text.not,"ax",@progbits
+
 ;; NOT
 ;; a nil becomes 1.
 ;; anything else becomes nil
@@ -261,6 +268,8 @@ fn_not:
     mov rax, 1
     TAG_INTEGER_REG rax
     ret
+
+section .text.equals,"ax",@progbits
 
 ;; =
 equals:
@@ -294,6 +303,7 @@ equals:
     TAG_NIL_REG rax
     ret
 
+section .text.compare,"ax",@progbits
 
 ;; <=
 lt_equals:
@@ -351,6 +361,8 @@ gt:
     TAG_INTEGER_REG rax
     ret
 
+section .text.print_int,"ax",@progbits
+
 ;; Print an integer
 fn_printint:
     push rbp
@@ -394,6 +406,8 @@ fn_printint:
     ret
 
 
+section .text.exit,"ax",@progbits
+
 ;; terminate execution with the given exit-code
 fn_exit:
     UNTAG_REG rdi
@@ -401,6 +415,7 @@ fn_exit:
     syscall
     ret
 
+section .text.newline,"ax",@progbits
 
 ;; print a newline.
 fn_newline:
@@ -410,6 +425,8 @@ fn_newline:
     mov rdx, 1
     syscall
     ret
+
+section .text.putc,"ax",@progbits
 
 ;; Write the given ASCII character to stdout
 fn_putc:
@@ -422,6 +439,8 @@ fn_putc:
     mov rdx, 1
     syscall
     ret
+
+section .text.print_str,"ax",@progbits
 
 ;; Print the given string.
 fn_printstr:
@@ -442,6 +461,8 @@ fn_printstr:
     ret
 
 
+section .text.chr,"ax",@progbits
+
 ;; chr - convert an integer to a character
 fn_chr:
     mov rbx, rdi
@@ -455,6 +476,8 @@ fn_chr:
     ret
 
 
+section .text.ord,"ax",@progbits
+
 ;; ord - convert a character to an integer.
 fn_ord:
     mov rbx, rdi
@@ -465,6 +488,8 @@ fn_ord:
     mov rax, rdi
     TAG_INTEGER_REG rax
     ret
+
+section .text.cons,"ax",@progbits
 
 ;; Allocate space for a new cons cell, return it in RAX.
 ;;
@@ -477,6 +502,8 @@ fn_cons:
     TAG_CONS_REG rax         ; return the tagged allocation
     ret
 
+section .text.car,"ax",@progbits
+
 ;; Get the first item in the cons cell.
 fn_car:
     mov rbx, rdi
@@ -486,6 +513,8 @@ fn_car:
     UNTAG_REG rdi
     mov rax, [rdi]
     ret
+
+section .text.cdr,"ax",@progbits
 
 ;; Get the second item in the cons cell.
 fn_cdr:
@@ -499,6 +528,9 @@ fn_cdr:
 
 type_error:
     jmp fn_exit
+
+
+section .text.explode,"ax",@progbits
 
 
 ;; Explode a string to a list of characters.
@@ -538,6 +570,8 @@ fn_explode:
 .done:
     ret
 
+
+section .text.implode,"ax",@progbits
 
 ;; join a character list to a string
 fn_implode:
@@ -596,6 +630,8 @@ fn_implode:
     ret
 
 
+section .text.strlen,"ax",@progbits
+
 ;; Find the length of the given string.
 fn_strlen:
     mov rbx, rdi
@@ -614,6 +650,8 @@ fn_strlen:
 .found_end:
     TAG_INTEGER_REG rax
     ret
+
+section .text.strcmp,"ax",@progbits
 
 ;; Compare the two specified strings.
 fn_strcmp:
