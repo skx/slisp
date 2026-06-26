@@ -29,12 +29,22 @@ clean:
 #
 all: $(PROGRAMS)
 
+
+
+# Optionally remove unused sections and strip the binaries.
+ifeq ($(SMALL),1)
+LINK_CMD = ld --gc-sections -s -o $@ $@.o
+else
+LINK_CMD = ld -o $@ $@.o
+endif
+
+
 # generic rule to build a binary from a .lisp file
 %: %.lisp slisp
 	@echo "compiling $@"
 	@./slisp $< > $@.asm
 	@nasm -f elf64 $@.asm
-	@ld -o $@ $@.o
+	$(LINK_CMD)
 
 # Run functional tests
 test:
