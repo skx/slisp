@@ -120,6 +120,31 @@ Incrementing by the given step each time."
        (fn (car lst))
        (map fn (cdr lst)))))
 
+
+(defun max (xs)
+  "Return the maximum integer from the list of numbers supplied."
+  (if (nil? xs)
+      xs
+      (reduce xs
+              (lambda (a b)
+                (if (< a b) b a))
+              (car xs))))
+
+(defun min (xs)
+  "Return the smallest integer from the list of numbers supplied."
+  (if (nil? xs)
+      xs
+      (reduce xs
+              (lambda (a b)
+                (if (< a b) a b))
+              (car xs))))
+
+(defun reduce (xs f acc)
+  "This is our reduce function, which uses a list, a function, and the accumulator."
+  (if (nil? xs)
+      acc
+      (reduce (cdr xs) f (f acc (car xs)))))
+
 (defun reverseInner (xs acc)
   "Helper to use an accumulator to reverse a list.  Used by 'reverse'"
   (if (nil? xs)

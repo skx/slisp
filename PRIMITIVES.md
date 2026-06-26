@@ -119,10 +119,16 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return the length of the specified list, or string.
 * `map`
   * Create a new list by calling the given function over every element of the supplied list.
+* `max`
+  * Return the highest integer in the list of numbers provided.
+* `min`
+  * Return the lowest integer in the list of numbers provided.
 * `print`
   * Print "anything".
 * `println`
   * Print "anything", by invoking `print`, then outputting a newline.
+* `reduce`
+  * Reduce combines all elements of a list with a function and accumulator.
 * `reverse`
   * Reverse the contents of the specified list.
 * `sum`

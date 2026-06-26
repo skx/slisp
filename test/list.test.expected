@@ -1,2 +1,4 @@
-Original list: (3 4 5 (5 2 1) (3 12 Steve))
-Flatted list: (3 4 5 5 2 1 3 12 Steve)
+Original list: (3 4 5 (5 2 1) (3 12 99))
+Flatted list: (3 4 5 5 2 1 3 12 99)
+Minimum entry in list: 1
+Maximum entry in list: 99
