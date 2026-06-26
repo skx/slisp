@@ -98,7 +98,11 @@ Finally execute your program:
 
     ./example
 
-`make clean example` will ensure everything happens correctly for our [example.lisp](example.lisp) file.
+**ProTip** Any `*.lisp` file in the current directory will be compiled if you run:
+
+    make clean all
+
+This avoids the need to manually redirect, asssemble, or link.  It will also run the [example.lisp](example.lisp) file - though just "make clean example" will do that too, for neatness.
 
 
 
