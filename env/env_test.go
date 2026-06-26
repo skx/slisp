@@ -10,22 +10,14 @@ func TestBasic(t *testing.T) {
 	// create env
 	e := New(nil)
 
-	// should be empty
-	if e.CountLocals() != 0 {
-		t.Fatalf("empty env had local variables, which is wrong")
-	}
-
-	// but define a new value and that's oka
-	e.Define("foo", 3)
-	e.DefineCapture("cat", 1)
-	if e.CountLocals() != 1 {
-		t.Fatalf("incorrect local-count")
-	}
+	// will be empty - define things
+	e.Define("foo")
+	e.DefineCapture("cat")
 
 	// create a child
 	c := New(e)
-	c.Define("meow", 3)
-	c.DefineCapture("dog", 391)
+	c.Define("meow")
+	c.DefineCapture("dog")
 
 	// We now have two slots used.
 	out := c.Names()

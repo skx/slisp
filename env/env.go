@@ -25,24 +25,30 @@ func New(parent *Env) *Env {
 	}
 }
 
-// Define defines a local variable, in this case
-// the offset is relative to the RBP register.
-func (e *Env) Define(name string, offset int) {
+// Define defines a local variable, and returns the offset relative to the RBP register.
+func (e *Env) Define(name string) int {
+	offset := (e.countLocals() + 1) * 8
 	e.slots[name] = offset
+	return offset
 }
 
-// DefineCapture defines a captured variable, in this case
-// the offset is relative to the R15 closure-base register.
-func (e *Env) DefineCapture(name string, offset int) {
+// DefineCapture defines a captured variable, in this case the offset returned will be used
+// relative to the R15 closure-base register.
+func (e *Env) DefineCapture(name string) int {
+	offset := (len(e.captures) + 1) * 8
 	e.captures[name] = offset
+	return offset
 }
 
-func (e *Env) CountLocals() int {
-	ours := len(e.slots)
+// countLocals returns the number of local variables defined in this,
+// and any parent scopes.  It is necessary to calculate the offset to
+// use for stack-local addressing.
+func (e *Env) countLocals() int {
+	used := len(e.slots)
 	if e.parent != nil {
-		ours += e.parent.CountLocals()
+		used += e.parent.countLocals()
 	}
-	return ours
+	return used
 }
 
 // Names returns all the names of variables known at this level,
