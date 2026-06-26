@@ -30,6 +30,11 @@ func FuzzProject(f *testing.F) {
 	// Some examples to seed the fuzz corpus
 	//
 	testcases := []string{
+		// comments
+		`;; comment
+(defun main() (print 3) ;; comment
+)`,
+
 		// simple maths
 		"(defun main() (print (= 0 0)))",
 		"(defun main() (print (! 0)))",
@@ -58,9 +63,21 @@ func FuzzProject(f *testing.F) {
 		`(defun main() (if nil (print "nil") (print "true")))`,
 		`(defun main() (if nil (print "nil")))`,
 
+		// lambda
+		`(defun makeAdder (n) (lambda (x)(+ x n)))
+		 (defun main () (let ((ten (makeAdder 10)))  (print (ten 90))))`,
+
 		// let
 		`(defun main() (let ((x 1)) (print x)))`,
+
+		// set!
 		`(defun main() (let ((x 1)) (set! x 3) (print x)))`,
+
+		// list
+		`(defun main() (print (list 1 2 3 #\x "steve")))`,
+
+		// do
+		`(defun main() (do (print (list 1 2 3 #\x "steve"))))`,
 	}
 
 	//
