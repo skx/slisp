@@ -411,7 +411,7 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 // emitDefun emits the body for the given function definition "(defun ..)".
 //
-// TODO: this is basically a copy/paste of emitLambda
+// Arguments are relative to the stack-frame.
 func (g *Compiler) emitDefun(fn *parser.Defun) error {
 
 	g.emitln(g.asmName(fn.Name) + ":")
@@ -458,7 +458,8 @@ func (g *Compiler) emitDefun(fn *parser.Defun) error {
 
 // emitLambda emits the body for the given lambda definition "(lambda ..)".
 //
-// TODO: this is basically a copy/paste of emitDefun.
+// Arguments are relative to the stack frame, but captured variables are relative
+// to the R15 register.
 func (g *Compiler) emitLambda(l *parser.Lambda) error {
 
 	g.emitln(l.Name + ":")
@@ -489,6 +490,8 @@ func (g *Compiler) emitLambda(l *parser.Lambda) error {
 			regs[i],
 		))
 	}
+
+	// define captured variables, relative to our R15 pointer.
 	for i, cap := range l.Captures {
 		lambdaEnv.DefineCapture(cap, 8*(i+1))
 	}

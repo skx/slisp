@@ -55,12 +55,11 @@ type If struct {
 	Else Expr
 }
 
+// Lambda represents a lambda, which is basically identical to a Defun.
+// The only difference is a list of captured variables, so we'll embed
+// the Defun and treat it as one most of the time.
 type Lambda struct {
-	// name is auto-generated when we encounter the lambda
-	Name string
-
-	Params []string
-	Exprs  []Expr
+	Defun
 
 	// Captured variables - we don't do free-variable analysis,
 	// and just capture all the variables we could.
