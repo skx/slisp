@@ -20,18 +20,17 @@ var tmplTxt string
 
 // Compiler holds our state
 type Compiler struct {
-	// text stores the text we emit as we compile
+	// text stores the text we emit as we compile various things.
 	text strings.Builder
 
-	// labelID is used to give unique labels to if/lambda/etc
+	// labelID is used to give unique labels to if/lambda/etc.
 	labelID int
 
 	// strings holds the strings we've encountered, indexed
-	// by their SHA1 sum as ID.
+	// by their SHA1 sum as ID.  This is how we intern.
 	strings map[string]string
 
-	// lambdas holds the lambdas we've encountered and we need
-	// to emit those later too.
+	// lambdas holds the lambdas we've encountered.
 	lambdas []*parser.Lambda
 }
 
@@ -63,8 +62,11 @@ func (g *Compiler) emitln(s string) {
 	g.text.WriteString("\n")
 }
 
-// asmName converts the given label into something nasm will
-// accept.  It doesn't like special characters inside label names.
+// asmName converts the given label into something nasm will accept.
+//
+// It doesn't like special characters inside label names, and compiling
+// a function with a name like "not" or "abs" will cause errors when
+// they're called.  ("call abs" will result in a syntax error from nasm.)
 func (g *Compiler) asmName(name string) string {
 	switch name {
 
@@ -344,7 +346,7 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		}
 
 	case *parser.Nil:
-		g.emitln("    mov rax, 0       ; NIL")
+		g.emitln("    xor rax, rax     ; NIL")
 		g.emitln("    TAG_NIL_REG rax  ; Tagged")
 
 	case *parser.String:
