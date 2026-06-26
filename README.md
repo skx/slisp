@@ -38,7 +38,7 @@ Quick links:
       0)
 ```
 
-See [example.lisp](example.lisp) for a bigger example.
+See [example.lisp](example.lisp) for other snippets, and [brainfuck.lisp](brainfuck.lisp) for a working brainfuck interpreter.
 
 It should be noted that we prepend a standard library of functions to all user programs unless `-stdlib=false` is added to the command line.  That library itself is a useful reference/demonstration of functionality:
 
@@ -113,11 +113,11 @@ In addition to the functional tests there are also golang tests of the internal 
 
 ```sh
 $ go test ./...
-ok  	github.com/skx/slisp	0.004s
-ok  	github.com/skx/slisp/compiler	0.009s
-ok  	github.com/skx/slisp/env	(cached)
-ok  	github.com/skx/slisp/lexer	0.008s
-ok  	github.com/skx/slisp/parser	0.006s
+ok      github.com/skx/slisp	0.004s
+ok      github.com/skx/slisp/compiler	0.009s
+ok      github.com/skx/slisp/env	(cached)
+ok      github.com/skx/slisp/lexer	0.008s
+ok      github.com/skx/slisp/parser	0.006s
 ```
 
 
