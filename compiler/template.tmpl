@@ -97,8 +97,8 @@ _start:
     mov [heap_ptr], rax  ; cons cells are heap-allocated
 
     call fn_main
-    mov rdi, rax
-    shr rdi, 1
+    mov rdi, rax         ; exit code is the last expression
+    UNTAG_REG rdi
     mov rax, 60
     syscall
 
