@@ -82,6 +82,12 @@ Incrementing by the given step each time."
 
 ;;; list utility functions
 
+(defun append (lst item)
+  "Append the given value to the specified list.  If the list is empty just return the specified item."
+  (if (nil? lst)
+      item
+      (cons (car lst) (append (cdr lst) item))))
+
 (defun filter (xs fn)
   "Return a list consisting of all members of the given list for which the given predicate returns non-nil."
   (if (nil? xs)
@@ -89,6 +95,14 @@ Incrementing by the given step each time."
       (if (fn (car xs))
           (cons (car xs) (filter (cdr xs) fn))
           (filter (cdr xs) fn))))
+
+(defun flatten (xs)
+  "Converts a list of nested lists to a single list, flattening it."
+  (if (nil? xs)
+      nil
+      (if (! (cons? (car xs)))
+          (cons (car xs) (flatten (cdr xs)))
+          (append (flatten (car xs)) (flatten (cdr xs))))))
 
 (defun length (xs)
   "Return the length of the given list or string."
