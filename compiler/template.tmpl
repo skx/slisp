@@ -685,6 +685,34 @@ fn_strcmp:
     ret
 
 
+section .text.random,"ax",@progbits
+
+;; Generate a random number 0-N
+fn_random:
+    mov rbx, rdi             ; type-check arg1
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+
+    UNTAG_REG rdi
+    push rdi                        ; push the limit
+
+    mov rax, 318               ; syscall: getrandom
+    lea rdi, [ random_buffer]  ; random value location
+    mov rsi, 4                 ; number of bytes
+    xor rdx, rdx               ; flags = 0
+    syscall
+
+    pop rcx                    ; limit the value
+    mov eax, [random_buffer]
+    xor edx, edx
+    div ecx
+
+    mov rax, rdx
+    TAG_INTEGER_REG rax
+    ret
+
+
 
 section .data
 
@@ -697,6 +725,11 @@ newline_str:
 align 8
 putc_buffer:
     db 10
+
+;; buffer for our random function to read into
+align 8
+random_buffer:
+    db 0x01, 0x02, 0x03, 0x04
 
 ;; zero section
 section .bss
