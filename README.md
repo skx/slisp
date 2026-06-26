@@ -113,11 +113,11 @@ In addition to the functional tests there are also golang tests of the internal 
 
 ```sh
 $ go test ./...
-ok      github.com/skx/slisp	(cached)
-?       github.com/skx/slisp/compiler	[no test files]
-ok      github.com/skx/slisp/env	0.002s
-ok      github.com/skx/slisp/lexer	(cached)
-ok      github.com/skx/slisp/parser	(cached)
+ok  	github.com/skx/slisp	0.004s
+ok  	github.com/skx/slisp/compiler	0.009s
+ok  	github.com/skx/slisp/env	(cached)
+ok  	github.com/skx/slisp/lexer	0.008s
+ok  	github.com/skx/slisp/parser	0.006s
 ```
 
 
