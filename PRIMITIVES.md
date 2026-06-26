@@ -90,6 +90,8 @@ Core primitives are implemented in assembly language, and can be found within th
     * Print the specified integer.
   * `printstr`
     * Print the given string.
+  * `random`
+    * Return a random integer between zero and N.
   * `range`
     * Return a list of numbers between the given start/end, using the specified step-size.
   * `seq`
