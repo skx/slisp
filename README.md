@@ -24,21 +24,23 @@ Quick links:
 
     ;; entry-point
     (defun main ()
-      ;; now some factorials.
-      (print "Showing results of factorial")
-      (print (fact 1))
-      (print (fact 2))
-      (print (fact 3))
-      (print (fact 4))
-      (print (fact 5))
-      ;; ..
-      (print (fact 10))
+      (println "Showing some factorials:")
+      (println (fact 4))
+      (println (fact 5))
+      (println (fact 9))
+      (println (fact 10))
 
       ;; exit code - use "(exit 3)" if you prefer
       0)
 ```
 
-See [example.lisp](example.lisp) for other snippets, and [brainfuck.lisp](brainfuck.lisp) for a working brainfuck interpreter.
+There are several examples beneath our [test/](test/) directory, including:
+
+* [factorial.lisp](test/factorial.lisp)
+* [fibonacci.lisp](test/fibonacci.lisp)
+* [fizzbuzz.lisp](test/fizzbuzz.lisp)
+
+[example.lisp](example.lisp) has other misc. snippets, and finally [brainfuck.lisp](brainfuck.lisp) contains a useful/working brainfuck interpreter.
 
 It should be noted that we prepend a standard library of functions to all user programs unless `-stdlib=false` is added to the command line.  That library itself is a useful reference/demonstration of functionality:
 
