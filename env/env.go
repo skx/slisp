@@ -38,7 +38,11 @@ func (e *Env) DefineCapture(name string, offset int) {
 }
 
 func (e *Env) CountLocals() int {
-	return len(e.slots)
+	ours := len(e.slots)
+	if e.parent != nil {
+		ours += e.parent.CountLocals()
+	}
+	return ours
 }
 
 // Names returns all the names of variables known at this level,
