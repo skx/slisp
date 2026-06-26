@@ -81,6 +81,14 @@ func FuzzProject(f *testing.F) {
 
 		// do
 		`(defun main() (do (print (list 1 2 3 #\x "steve"))))`,
+
+		// cond
+		`(defun main() (cond ((1 (print "one")))))`,
+		`(defun main() (let ((n 2))
+		   (cond (
+		     (= n 1) (print "one")
+		     (= n 2) (print "two")
+		     ))))`,
 	}
 
 	//
