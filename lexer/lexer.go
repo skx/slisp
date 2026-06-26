@@ -5,6 +5,7 @@
 package lexer
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -37,20 +38,21 @@ func (l *Lexer) Tokenize() ([]string, error) {
 	inComment := false
 	inString := false
 
-	for _, ch := range l.input {
+	for i := 0; i < len(l.input); i++ {
+		ch := l.input[i]
 
 		// Note that we do no processing of "\n" to newline, etc.
 		//
 		// That is deferred to nasm.
 		if inString {
 			if ch == '"' {
-				cur.WriteRune(ch)
+				cur.WriteByte(ch)
 				out = append(out, cur.String())
 				cur.Reset()
 				inString = false
 				continue
 			}
-			cur.WriteRune(ch)
+			cur.WriteByte(ch)
 			continue
 		}
 
@@ -62,14 +64,48 @@ func (l *Lexer) Tokenize() ([]string, error) {
 			continue
 		}
 
+		// A bit ugly, but we test #\xx specially here
+		// because otherwise "#\(" wouldn't be possible
+		// as we regard "(" and ")" as separators.
+		if ch == '#' &&
+			i+1 < len(l.input) &&
+			l.input[i+1] == '\\' {
+
+			flush()
+
+			cur.WriteByte('#')
+			cur.WriteByte('\\')
+			i += 2
+
+			if i >= len(l.input) {
+				return nil, fmt.Errorf("unterminated character literal")
+			}
+
+			cur.WriteByte(l.input[i])
+
+			if l.input[i] == '\\' {
+				i++
+				if i >= len(l.input) {
+					return nil, fmt.Errorf("unterminated escape")
+				}
+				cur.WriteByte(l.input[i])
+			}
+
+			out = append(out, cur.String())
+			cur.Reset()
+			continue
+		}
+
 		// obvious stuff
 		switch ch {
+
 		case '(', ')':
 			flush()
 			out = append(out, string(ch))
+
 		case '"':
 			flush()
-			cur.WriteRune(ch)
+			cur.WriteByte(ch)
 			inString = true
 
 		case ' ', '\n', '\r', '\t':
@@ -78,8 +114,9 @@ func (l *Lexer) Tokenize() ([]string, error) {
 		case ';':
 			flush()
 			inComment = true
+
 		default:
-			cur.WriteRune(ch)
+			cur.WriteByte(ch)
 		}
 	}
 
