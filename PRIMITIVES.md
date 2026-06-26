@@ -111,6 +111,10 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
 
 * `abs`
   * Return the absolute value of the given integer.  (e.g. 3 -> 3, and -3 -> 3).
+* `append`
+  * Append the given value to the specified list.  If the list is empty just return the specified item.
+* `flatten`
+  * Flatten the given list of lists into a single list
 * `length`
   * Return the length of the specified list, or string.
 * `map`
