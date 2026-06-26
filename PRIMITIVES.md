@@ -27,6 +27,8 @@ Finally strings are enclosed in "quotes like this", and integers are converted t
 
 Special forms are things that are built into the compiler core, and handled specially.
 
+* `cond`
+  * An efficient switch implementation.
 * `defun`
   * Define a function.
   * We only allow functions at the top-level, and the function named `main` is both mandatory, and our entry-point.
