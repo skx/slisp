@@ -24,6 +24,9 @@ func FuzzProject(f *testing.F) {
 
 		// defun
 		"expected defun",
+
+		// variables
+		"unknown variable",
 	}
 
 	//
