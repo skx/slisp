@@ -314,9 +314,14 @@ func (p *Parser) parseList() (Expr, error) {
 				return nil, fmt.Errorf("expected ')' to close lambda body")
 			}
 
+			// Lambda is basically a Defun with extra "Captures".
+			// We don't populate those at parse time, so we'll just
+			// populate the defun-things here.
 			return &Lambda{
-				Params: params,
-				Exprs:  body,
+				Defun: Defun{
+					Params: params,
+					Exprs:  body,
+				},
 			}, nil
 
 		case "let":
