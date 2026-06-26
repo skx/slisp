@@ -16,9 +16,9 @@
       (printstr "<lambda>"))
   (if (cons? x)
       (do
-       (putc 40)      ; "("
+       (putc #\()
        (printcons x)  ; List items, separated by spaces
-       (putc 41)      ; ")"
+       (putc #\))
 
         )))
 
