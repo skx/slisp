@@ -332,6 +332,7 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				panic("capture not found: " + cap)
 			}
 
+			g.emitln("; copy capture " + cap)
 			g.emitln(fmt.Sprintf(
 				"    mov rcx, [rbp-%d]",
 				offset,
@@ -355,8 +356,6 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		// create a new child environment
 		child := env.New(ev)
 
-		nextSlot := child.CountLocals()
-
 		// populate the new environment
 		for _, b := range n.Bindings {
 
@@ -365,16 +364,12 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				return err
 			}
 
-			offset := (nextSlot + 1) * 8
-
-			child.Define(b.Name, offset)
+			offset := child.Define(b.Name)
 
 			g.emitln(fmt.Sprintf(
 				"    mov [rbp-%d], rax",
 				offset,
 			))
-
-			nextSlot++
 		}
 
 		// compile each expression within the body
@@ -473,9 +468,8 @@ func (g *Compiler) emitDefun(fn *parser.Defun) error {
 	}
 
 	for i, p := range fn.Params {
-		offset := (i + 1) * 8
 
-		ev.Define(p, offset)
+		offset := ev.Define(p)
 
 		g.emitln(fmt.Sprintf(
 			"    mov [rbp-%d], %s",
@@ -521,9 +515,8 @@ func (g *Compiler) emitLambda(l *parser.Lambda) error {
 	}
 
 	for i, p := range l.Params {
-		offset := (i + 1) * 8
 
-		lambdaEnv.Define(p, offset)
+		offset := lambdaEnv.Define(p)
 
 		g.emitln(fmt.Sprintf(
 			"    mov [rbp-%d], %s",
@@ -533,8 +526,8 @@ func (g *Compiler) emitLambda(l *parser.Lambda) error {
 	}
 
 	// define captured variables, relative to our R15 pointer.
-	for i, cap := range l.Captures {
-		lambdaEnv.DefineCapture(cap, 8*(i+1))
+	for _, cap := range l.Captures {
+		lambdaEnv.DefineCapture(cap)
 	}
 
 	for _, xpr := range l.Exprs {
