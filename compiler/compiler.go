@@ -112,6 +112,9 @@ func (g *Compiler) asmName(name string) string {
 	}
 
 	// other functions just get "fn_" prefix
+	if strings.HasPrefix(name, "fn_") {
+		return name
+	}
 	return "fn_" + name
 }
 
@@ -297,7 +300,7 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 	case *parser.Lambda:
 
 		// create a unique name for this lambda
-		name := fmt.Sprintf("lambda_%d", g.labelID)
+		name := g.asmName(fmt.Sprintf("lambda_%d", g.labelID))
 		g.labelID++
 
 		// We don't do analysis for captured variables,
@@ -445,18 +448,43 @@ func (g *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 	return nil
 }
 
-// emitDefun emits the body for the given function definition "(defun ..)".
+// emitCallable emits the code for either a defun, or a lambda.
 //
-// Arguments are relative to the stack-frame.
-func (g *Compiler) emitDefun(fn *parser.Defun) error {
+// The implementation of these is 100% identical EXCEPT the lambda will prefer to
+// use captured variables over local ones.  Those are emitted relative to the
+// lambda-base environment address, we store in R15.
+//
+// The Lambda struct actually embeds a Defun one, with the extra capture fields being
+// the only difference.
+func (g *Compiler) emitCallable(obj any) error {
 
-	g.emitln(g.asmName(fn.Name) + ":")
+	// create new environment
+	ev := env.New(nil)
+
+	// Case the incoming object into a Defun,
+	// because the Lambda node actually embeds on.
+	//
+	// We do need to add some lambda-specific generation
+	// between the prologue and epilogue, but that's small.
+	var d *parser.Defun
+
+	switch c := obj.(type) {
+	case *parser.Defun:
+		d = c
+	case *parser.Lambda:
+		d = &c.Defun
+	default:
+		return fmt.Errorf("invalid type %T", obj)
+	}
+
+	//
+	// Code that is common, and Defun-related
+	//
+	g.emitln(g.asmName(d.Name) + ":")
 
 	g.emitln("    push rbp")
 	g.emitln("    mov rbp, rsp")
 	g.emitln("    sub rsp, 256 ;; guess at space for locals")
-
-	ev := env.New(nil)
 
 	regs := []string{
 		"rdi",
@@ -467,7 +495,7 @@ func (g *Compiler) emitDefun(fn *parser.Defun) error {
 		"r9",
 	}
 
-	for i, p := range fn.Params {
+	for i, p := range d.Params {
 
 		offset := ev.Define(p)
 
@@ -478,60 +506,24 @@ func (g *Compiler) emitDefun(fn *parser.Defun) error {
 		))
 	}
 
-	for _, xpr := range fn.Exprs {
-		err := g.emitExpr(xpr, ev)
-		if err != nil {
-			return err
+	//
+	// Lambdas have this extra bit in the middle to emit
+	// the capture magic
+	//
+	l, ok := obj.(*parser.Lambda)
+	if ok {
+		// define captured variables, relative to our R15 pointer.
+		for _, cap := range l.Captures {
+			ev.DefineCapture(cap)
 		}
-
 	}
 
-	g.emitln("    leave")
-	g.emitln("    ret")
-	return nil
-}
+	//
+	// Now back to the shared/defun-related epilogue.
+	//
 
-// emitLambda emits the body for the given lambda definition "(lambda ..)".
-//
-// Arguments are relative to the stack frame, but captured variables are relative
-// to the R15 register.
-func (g *Compiler) emitLambda(l *parser.Lambda) error {
-
-	g.emitln(l.Name + ":")
-
-	g.emitln("    push rbp")
-	g.emitln("    mov rbp, rsp")
-	g.emitln("    sub rsp, 256 ;; guess at space for locals")
-
-	lambdaEnv := env.New(nil)
-
-	regs := []string{
-		"rdi",
-		"rsi",
-		"rdx",
-		"rcx",
-		"r8",
-		"r9",
-	}
-
-	for i, p := range l.Params {
-
-		offset := lambdaEnv.Define(p)
-
-		g.emitln(fmt.Sprintf(
-			"    mov [rbp-%d], %s",
-			offset,
-			regs[i],
-		))
-	}
-
-	// define captured variables, relative to our R15 pointer.
-	for _, cap := range l.Captures {
-		lambdaEnv.DefineCapture(cap)
-	}
-
-	for _, xpr := range l.Exprs {
-		err := g.emitExpr(xpr, lambdaEnv)
+	for _, xpr := range d.Exprs {
+		err := g.emitExpr(xpr, ev)
 		if err != nil {
 			return err
 		}
@@ -554,7 +546,7 @@ func (g *Compiler) Compile(defs []*parser.Defun) (string, error) {
 
 	// Generate the user-defined functions to our internal buffer.
 	for _, d := range defs {
-		err := g.emitDefun(d)
+		err := g.emitCallable(d)
 		if err != nil {
 			return "", err
 		}
@@ -568,7 +560,7 @@ func (g *Compiler) Compile(defs []*parser.Defun) (string, error) {
 	// Now user-defined lambdas
 	lambdas := ""
 	for _, l := range g.lambdas {
-		err := g.emitLambda(l)
+		err := g.emitCallable(l)
 		if err != nil {
 			return "", err
 		}
