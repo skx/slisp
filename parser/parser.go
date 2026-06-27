@@ -1,5 +1,5 @@
-// Package parser contains our AST definitions, which are turned into
-// code by our compiler.
+// Package parser contains our AST definitions, and the code necessary
+// to populate them from our input.
 //
 // Most of this package is very minimal stuff, as lisp is very low on
 // syntax.
@@ -73,10 +73,7 @@ func (p *Parser) next() string {
 // expectNext confirms the next token is what is specified, if it isn't this
 // will panic.
 func (p *Parser) expectNext(s string) bool {
-	if p.next() != s {
-		return false
-	}
-	return true
+	return p.next() == s
 }
 
 // parseDefun parses a single function definition, containing an arbitrary number
@@ -453,7 +450,7 @@ func (p *Parser) parseList() (Expr, error) {
 			}
 
 			if !p.expectNext(")") {
-				return nil, fmt.Errorf("expected ')' to close set!")
+				return nil, fmt.Errorf("expected ')' to close set! expression")
 			}
 
 			return &Set{
