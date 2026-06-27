@@ -110,7 +110,7 @@ func (p *Parser) parseDefun() (*Defun, error) {
 	body := []Expr{}
 
 	// allow multiple expressions
-	for p.peek() != "" {
+	for p.peek() != "" && p.peek() != ")" {
 		// get the expression
 		expr, err := p.parseExpr()
 		if err != nil {
@@ -340,7 +340,7 @@ func (p *Parser) parseList() (Expr, error) {
 			body := []Expr{}
 
 			// allow multiple expressions
-			for p.peek() != "" {
+			for p.peek() != "" && p.peek() != ")" {
 				expr, err := p.parseExpr()
 				if err != nil {
 					return nil, err
@@ -405,7 +405,7 @@ func (p *Parser) parseList() (Expr, error) {
 			body := []Expr{}
 
 			// allow multiple expressions
-			for p.peek() != "" {
+			for p.peek() != "" && p.peek() != ")" {
 				expr, err := p.parseExpr()
 				if err != nil {
 					return nil, err
