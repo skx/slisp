@@ -28,6 +28,26 @@ func TestParseValid(t *testing.T) {
 	}
 }
 
+func TestIssue68(t *testing.T) {
+
+	src := `
+(defun empty())
+
+(defun main ()
+  (let ((binding nil)))
+  (do)
+  (print (lambda ()))
+  (list)
+)
+`
+
+	p := New(src)
+	_, err := p.Parse()
+	if err != nil {
+		t.Fatalf("unexpected error parsing valid program; %v", err)
+	}
+}
+
 func TestBroken(t *testing.T) {
 
 	tests := []string{
