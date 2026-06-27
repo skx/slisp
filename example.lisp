@@ -44,7 +44,7 @@
 ;;
 ;; main is the entry-point to our compiled code.
 ;;
-(defun main ()
+(defun main (args)
   "main is the (mandatory) entry-point to our code.
 
 This must always be defined, and is where execution starts from."
@@ -59,7 +59,8 @@ This must always be defined, and is where execution starts from."
         (x (double 13))
         (y 12))
 
-     (println "Hello World! I am a compiled lisp")
+    (println "Hello World! I am a compiled lisp, and I received command line arguments:")
+    (println args)
 
      (if nil
          (do

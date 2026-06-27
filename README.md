@@ -23,7 +23,7 @@ Quick links:
       (if (<= n 1) 1 (* n (fact (- n 1)))))
 
     ;; entry-point
-    (defun main ()
+    (defun main (args)
       (println "Showing some factorials:")
       (println (fact 4))
       (println (fact 5))
