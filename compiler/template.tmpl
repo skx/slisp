@@ -460,6 +460,29 @@ fn_putc:
     syscall
     ret
 
+section .text.getc,"ax",@progbits
+
+;; Read an ASCII character from STDIN, return NIL on failure.
+fn_getc:
+     mov     rax, 0        ; SYS_read
+     mov     rdi, 0        ; STDIN_FILENO
+     mov rsi, putc_buffer
+     mov     rdx, 1        ; read 1 byte
+     syscall
+
+     cmp rax, 1
+     jne .getc_failed
+
+     xor rax,rax
+     mov al, byte [putc_buffer]
+     TAG_INTEGER_REG rax
+     ret
+.getc_failed:
+     xor rax, rax
+     TAG_NIL_REG rax
+     ret
+
+
 section .text.print_str,"ax",@progbits
 
 ;; Print the given string.
@@ -757,7 +780,7 @@ section .bss
 ;; heap storage
 align 16
 heap:
-    resb 1048576
+    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
 
 ;; offset used of our heap area.
 heap_ptr:
