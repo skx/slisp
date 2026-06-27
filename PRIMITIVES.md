@@ -74,6 +74,8 @@ Core primitives are implemented in assembly language, and can be found within th
     * Terminate execution.
   * `explode`
     * Convert the supplied string to a list of characters.
+  * `getc`
+    * Read a single character from STDIN, return NIL on failure.
   * `implode`
     * Convert the given list of characters to a string.
   * `newline`
