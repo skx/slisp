@@ -23,7 +23,7 @@ Quick links:
       (if (<= n 1) 1 (* n (fact (- n 1)))))
 
     ;; entry-point
-    (defun main ()
+    (defun main (args)
       (println "Showing some factorials:")
       (println (fact 4))
       (println (fact 5))
@@ -58,7 +58,7 @@ It should be noted that we prepend a standard library of functions to all user p
 * A rough and ready bump-allocator used for heap-allocated cons-cells.
 * Mathematical operations:
   * `+`, `-`, `*`, `/`, and `%`.
-* Comparision operations:
+* Comparison operations:
   * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
 * Special forms
   * `(cond ..)`

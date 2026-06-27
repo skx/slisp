@@ -10,16 +10,20 @@ Note that you might need to consult the source of the standard-library to see fu
 
 The only notable special symbol is `nil` - the nil value.
 
-Characters are specified via the `#\X` syntax, for escaped characters you just need to add the escape:
-
-* `#\a` -> "a"
-* `#\b` -> "b"
-* ..
-* `#\X` -> "X"
-* `#\\n` -> newline
-* `#\\t` -> tab
-
-Finally strings are enclosed in "quotes like this", and integers are converted to numbers.
+* Comments are begun with ";" and continue until the end of the line.
+  * There are no block comments.
+* We only support integers, but they may be written in any base the golang `strconv.ParseInt` function supports:
+  * `(print 3)`
+  * `(print 0xff)`
+  * `(print 0b10101010)`
+* Floating point numbers are not supported, so this is an error:
+  * `(print 3.4)`
+* Strings are just encoded literally, and escaped characters are honored:
+  * `(print "Hello, world\n")`
+* Characters are written with a `#\` prefix:
+  * `(print #\*)`
+* Lists are written using parenthesis to group them:
+  * `(print (list 1 2 3))`
 
 
 

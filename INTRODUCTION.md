@@ -106,6 +106,15 @@ Here's another simple function:
        (* x x))
 
 
+There **must** be a function named `main`, as that is the entry-point to the lisp program.  This function can be defined either like so:
+
+    (defun main() ... )
+
+Or like this, if you wish to receive the command-line arguments, supplied as a list:
+
+    (defun main(args) ... )
+
+
 
 ## Lambdas
 
@@ -124,7 +133,7 @@ Here's an example of applying a function to each entry in a list:
 
 ## Lists
 
-Lists are internally created as cons-pairs, and you can create such a thing like so:
+Lists are internally created as cons-pairs, and you can create such a thing manually like so:
 
     ; Manually create the list "1 2 3"
     (cons 1 (cons 2 (cons 3 nil)))

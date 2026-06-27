@@ -93,11 +93,31 @@ global _start
 section .text
 
 _start:
+
+_start:
     mov rax, heap        ; setup our heap pointer
     mov [heap_ptr], rax  ; cons cells are heap-allocated
 
+    mov rcx, [rsp]       ; argc
+    lea rbx, [rsp+8]     ; rbx -> argv[0]
+    xor rsi, rsi         ; Start with NIL
+    TAG_NIL_REG rsi
+
+.loop:
+    test rcx, rcx
+    jz .done
+    dec rcx
+    mov rdi, [rbx + rcx*8]  ; argv[rcx]
+    TAG_STRING_REG rdi      ; Tag as Lisp string
+    call fn_cons            ; cons(string, list)
+    mov rsi, rax            ; result becomes next list
+    jmp .loop
+
+.done:
+    mov rdi, rsi            ; first SysV argument
+
     call fn_main
-    mov rdi, rax         ; exit code is the last expression
+    mov rdi, rax            ; exit code is the last expression
     UNTAG_REG rdi
     mov rax, 60
     syscall
