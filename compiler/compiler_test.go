@@ -3,15 +3,11 @@ package compiler
 import (
 	"strings"
 	"testing"
-
-	"github.com/skx/slisp/parser"
 )
 
 func TestBasic(t *testing.T) {
 
-	c := New()
-
-	p := parser.New(`
+	c := New(`
 (defun foo (a b)
   "This is a demo"
   (* a b))
@@ -73,12 +69,7 @@ func TestBasic(t *testing.T) {
 )
 		`)
 
-	defs, err := p.Parse()
-	if err != nil {
-		t.Fatalf("error parsing %s", err)
-	}
-
-	out, err := c.Compile(defs)
+	out, err := c.Compile()
 	if err != nil {
 		t.Fatalf("failed to compile %s", err)
 	}
@@ -104,15 +95,9 @@ func TestErrors(t *testing.T) {
 	}
 
 	for _, tst := range tests {
-		c := New()
+		c := New(tst)
 
-		p := parser.New(tst)
-		defs, err := p.Parse()
-		if err != nil {
-			t.Fatalf("error parsing %s", err)
-		}
-
-		_, err = c.Compile(defs)
+		_, err := c.Compile()
 		if err == nil {
 			t.Fatalf("expected error, got none %s", tst)
 		}
