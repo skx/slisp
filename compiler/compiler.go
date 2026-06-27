@@ -1,4 +1,4 @@
-// package compiler is our main workhorse, which creates an assembly
+// Package compiler is our main workhorse, which creates an assembly
 // language version of the given input program and outputs it to STDOUT.
 package compiler
 
@@ -58,13 +58,13 @@ func (c *Compiler) Compile() (string, error) {
 	}
 
 	// Ensure our string table is pristine
-	c.strings = make(map[string]string)
+	c.strings = map[string]string{}
 
 	defuns := ""
 
 	// Generate the user-defined functions to our internal buffer.
 	for _, d := range defs {
-		err := c.emitCallable(d)
+		err = c.emitCallable(d)
 		if err != nil {
 			return "", err
 		}
@@ -78,7 +78,7 @@ func (c *Compiler) Compile() (string, error) {
 	// Now user-defined lambdas
 	lambdas := ""
 	for _, l := range c.lambdas {
-		err := c.emitCallable(l)
+		err = c.emitCallable(l)
 		if err != nil {
 			return "", err
 		}
@@ -544,7 +544,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		}
 		return fmt.Errorf("unknown variable: %s", n.Name)
 	default:
-		return fmt.Errorf("emitExpr: Unhandled node type:%T value:%V\n", n, n)
+		return fmt.Errorf("emitExpr: Unhandled node type:%T value:%V", n, n)
 	}
 	return nil
 }
