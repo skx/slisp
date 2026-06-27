@@ -4,8 +4,6 @@
 ;; This is terrible.
 ;; This works.
 ;;
-;; TODO: Wrap cell inc/dec - via % 256.
-;; TODO: Input via ","; note our stdlib is missing getc..
 
 ;;; Helpers
 
@@ -53,14 +51,14 @@
 (defun execPlus (program i cells ptr)
   (run program
        (+ i 1)
-       (setNth cells ptr (+ (nth cells ptr) 1))
+       (setNth cells ptr (% (+ (nth cells ptr) 1) 256))
        ptr))
 
 ;; - handler
 (defun execMinus (program i cells ptr)
   (run program
        (+ i 1)
-       (setNth cells ptr (- (nth cells ptr) 1))
+       (setNth cells ptr (% (- (nth cells ptr) 1) 256))
        ptr))
 
 ;; > handler
@@ -75,6 +73,13 @@
 (defun execDot (program i cells ptr)
     (putc (chr (nth cells ptr)))
     (run program (+ i 1) cells ptr))
+
+;; , handler
+(defun execComma (program i cells ptr)
+  (let ((x (getc)))
+    (if (nil? x)
+         (set! x 0))
+    (run program (+ i 1) (setNth cells ptr x) ptr)))
 
 ;; [ handler
 (defun execOpen (program i cells ptr)
@@ -119,6 +124,7 @@
           ((= ins #\>)  (execGt    program i cells ptr))
           ((= ins #\<)  (execLt    program i cells ptr))
           ((= ins #\.)  (execDot   program i cells ptr))
+          ((= ins #\,)  (execComma program i cells ptr))
           ((= ins #\[)  (execOpen  program i cells ptr))
           ((= ins #\])  (execClose program i cells ptr))
 
@@ -128,7 +134,7 @@
 
 ;; driver
 (defun brainfuck (program)
-  "Run the given program with 30 cells"
+  "Run the given program with a small number of cells"
   (run
    ;; program
    (explode program)
@@ -137,13 +143,32 @@
    ;; cells
    (list 0 0 0 0 0 0 0 0 0 0   ; 10
          0 0 0 0 0 0 0 0 0 0   ; 20
-         0 0 0 0 0 0 0 0 0 0 ) ; 30
+         0 0 0 0 0 0 0 0 0 0   ; 30
+         0 0 0 0 0 0 0 0 0 0   ; 40
+         0 0 0 0 0 0 0 0 0 0   ; 50
+         0 0 0 0 0 0 0 0 0 0   ; 60
+         0 0 0 0 0 0 0 0 0 0   ; 70
+         0 0 0 0 0 0 0 0 0 0   ; 80
+         0 0 0 0 0 0 0 0 0 0   ; 90
+         0 0 0 0 0 0 0 0 0 0   ;100
+         )
    ;; cell ptr value
    0))
 
 
 ;; Entry-point
-(defun main ()
+(defun main (args)
 
+  ; If we got an argument
+  (if (= (length args) 2)
+      ; and the argument was "cat"
+      (if (= (car (cdr args)) "cat")
+          ; run the cat-program
+          (do
+           (brainfuck ",[.,]")
+           (exit 0))))
+
+  ; not two arguments, or not cat
+  ; hello world
   (brainfuck "++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.")
-)
+  )
