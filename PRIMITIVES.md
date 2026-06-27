@@ -57,7 +57,7 @@ Core primitives are implemented in assembly language, and can be found within th
   * `%`, `*`, `+`, `-`, and `/`.
 * (Integer) comparison operations
   * `<`, `<=`, `>=`, `>`, and `=`.
-* Other functions:
+* Other functions implemented in assembly:
   * `car`
     * Return the first item of a list.
   * `cdr`
@@ -66,24 +66,16 @@ Core primitives are implemented in assembly language, and can be found within th
     * Return the ASCII character corresponding to the given integer.
   * `cons`
     * Add the element to the start of the given (potentially empty) list.
-  * `even?`
-    * Return 1 if the given number is even, nil otherwise.
   * `exit`
     * Terminate execution.
   * `explode`
     * Convert the supplied string to a list of characters.
-  * `filter`
-    * Return a list consisting of all members of the input list for which the given predicate returns non-nil.
   * `implode`
     * Convert the given list of characters to a string.
-  * `nat`
-    * Return the list of natural numbers 1 to N.
   * `newline`
     * Print a newline.
   * `not`
     * If the value is `nil` return 1, otherwise return `nil`.
-  * `odd?`
-    * Return 1 if the given number is odd, nil otherwise.
   * `ord`
     * Return the ASCII code of the specified character.
   * `putc`
@@ -94,10 +86,6 @@ Core primitives are implemented in assembly language, and can be found within th
     * Print the given string.
   * `random`
     * Return a random integer between zero and N.
-  * `range`
-    * Return a list of numbers between the given start/end, using the specified step-size.
-  * `seq`
-    * Return a list of numbers from 0 to N.
   * `strcmp`
     * Compare the two given strings, like the C-function this returns zero on equality.
   * `strlen`
@@ -115,6 +103,10 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return the absolute value of the given integer.  (e.g. 3 -> 3, and -3 -> 3).
 * `append`
   * Append the given value to the specified list.  If the list is empty just return the specified item.
+* `even?`
+  * Return 1 if the given number is even, nil otherwise.
+* `filter`
+  * Return a list consisting of all members of the input list for which the given predicate returns non-nil.
 * `flatten`
   * Flatten the given list of lists into a single list
 * `length`
@@ -125,14 +117,22 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return the highest integer in the list of numbers provided.
 * `min`
   * Return the lowest integer in the list of numbers provided.
+* `nat`
+  * Return the list of natural numbers 1 to N.
+* `odd?`
+  * Return 1 if the given number is odd, nil otherwise.
 * `print`
   * Print "anything".
 * `println`
   * Print "anything", by invoking `print`, then outputting a newline.
+* `range`
+  * Return a list of numbers between the given start/end, using the specified step-size.
 * `reduce`
   * Reduce combines all elements of a list with a function and accumulator.
 * `reverse`
   * Reverse the contents of the specified list.
+* `seq`
+  * Return a list of numbers from 0 to N.
 * `sum`
   * Sum the values in the given list.
 
