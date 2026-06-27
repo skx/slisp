@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/skx/slisp/compiler"
-	"github.com/skx/slisp/parser"
 )
 
 //go:embed stdlib.slisp
@@ -18,21 +17,11 @@ var stdlibLisp string
 // compile is a helper to compile a program
 func compile(prg string) (string, error) {
 
-	// Create a parser
-	p := parser.New(prg)
-
-	// Parse into functions
-	defs, err := p.Parse()
-	if err != nil {
-		return "", fmt.Errorf("error parsing program %s", err)
-	}
-
 	// Create a compiler
-	c := compiler.New()
+	c := compiler.New(prg)
 
 	// Generate the code
-	txt := ""
-	txt, err = c.Compile(defs)
+	txt, err := c.Compile()
 	if err != nil {
 		return "", fmt.Errorf("error compiling program %s", err)
 	}
