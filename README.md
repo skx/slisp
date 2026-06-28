@@ -60,6 +60,8 @@ It should be noted that we prepend a standard library of functions to all user p
 * A rough and ready bump-allocator used for heap-allocated cons-cells.
 * Mathematical operations:
   * `+`, `-`, `*`, `/`, and `%`.
+* File I/O operations
+  * `fopen`, `fclose`, `fread`, and `fwrite`.
 * Comparison operations:
   * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
 * Special forms
