@@ -1,11 +1,10 @@
 (defun read (file)
   "Read and return the contents of the named file,
  return NIL on failure to open, or read."
-  (let ((handle (fopen file "r")))
-    (if handle
-        (let ((data (fread handle)))
-          (fclose handle)
-          data))))
+  (let ((handle (fopen file "r"))  ; open
+        (data   (fread handle))    ; read
+        (res    (fclose handle)))  ; close
+    data))
 
 (defun main ()
   (print "Reading a missing file: ")

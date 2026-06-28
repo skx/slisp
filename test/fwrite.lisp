@@ -9,11 +9,10 @@
 
 (defun write(file str)
   "Write the string to the given file"
-  (let ((handle (fopen file "w")))
-    (if handle
-        (let ((result (fwrite handle str (length str))))
-          (fclose handle)
-          result))))
+  (let ((handle  (fopen file "w"))                 ; open
+        (result  (fwrite handle str (length str))) ; write
+        (discard (fclose handle)))                 ; close
+    result))
 
 (defun main ()
   (print "Writing to a file: ")

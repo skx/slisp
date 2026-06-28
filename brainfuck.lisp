@@ -180,14 +180,14 @@
     ; If we got an argument.
     (if (= (length args) 2)
         (do
-         (let ((handle (fopen (car (cdr args)) "r")))
-           (if handle
-               (do
-                (set! program (fread handle))
-                (fclose handle))
+         (let ((handle  (fopen (car (cdr args)) "r")) ; open
+               (data    (fread handle))               ; read
+               (discard (fclose handle)))             ; close
+           (if data
+               (set! program data)
                (do
                 (print "failed to read file ")
                 (println (car (cdr args)))
-                (exit 1))))))
+                 (exit 1))))))
 
   (brainfuck program)))
