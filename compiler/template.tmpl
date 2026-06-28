@@ -837,46 +837,46 @@ section .text.fread,"ax",@progbits
 
 ;; Read ALL data from the given file handle
 fn_fread:
-    mov rbx, rdi             ; type-check arg1
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_INTEGER
-    jne type_error
+        mov rbx, rdi             ; type-check arg1
+        GET_TAG_BITS rbx
+        cmp rbx, TAG_ID_INTEGER
+        jne type_error
 
-    UNTAG_REG rdi
-    mov [random_buffer], rdi   ; save file handle
+        UNTAG_REG rdi
+        mov [random_buffer], rdi   ; save file handle
 
-    mov rax, 8                 ; SYS_lseek
-    xor rsi, rsi               ; offset = 0
-    mov rdx, 2                 ; SEEK_END
-    syscall
+        mov rax, 8                 ; SYS_lseek
+        xor rsi, rsi               ; offset = 0
+        mov rdx, 2                 ; SEEK_END
+        syscall
 
-    test rax, rax
-    js .fread_seek_fail
+        test rax, rax
+        js .fread_seek_end_fail
 
-    mov rbx, rax                ; file size
-    push rbx                    ; save size
+        mov rbx, rax                ; file size
+        push rbx                    ; save size
 
-    ; allocate size+1 bytes
-    mov rdi, rbx
-    inc rdi
+        ; allocate size+1 bytes
+        mov rdi, rbx
+        inc rdi
 
-    mov rax, [heap_ptr]       ; rax contains allocated storage
-    add qword [heap_ptr], rdi
+        mov rax, [heap_ptr]       ; rax contains allocated storage
+        add qword [heap_ptr], rdi
 
-    pop rbx                   ; restore size
-    mov r12, rax              ; data pointer in r12.
+        pop rbx                   ; restore size
+        mov r12, rax              ; data pointer in r12.
 
-    mov rax, 8                ; seek to start of file
-    mov rdi,[random_buffer]   ; saved file handle
-    xor rsi, rsi
-    xor rdx, rdx              ; SEEK_SET
-    syscall
+        mov rax, 8                ; seek to start of file
+        mov rdi,[random_buffer]   ; saved file handle
+        xor rsi, rsi
+        xor rdx, rdx              ; SEEK_SET
+        syscall
 
-    test rax, rax
-    js .fread_seek_fail
+        test rax, rax
+        js .fread_seek_start_fail
 
-    ; Read until we've consumed the entire file.
-    xor r13, r13       ; bytes_read_so_far = 0
+        ; Read until we've consumed the entire file.
+        xor r13, r13       ; bytes_read_so_far = 0
 
 .read_loop:
 
@@ -902,29 +902,37 @@ fn_fread:
         jmp .read_loop
 
 .read_complete:
-
         mov byte [r12+r13], 0   ; null-terminate
         mov rax, r12
         TAG_STRING_REG rax
         ret
 
+%ifdef DEBUG
 .fread_short_read:
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-
+        mov rax, 1
+        TAG_INTEGER_REG rax
+        ret
 .fread_read_fail:
-    mov rax, 2
-    TAG_INTEGER_REG rax
-    ret
-.fread_seek_fail:
-    mov rax, 3
-    TAG_INTEGER_REG rax
-    ret
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
+        mov rax, 2
+        TAG_INTEGER_REG rax
+        ret
+.fread_seek_start_fail:
+        mov rax, 3
+        TAG_INTEGER_REG rax
+        ret
+.fread_seek_end_fail:
+        mov rax, 4
+        TAG_INTEGER_REG rax
+        ret
+%else
+.fread_short_read:
+.fread_read_fail:
+.fread_seek_start_fail:
+.fread_seek_end_fail:
+        xor rax,rax
+        TAG_NIL_REG rax
+        ret
+%endif
 
 section .data
 
