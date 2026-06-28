@@ -49,6 +49,13 @@ So:
       (print foo)           ; prints 69.
       (newline))
 
+Note that bindings within the `let` statements cannot refer to previous bindings, and so this will fail with "unknown variable x":
+
+
+    (let ((x 3)
+          (y (* x x)))
+       (print y))
+
 
 
 ## DO
