@@ -70,6 +70,8 @@ Core primitives are implemented in assembly language, and can be found within th
     * Return the ASCII character corresponding to the given integer.
   * `cons`
     * Add the element to the start of the given (potentially empty) list.
+  * `environment`
+    * Return a list of all environmental variables.
   * `exit`
     * Terminate execution.
   * `explode`
@@ -103,6 +105,8 @@ Core primitives are implemented in assembly language, and can be found within th
     * Print the given string.
   * `random`
     * Return a random integer between zero and N.
+  * `split`
+    * Split a string by the given character, and return a list of "(before after)".  Return nil if the character isn't found.
   * `strcmp`
     * Compare the two given strings, like the C-function this returns zero on equality.
   * `strlen`
@@ -126,6 +130,9 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return a list consisting of all members of the input list for which the given predicate returns non-nil.
 * `flatten`
   * Flatten the given list of lists into a single list
+* `getenv`
+  * Return the value of the given environmental variable, nor NIL if not found.
+  * Uses `environment`.
 * `length`
   * Return the length of the specified list, or string.
 * `map`
