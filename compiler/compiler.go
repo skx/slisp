@@ -463,13 +463,25 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		// populate the new environment
 		for _, b := range n.Bindings {
 
-			err := c.emitExpr(b.Expr, ev)
+			// define the name before we compile
+			// the expression.
+			offset := child.Define(b.Name)
+
+			// now the expression - but we
+			// give that a reference to the
+			// child environment, so that
+			// references to earlier bindings
+			// work as we want.
+			//
+			// i.e. We want "(let* ..)" rather
+			// than "(let ..)"
+			err := c.emitExpr(b.Expr, child)
 			if err != nil {
 				return err
 			}
 
-			offset := child.Define(b.Name)
-
+			// and store the result in the
+			// binding-reservation.
 			c.emitln(fmt.Sprintf(
 				"    mov [rbp-%d], rax",
 				offset,
