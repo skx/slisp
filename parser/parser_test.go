@@ -87,3 +87,11 @@ func TestBroken(t *testing.T) {
 	}
 
 }
+
+func TestEmptyList(t *testing.T) {
+	p := New("(defun main() (print ()))")
+	_, err := p.Parse()
+	if err != nil {
+		t.Fatalf("unexpected error parsing valid program; %v", err)
+	}
+}
