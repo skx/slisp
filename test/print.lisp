@@ -4,4 +4,7 @@
   (println (cons 1 (cons 2 nil)))
   (println (cons 1 (cons 2 (cons 3 nil))))
   (println (cons 1 (cons 2 3)))
+
+  ; An empty list is nil
+  (println ())
 )
