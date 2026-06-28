@@ -154,3 +154,18 @@ Incrementing by the given step each time."
 (defun reverse (xs)
   "Reverse the contents of the specified list."
   (reverseInner xs nil))
+
+
+(defun getenv_loop (name xs)
+  (if xs
+      (let ((parts (split (car xs) #\=)))
+        (if parts
+            (if (= (car parts) name)
+                (car (cdr parts))
+                (getenv_loop name (cdr xs)))
+            (getenv_loop name (cdr xs))))
+      nil))
+
+(defun getenv (name)
+  (getenv_loop name (environment)))
+
