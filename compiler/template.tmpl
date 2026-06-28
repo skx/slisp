@@ -770,9 +770,14 @@ fn_random:
 section .text.fclose,"ax",@progbits
 
 ;; Close a file handle
+;;
+;; As a special case closing a nil-filehandle is valid.
+;;
 fn_fclose:
     mov rbx, rdi             ; type-check arg1 (path)
     GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_NIL
+    je .fclose_return_nil
     cmp rbx, TAG_ID_INTEGER
     jne type_error
 
@@ -780,6 +785,7 @@ fn_fclose:
     mov rax, 3            ; SYS_close
     syscall
     xor rax, rax          ; return nil
+.fclose_return_nil:
     TAG_NIL_REG rax
     ret
 
@@ -845,10 +851,15 @@ fn_fopen:
 
 section .text.fread,"ax",@progbits
 
-;; Read ALL data from the given file handle
+;; Read ALL data from the given file handle.
+;;
+;; As a special case reading from a nil-filehandle
+;; will return nil.
 fn_fread:
         mov rbx, rdi             ; type-check arg1
         GET_TAG_BITS rbx
+        cmp rbx, TAG_ID_NIL      ; special case the nil-handle
+        je .fread_return_nil
         cmp rbx, TAG_ID_INTEGER
         jne type_error
 
@@ -934,11 +945,16 @@ fn_fread:
         mov rax, 4
         TAG_INTEGER_REG rax
         ret
+.fread_return_nil:
+        xor rax,rax
+        TAG_NIL_REG rax
+        ret
 %else
 .fread_short_read:
 .fread_read_fail:
 .fread_seek_start_fail:
 .fread_seek_end_fail:
+.fread_return_nil:
         xor rax,rax
         TAG_NIL_REG rax
         ret
@@ -950,9 +966,14 @@ section .text.fwrite,"ax",@progbits
 
 ;; Write data, with a size, to the given file handle
 ;; e.g.  (fwrite handle "Steve" 5)
+;;
+;; As a special case writing to a nil-filehandle
+;; will return nil.
 fn_fwrite:
         mov rbx, rdi             ; type-check arg1: int
         GET_TAG_BITS rbx
+        cmp rbx, TAG_ID_NIL      ; special case the nil-handle
+        je .fwrite_return_nil
         cmp rbx, TAG_ID_INTEGER
         jne type_error
 
@@ -975,6 +996,10 @@ fn_fwrite:
         TAG_INTEGER_REG rax
         ret
 
+.fwrite_return_nil:
+        xor rax,rax
+        TAG_NIL_REG rax
+        ret
 
 section .data
 
