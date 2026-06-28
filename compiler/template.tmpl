@@ -26,6 +26,16 @@
 ;; type, or get the type for processing and testing.
 ;;
 
+;
+; If DEBUG is defined we'll return specific error-codes from
+; our `fread` implementation, which was helpful for debugging.
+;
+; Without it defined we'll just return Nil on all failures which
+; is what we document, and what the user will expect.
+;
+%define DEBUG 1
+%undef  DEBUG     ;; Comment out this line to enable debugging.
+
 ; tag a register as an integer
 %macro TAG_INTEGER_REG 1
     sal %1, 3
@@ -820,7 +830,7 @@ fn_fopen:
 .fopen_write:
         mov rax, 2          ; SYS_open
         mov rsi, 577        ; O_WRONLY|O_CREAT|O_TRUNC
-        mov rdx, 0644
+        mov rdx, 0o644
         syscall
 .fopen_done:
         test rax, rax
@@ -933,6 +943,38 @@ fn_fread:
         TAG_NIL_REG rax
         ret
 %endif
+
+
+
+section .text.fwrite,"ax",@progbits
+
+;; Write data, with a size, to the given file handle
+;; e.g.  (fwrite handle "Steve" 5)
+fn_fwrite:
+        mov rbx, rdi             ; type-check arg1: int
+        GET_TAG_BITS rbx
+        cmp rbx, TAG_ID_INTEGER
+        jne type_error
+
+        mov rbx, rsi             ; type-check arg2: str
+        GET_TAG_BITS rbx
+        cmp rbx, TAG_ID_STRING
+        jne type_error
+
+        mov rbx, rdx             ; type-check arg3: int
+        GET_TAG_BITS rbx
+        cmp rbx, TAG_ID_INTEGER
+        jne type_error
+
+        UNTAG_REG rsi
+        UNTAG_REG rdi
+        UNTAG_REG rdx
+
+        mov rax, 1             ; SYS_write
+        syscall
+        TAG_INTEGER_REG rax
+        ret
+
 
 section .data
 
