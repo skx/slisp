@@ -103,13 +103,14 @@ global _start
 section .text
 
 _start:
+    mov rax, heap
+    mov [heap_ptr], rax
 
-_start:
-    mov rax, heap        ; setup our heap pointer
-    mov [heap_ptr], rax  ; cons cells are heap-allocated
+    mov rcx, [rsp]          ; argc
+    lea rbx, [rsp+8]        ; argv
 
-    mov rcx, [rsp]       ; argc
-    lea rbx, [rsp+8]     ; rbx -> argv[0]
+    lea rdx, [rbx + rcx*8 + 8]
+    mov [envp_ptr], rdx
     xor rsi, rsi         ; Start with NIL
     TAG_NIL_REG rsi
 
@@ -1001,6 +1002,157 @@ fn_fwrite:
         TAG_NIL_REG rax
         ret
 
+section .text.environment,"ax",@progbits
+
+;; Return a list of all environmental variables
+fn_environment:
+    mov rbx, [envp_ptr]
+    xor rcx, rcx     ;; Count entries into RCX
+.count:
+    mov rdx, [rbx + rcx*8]
+    test rdx, rdx
+    jz .build
+    inc rcx
+    jmp .count
+.build:
+    xor rax, rax
+    TAG_NIL_REG rax
+.loop:
+    test rcx, rcx
+    jz .done
+    dec rcx
+
+    ;; string pointer
+    mov rdx, [rbx + rcx*8]
+    TAG_STRING_REG rdx
+
+    ;; allocate cons pair
+    mov r8, [heap_ptr]
+    add qword [heap_ptr], 16
+    mov [r8], rdx        ; car = string
+    mov [r8+8], rax      ; cdr = list-so-far
+    mov rax, r8
+    TAG_CONS_REG rax
+    jmp .loop
+.done:
+    ret
+
+
+;; split(string, char)
+fn_split:
+    mov rbx, rdi              ; type-check arg1: string
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    mov rbx, rsi              ; type-check arg2: char
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_CHAR
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+
+    and rsi, 0xff            ; separator byte
+
+    mov r8, rdi              ; original string
+
+    xor rcx, rcx             ; offset for finding separator
+.find:
+    mov al, [rdi]
+    test al, al
+    jz .not_found
+    cmp al, sil
+    je .found
+    inc rdi
+    inc rcx
+    jmp .find
+
+.not_found:                   ; seperator not found in string -> nil
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+
+.found:
+    mov r10, [heap_ptr]       ; allocate left
+    mov r11, r10
+
+    mov rax, rcx
+    inc rax
+    add [heap_ptr], rax
+
+    mov rsi, rcx
+    mov rdx, r8
+
+.copy_left:                   ; copy left
+    test rsi, rsi
+    jz .left_done
+    mov al, [rdx]
+    mov [r11], al
+    inc r11
+    inc rdx
+    dec rsi
+    jmp .copy_left
+
+.left_done:
+    mov byte [r11], 0
+    mov rax, r10
+    TAG_STRING_REG rax
+    mov r10, rax
+
+    lea rdx, [rdi+1]      ; get length of right
+    xor rcx, rcx
+
+.count_right:
+    mov al, [rdx]
+    test al, al
+    jz .alloc_right
+    inc rcx
+    inc rdx
+    jmp .count_right
+
+.alloc_right:
+    mov r11, [heap_ptr]   ; allocate
+    mov r12, r11
+    mov rax, rcx
+    inc rax
+    add [heap_ptr], rax
+
+    lea rdx, [rdi+1]
+    mov rsi, rcx
+.copy_right:
+    test rsi, rsi
+    jz .right_done
+    mov al, [rdx]
+    mov [r12], al
+    inc r12
+    inc rdx
+    dec rsi
+    jmp .copy_right
+
+.right_done:
+    mov byte [r12], 0
+    mov rax, r11
+    TAG_STRING_REG rax
+    mov r11, rax
+
+    xor rax, rax                    ; right
+    TAG_NIL_REG rax
+    mov rbx, [heap_ptr]
+    add qword [heap_ptr],16
+    mov [rbx], r11
+    mov [rbx+8], rax
+    mov rax, rbx
+    TAG_CONS_REG rax
+
+    mov rbx, [heap_ptr]
+    add qword [heap_ptr],16
+    mov [rbx], r10
+    mov [rbx+8], rax
+    mov rax, rbx
+    TAG_CONS_REG rax
+    ret
+
+
 section .data
 
 ;; buffer for "\n", used by (newline)
@@ -1028,6 +1180,10 @@ heap:
 
 ;; offset used of our heap area.
 heap_ptr:
+    resq 1
+
+;; start of the environmental variable array
+envp_ptr:
     resq 1
 
 ;;; 6. strings
