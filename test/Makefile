@@ -1,3 +1,6 @@
+export FOO=BAR
+export NAME=Steve
+
 PROGRAMS := $(basename $(wildcard *.lisp))
 TESTS := $(addsuffix .test,$(PROGRAMS))
 
