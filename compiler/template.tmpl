@@ -757,6 +757,82 @@ fn_random:
 
 
 
+section .text.fclose,"ax",@progbits
+
+;; Close a file handle
+fn_fclose:
+    mov rbx, rdi             ; type-check arg1 (path)
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+
+    UNTAG_REG rdi
+    mov rax, 3            ; SYS_close
+    syscall
+    xor rax, rax          ; return nil
+    TAG_NIL_REG rax
+    ret
+
+
+
+section .text.fopen,"ax",@progbits
+
+;; Open a file handle, modes are "r", "w", or "a"
+fn_fopen:
+    mov rbx, rdi             ; type-check arg1 (path)
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    mov rbx, rsi             ; type-check arg2 (mode)
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+
+    mov al, [rsi]          ; We only look at the first character..
+    cmp al, 'a'
+    je .fopen_append
+    cmp al, 'r'
+    je .fopen_read
+    cmp al, 'w'
+    je .fopen_write
+
+    ; fall through to bad mode
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+
+.fopen_append:
+        mov rax, 2          ; SYS_open
+        mov rsi, 1089       ; O_WRONLY|O_CREAT|O_APPEND
+        mov rdx, 0644
+        syscall
+        jmp .fopen_done
+.fopen_read:
+        mov rax, 2          ; SYS_open
+        mov rsi, 0          ; O_RDONLY
+        xor rdx, rdx
+        syscall
+        jmp .fopen_done
+.fopen_write:
+        mov rax, 2          ; SYS_open
+        mov rsi, 577        ; O_WRONLY|O_CREAT|O_TRUNC
+        mov rdx, 0644
+        syscall
+.fopen_done:
+        test rax, rax
+        js .fopen_syscall_fail
+        TAG_INTEGER_REG rax
+        ret
+.fopen_syscall_fail:
+        xor rax, rax
+        TAG_NIL_REG rax
+        ret
+
+
 section .data
 
 ;; buffer for "\n", used by (newline)
