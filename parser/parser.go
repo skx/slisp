@@ -221,6 +221,12 @@ func (p *Parser) parseList() (Expr, error) {
 		return nil, fmt.Errorf("expected '(' for list opening")
 	}
 
+	// empty list?  That's a nil, baby
+	if p.peek() == ")" {
+		p.next()
+		return &Nil{}, nil
+	}
+
 	head, err := p.parseExpr()
 	if err != nil {
 		return head, err
@@ -481,5 +487,4 @@ func (p *Parser) parseList() (Expr, error) {
 		Fn:   head,
 		Args: args,
 	}, nil
-
 }
