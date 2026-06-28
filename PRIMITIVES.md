@@ -74,6 +74,14 @@ Core primitives are implemented in assembly language, and can be found within th
     * Terminate execution.
   * `explode`
     * Convert the supplied string to a list of characters.
+  * `fclose`
+    * Close the given file-handle.
+  * `fopen`
+    * Open the given filename, for read/write, and return a handle.
+  * `fread`
+    * Read ALL available data from the given handle.
+  * `fwrite`
+    * Write the given data, with length, to the open file handle.
   * `getc`
     * Read a single character from STDIN, return NIL on failure.
   * `implode`

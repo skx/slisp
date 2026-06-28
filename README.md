@@ -42,6 +42,8 @@ There are several examples beneath our [test/](test/) directory, including:
 
 [example.lisp](example.lisp) has other misc. snippets, and finally [brainfuck.lisp](brainfuck.lisp) contains a useful/working brainfuck interpreter.
 
+> There are a couple of "*.bf" files present in this repository, which are brainfuck programs for the interpreter.
+
 It should be noted that we prepend a standard library of functions to all user programs unless `-stdlib=false` is added to the command line.  That library itself is a useful reference/demonstration of functionality:
 
 * [stdlib.slisp](stdlib.slisp) - Our standard library, written in `slisp` itself.

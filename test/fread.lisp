@@ -1,0 +1,17 @@
+(defun read (file)
+  "Read and return the contents of the named file,
+ return NIL on failure to open, or read."
+  (let ((handle (fopen file "r")))
+    (if handle
+        (let ((data (fread handle)))
+          (fclose handle)
+          data))))
+
+(defun main ()
+  (print "Reading a missing file: ")
+  (println (read "/path/does/not/exist!"))
+  (newline)
+
+  (println "Reading our own source code.")
+  (print (read "fread.lisp"))
+  (newline))
