@@ -143,8 +143,14 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return the lowest integer in the list of numbers provided.
 * `nat`
   * Return the list of natural numbers 1 to N.
+* `neg?`
+  * Return true if the number is negative.
 * `odd?`
   * Return 1 if the given number is odd, nil otherwise.
+* `one?`
+  * Return true if the number is one.
+* `pos?`
+  * Return true if the number is positive.
 * `print`
   * Print "anything".
 * `println`
@@ -153,12 +159,18 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return a list of numbers between the given start/end, using the specified step-size.
 * `reduce`
   * Reduce combines all elements of a list with a function and accumulator.
+* `repeated`
+  * Create a list with the given value repeated the specified number of times.
+* `repeat`
+  * Call the given function N times.
 * `reverse`
   * Reverse the contents of the specified list.
 * `seq`
   * Return a list of numbers from 0 to N.
 * `sum`
   * Sum the values in the given list.
+* `zero?`
+  * Return true if the number is zero.
 
 
 
