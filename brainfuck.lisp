@@ -38,12 +38,6 @@
             (setNth (cdr list) (- n 1) val))
       (cons val (cdr list))))
 
-;; Get the Nth item of a list
-(defun nth (lst n)
-  (if (= n 0)
-    (car lst)
-    (nth (cdr lst) (- n 1))))
-
 
 ;;; Brainfuck loop finding
 
