@@ -11,6 +11,10 @@ type Env struct {
 	// slots are for local variables, relative to RBP.
 	slots map[string]int
 
+	// order lets us keep order, since calling range over a map
+	// will not return the same order as insertion time.
+	order []string
+
 	// captures hold offsets against R15 for captured
 	// variables inside closures.
 	captures map[string]int
@@ -29,6 +33,7 @@ func New(parent *Env) *Env {
 func (e *Env) Define(name string) int {
 	offset := (e.countLocals() + 1) * 8
 	e.slots[name] = offset
+	e.order = append(e.order, name)
 	return offset
 }
 
@@ -57,16 +62,12 @@ func (e *Env) countLocals() int {
 // We use this as a hack for lambda-closures, instead of performing
 // real free-variable analysis.
 func (e *Env) Names() []string {
-	var res []string
-
-	for k := range e.slots {
-		res = append(res, k)
-	}
+	var out []string
 	if e.parent != nil {
-		parents := e.parent.Names()
-		res = append(res, parents...)
+		out = append(out, e.parent.Names()...)
 	}
-	return res
+	out = append(out, e.order...)
+	return out
 }
 
 // LookupCapture performs the same lookup function for lambdas,
