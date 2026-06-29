@@ -459,15 +459,15 @@ fn_newline:
 
 section .text.putc,"ax",@progbits
 
-;; Write the given ASCII character to stdout
+;; Write the given ASCII character to STDOUT
 fn_putc:
     mov rax, rdi
     UNTAG_REG rax
     mov [putc_buffer],  al  ; store character
-    mov rax, 1      ; SYS_write
-    mov rdi, 1      ; stdout
+    mov rax, 1              ; SYS_write
+    mov rdi, 1              ; STDOUT
     mov rsi, putc_buffer
-    mov rdx, 1
+    mov rdx, 1              ; 1 byte
     syscall
     ret
 
@@ -476,9 +476,9 @@ section .text.getc,"ax",@progbits
 ;; Read an ASCII character from STDIN, return NIL on failure.
 fn_getc:
      mov     rax, 0        ; SYS_read
-     mov     rdi, 0        ; STDIN_FILENO
+     mov     rdi, 0        ; STDIN
      mov rsi, putc_buffer
-     mov     rdx, 1        ; read 1 byte
+     mov     rdx, 1        ; 1 byte
      syscall
 
      cmp rax, 1
@@ -588,8 +588,7 @@ section .text.explode,"ax",@progbits
 
 
 ;; Explode a string to a list of characters.
-;; find the length and work backwards.
-;; This is one of our more complex routines and yet it worked first time :D
+;; Find the length and work backwards.
 fn_explode:
     mov rbx, rdi
     GET_TAG_BITS rbx
@@ -627,7 +626,7 @@ fn_explode:
 
 section .text.implode,"ax",@progbits
 
-;; join a character list to a string
+;; join a character list to a string.
 fn_implode:
     mov rbx,rdi
     xor rcx,rcx
@@ -742,14 +741,6 @@ fn_strcmp:
 section .text.strcat,"ax",@progbigs
 
 ;; join the two given strings and return a new one.
-fn_strcat:
-;; strcat(rdi, rsi)
-;;
-;; rdi = first string
-;; rsi = second string
-;;
-;; returns tagged string in rax
-
 fn_strcat:
     mov rbx, rdi            ; type-check arg1: str
     GET_TAG_BITS rbx
