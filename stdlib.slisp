@@ -138,6 +138,34 @@ Incrementing by the given step each time."
           (cons (car xs) (filter (cdr xs) fn))
           (filter (cdr xs) fn))))
 
+(defun join (xs)
+  "Join an arbitrary list of strings together into a single string."
+  (if xs
+      (joinHelper (cdr xs) (car xs))
+      ""))
+
+(defun joinHelper (xs acc)
+  (if xs
+      (joinHelper
+          (cdr xs)
+          (strcat acc (car xs)))
+      acc))
+
+(defun joinBy (xs sep)
+  "Join string list-items by the given separator"
+  (if xs
+      (joinRest (cdr xs) (car xs) sep)
+      ""))
+
+(defun joinRest (xs acc sep)
+  (if xs
+      (joinRest
+          (cdr xs)
+          (strcat (strcat acc sep)
+                  (car xs))
+          sep)
+      acc))
+
 (defun findHelper (lst item index)
   (if lst
       (if (= (car lst) item)

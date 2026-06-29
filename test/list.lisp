@@ -27,4 +27,15 @@
   )
 
   (repeat 5 (lambda (n) (print "I was called by repeat: ") (println n)))
+
+  (println (join (list "This"
+                       " is "
+                       "a"
+                       " test "
+                       "of joining"
+                       " strings!")))
+
+  ; Add a separator is nice.
+  (println (joinBy (list "1" "2" "3" "4" "5" "6") ","))
+
 )

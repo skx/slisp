@@ -109,6 +109,8 @@ Core primitives are implemented in assembly language, and can be found within th
     * Return a random integer between zero and N.
   * `split`
     * Split a string by the given character, and return a list of "(before after)".  Return nil if the character isn't found.
+  * `strcat`
+    * Join two strings together and return them.
   * `strcmp`
     * Compare the two given strings, like the C-function this returns zero on equality.
   * `strlen`
@@ -137,6 +139,10 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
 * `getenv`
   * Return the value of the given environmental variable, nor NIL if not found.
   * Uses `environment`.
+* `join`
+  * Join all (string) items of a list into a single string.
+* `joinBy`
+  * Join all (string) items of a list into a single string, with the given separator.
 * `length`
   * Return the length of the specified list, or string.
 * `map`
