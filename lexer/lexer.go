@@ -2,6 +2,12 @@
 //
 // As lisp is so minimal this is as basic as could be, we only have to worry about
 // comments, strings, and nothing else.
+//
+// We build up characters into an internal reader and just stop when
+// we see "(", ")", "newline", etc.  Character literals, comments
+// and strings are peeled off ahead of that.
+//
+// TODO: Better.
 package lexer
 
 import (
