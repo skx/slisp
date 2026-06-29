@@ -31,7 +31,7 @@
 
 ;;; Helpers
 
-;; set the Nth item of a list to the given value
+;; Return a copy of the given list, with the Nth item set to the given value.
 (defun setNth (list n val)
   (if (> n 0)
       (cons (car list)
