@@ -169,6 +169,7 @@ func (c *Compiler) emitln(s string) {
 // a function with a name like "not" or "abs" will cause errors when
 // they're called.  ("call abs" will result in a syntax error from nasm.)
 func (c *Compiler) asmName(name string) string {
+
 	switch name {
 
 	// comparisons
@@ -211,6 +212,9 @@ func (c *Compiler) asmName(name string) string {
 	case "str?":
 		return "strp"
 	}
+
+	// allow "-" by rewriting it to _.
+	name = strings.ReplaceAll(name, "-", "_")
 
 	// other functions just get "fn_" prefix
 	if strings.HasPrefix(name, "fn_") {

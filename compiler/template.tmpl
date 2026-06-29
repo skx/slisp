@@ -1149,7 +1149,7 @@ fn_split:
     inc rcx
     jmp .find
 
-.not_found:                   ; seperator not found in string -> nil
+.not_found:                   ; separator not found in string -> nil
     xor rax, rax
     TAG_NIL_REG rax
     ret

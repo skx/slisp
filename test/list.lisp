@@ -36,6 +36,6 @@
                        " strings!")))
 
   ; Add a separator is nice.
-  (println (joinBy (list "1" "2" "3" "4" "5" "6") ","))
+  (println (join-by (list "1" "2" "3" "4" "5" "6") ","))
 
 )

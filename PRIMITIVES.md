@@ -141,7 +141,7 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Uses `environment`.
 * `join`
   * Join all (string) items of a list into a single string.
-* `joinBy`
+* `join-by`
   * Join all (string) items of a list into a single string, with the given separator.
 * `length`
   * Return the length of the specified list, or string.
