@@ -739,6 +739,88 @@ fn_strcmp:
     ret
 
 
+section .text.strcat,"ax",@progbigs
+
+;; join the two given strings and return a new one.
+fn_strcat:
+;; strcat(rdi, rsi)
+;;
+;; rdi = first string
+;; rsi = second string
+;;
+;; returns tagged string in rax
+
+fn_strcat:
+    mov rbx, rdi            ; type-check arg1: str
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    mov rbx, rsi            ; type-check arg2: str
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    push rdi
+    push rsi
+
+    mov rax, rdi
+.len1:
+    cmp byte [rax],0
+    je .len1_done
+    inc rax
+    jmp .len1
+.len1_done:
+    sub rax,rdi
+    mov r8,rax         ; r8 to save strlen(a)
+
+    mov rax,rsi
+.len2:
+    cmp byte [rax],0
+    je .len2_done
+    inc rax
+    jmp .len2
+.len2_done:
+    sub rax,rsi
+    mov r9,rax         ; r9 to save strlen(b)
+
+    ; allocate
+    mov rax,[heap_ptr]
+    mov rcx,r8
+    add rcx,r9
+    inc rcx                  ; +1 for '\0'
+    add [heap_ptr],rcx
+
+    mov rdx,rax              ; destination
+    pop rsi                  ; restore strings
+    pop rdi
+
+.copy1:                      ; copy first
+    mov bl,[rdi]
+    test bl,bl
+    jz .copy2
+    mov [rdx],bl
+    inc rdi
+    inc rdx
+    jmp .copy1
+
+.copy2:                      ; append second
+    mov bl,[rsi]
+    test bl,bl
+    jz .done
+    mov [rdx],bl
+    inc rsi
+    inc rdx
+    jmp .copy2
+
+.done:                       ; terminate and return
+    mov byte [rdx],0
+    TAG_STRING_REG rax
+    ret
+
+
+
 section .text.random,"ax",@progbits
 
 ;; Generate a random number 0-N

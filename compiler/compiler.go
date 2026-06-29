@@ -428,19 +428,21 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			name,
 		))
 
-		// copy captures
 		for i, cap := range n.Captures {
 
-			offset, ok := ev.Lookup(cap)
-			if !ok {
+			if offset, ok := ev.Lookup(cap); ok {
+				c.emitln(fmt.Sprintf(
+					"    mov rcx,[rbp-%d]",
+					offset,
+				))
+			} else if offset, ok := ev.LookupCapture(cap); ok {
+				c.emitln(fmt.Sprintf(
+					"    mov rcx,[r15+%d]",
+					offset,
+				))
+			} else {
 				panic("capture not found: " + cap)
 			}
-
-			c.emitln("; copy capture " + cap)
-			c.emitln(fmt.Sprintf(
-				"    mov rcx, [rbp-%d]",
-				offset,
-			))
 
 			c.emitln(fmt.Sprintf(
 				"    mov [rbx+%d], rcx",
@@ -629,6 +631,7 @@ func (c *Compiler) emitCallable(obj any) error {
 		for _, cap := range l.Captures {
 			ev.DefineCapture(cap)
 		}
+		fmt.Printf("; lambda %s captures %v\n", l.Name, l.Captures)
 	}
 
 	//
