@@ -2,3 +2,10 @@ Original list: (3 4 5 (5 2 1) (3 12 99))
 Flatted list: (3 4 5 5 2 1 3 12 99)
 Minimum entry in list: 1
 Maximum entry in list: 99
+Repeated ones: (1 1 1 1 1 1 1 1 1 1)
+Repeated me: (me me me me me me me me me me)
+I was called by repeat: 5
+I was called by repeat: 4
+I was called by repeat: 3
+I was called by repeat: 2
+I was called by repeat: 1

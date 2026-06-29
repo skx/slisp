@@ -15,5 +15,16 @@
     (print "Maximum entry in list: ")
     (print (max (flatten lst)))
     (newline)
+  )
 
-  ))
+  (let ((ones (repeated 10 1))
+        (me   (repeated 10 "me")))
+    (print "Repeated ones: ")
+    (println ones)
+
+    (print "Repeated me: ")
+    (println me)
+  )
+
+  (repeat 5 (lambda (n) (print "I was called by repeat: ") (println n)))
+)
