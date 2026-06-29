@@ -1,4 +1,15 @@
 ;;; stdlib.lisp - Lisp standard library, prepended to user programs.
+;;
+;; We're consistent with argument usage so:
+;;
+;;     n is an integer.
+;;     x is anything (cons, list, int, character, string, lambda, whatever).
+;;    xs is a list.
+;;    fn is a callable function, which in practice means a lambda.
+;;
+;; Some functions might have different arguments, but if they are anything listed
+;; above then their value will always be as expected.
+;;
 
 ;;; printing functions
 
@@ -17,12 +28,10 @@
   (if (cons? x)
       (do
        (putc #\()
-       (printcons x)  ; List items, separated by spaces
-       (putc #\))
+       (print-cons x)  ; List items, separated by spaces
+       (putc #\)))))
 
-        )))
-
-(defun printcons (x)
+(defun print-cons (x)
   "Print the contents of the cons X, recursively."
   (print (car x))
   (if (nil? (cdr x))
@@ -30,7 +39,7 @@
       (if (cons? (cdr x))
           (do
            (putc 32)
-           (printcons (cdr x)))
+           (print-cons (cdr x)))
           (do
            (printstr " . ")
            (print (cdr x))))))
@@ -124,11 +133,11 @@ Incrementing by the given step each time."
 
 ;;; list utility functions
 
-(defun append (lst item)
+(defun append (xs item)
   "Append the given value to the specified list.  If the list is empty just return the specified item."
-  (if (nil? lst)
+  (if (nil? xs)
       item
-      (cons (car lst) (append (cdr lst) item))))
+      (cons (car xs) (append (cdr xs) item))))
 
 (defun filter (xs fn)
   "Return a list consisting of all members of the given list for which the given predicate returns non-nil."
@@ -166,17 +175,17 @@ Incrementing by the given step each time."
           sep)
       acc))
 
-(defun find-helper (lst item index)
-  (if lst
-      (if (= (car lst) item)
+(defun find-helper (xs item index)
+  (if xs
+      (if (= (car xs) item)
           (cons index
-                (find-helper (cdr lst) item (+ index 1)))
-          (find-helper (cdr lst) item (+ index 1)))
+                (find-helper (cdr xs) item (+ index 1)))
+          (find-helper (cdr xs) item (+ index 1)))
       nil))
 
-(defun find (lst item)
+(defun find (xs item)
   "Return the offsets of any occurrence of the item in the given list, nil on failure."
-  (find-helper lst item 0))
+  (find-helper xs item 0))
 
 (defun flatten (xs)
   "Converts a list of nested lists to a single list, flattening it."
@@ -194,40 +203,40 @@ Incrementing by the given step each time."
           (+ 1 (length (cdr xs)))
           0)))
 
-(defun repeat (n body)
+(defun repeat (n fn)
   "Execute the supplied body of code N times."
   (if (> n 0)
       (do
-       (body n)
-       (repeat (- n 1) body))))
+       (fn n)
+       (repeat (- n 1) fn))))
 
-(defun nth (lst n)
+(defun nth (xs n)
   "Return the Nth item from the specified list"
   (if (= n 0)
-    (car lst)
-    (nth (cdr lst) (- n 1))))
+    (car xs)
+    (nth (cdr xs) (- n 1))))
 
 
-(defun map (fn lst)
+(defun map (fn xs)
   "Create a new list by calling the given function for every list element."
-  (if (nil? lst)
+  (if (nil? xs)
       nil
       (cons
-       (fn (car lst))
-       (map fn (cdr lst)))))
+       (fn (car xs))
+       (map fn (cdr xs)))))
 
-(defun member? (lst item)
+(defun member? (xs item)
   "Return true if the specified item is found within the given list."
   (cond
-    ( (nil? lst) nil)
-    ( (= item (car lst)) 1)
-    ( 1 (member? (cdr lst) item))))
+    ( (nil? xs) nil)
+    ( (= item (car xs)) 1)
+    ( 1 (member? (cdr xs) item))))
 
-(defun reduce (xs f acc)
+(defun reduce (xs fn acc)
   "This is our reduce function, which uses a list, a function, and the accumulator."
   (if (nil? xs)
       acc
-      (reduce (cdr xs) f (f acc (car xs)))))
+      (reduce (cdr xs) fn (fn acc (car xs)))))
 
 (defun reverse-inner (xs acc)
   "Helper to use an accumulator to reverse a list.  Used by 'reverse'"
