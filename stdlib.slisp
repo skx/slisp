@@ -138,6 +138,18 @@ Incrementing by the given step each time."
           (cons (car xs) (filter (cdr xs) fn))
           (filter (cdr xs) fn))))
 
+(defun findHelper (lst item index)
+  (if lst
+      (if (= (car lst) item)
+          (cons index
+                (findHelper (cdr lst) item (+ index 1)))
+          (findHelper (cdr lst) item (+ index 1)))
+      nil))
+
+(defun find (lst item)
+  "Return the offsets of any occurrence of the item in the given list, nil on failure."
+  (findHelper lst item 0))
+
 (defun flatten (xs)
   "Converts a list of nested lists to a single list, flattening it."
   (if (nil? xs)
@@ -161,6 +173,13 @@ Incrementing by the given step each time."
        (body n)
        (repeat (- n 1) body))))
 
+(defun nth (lst n)
+  "Return the Nth item from the specified list"
+  (if (= n 0)
+    (car lst)
+    (nth (cdr lst) (- n 1))))
+
+
 (defun map (fn lst)
   "Create a new list by calling the given function for every list element."
   (if (nil? lst)
@@ -169,6 +188,12 @@ Incrementing by the given step each time."
        (fn (car lst))
        (map fn (cdr lst)))))
 
+(defun member? (lst item)
+  "Return true if the specified item is found within the given list."
+  (cond
+    ( (nil? lst) nil)
+    ( (= item (car lst)) 1)
+    ( 1 (member? (cdr lst) item))))
 
 (defun reduce (xs f acc)
   "This is our reduce function, which uses a list, a function, and the accumulator."

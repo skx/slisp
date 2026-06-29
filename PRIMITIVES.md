@@ -95,6 +95,8 @@ Core primitives are implemented in assembly language, and can be found within th
     * Print a newline.
   * `not`
     * If the value is `nil` return 1, otherwise return `nil`.
+  * `nth`
+    * Return the Nth item from the given list.
   * `ord`
     * Return the ASCII code of the specified character.
   * `putc`
@@ -128,6 +130,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return 1 if the given number is even, nil otherwise.
 * `filter`
   * Return a list consisting of all members of the input list for which the given predicate returns non-nil.
+* `find`
+  * Return the offset of matching items inside the given list.
 * `flatten`
   * Flatten the given list of lists into a single list
 * `getenv`
@@ -139,6 +143,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Create a new list by calling the given function over every element of the supplied list.
 * `max`
   * Return the highest integer in the list of numbers provided.
+* `member?`
+  * Tests if the given item is present in the list specified.
 * `min`
   * Return the lowest integer in the list of numbers provided.
 * `nat`
