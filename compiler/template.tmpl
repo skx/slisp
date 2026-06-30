@@ -394,10 +394,62 @@ divide:
    mov rbx, rsi
    GET_TAG_BITS rbx     ; type of arg
    GET_TAG_BITS rax     ; type of arg
-   add rax, rbx
-   ;cmp rax, 0           ; both integerss?
+   add rax, rbx         ; zero result?  both ints
    jz integer_divide
-   jmp type_error       ; TODO type
+
+
+   ; Okay the values are either:
+   ;  float + float
+   ;  float + int
+   ;  int   + float
+   ;
+   ; We have to test each argument and work it out.
+   ; the end result of our addition will be a float.
+   mov rcx, rdi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_one_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_one_int
+   jmp type_error
+
+.arg_one_int:
+    UNTAG_REG rdi      ; get the int
+    cvtsi2sd xmm0, rdi ; convert to float
+    jmp .arg_two
+
+.arg_one_float:
+    UNTAG_REG rdi      ; get the float-ptr
+    movq xmm0, [rdi]   ; load
+    jmp .arg_two
+
+.arg_two:
+   mov rcx, rsi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_two_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_two_int
+   jmp type_error
+
+.arg_two_int:
+    UNTAG_REG rsi           ; get the int
+    cvtsi2sd xmm1, rsi      ; convert to float
+    jmp .got_args_divide
+
+.arg_two_float:
+    UNTAG_REG rsi           ; get the float-ptr
+    movq xmm1, [rsi]        ; load
+;    jmp .got_args_divide   ; fall-through
+
+.got_args_divide:
+    divsd xmm0, xmm1        ; multiply
+    mov rax, [heap_ptr]     ; allocate
+    add qword [heap_ptr],8
+    movq [rax], xmm0        ; store
+    TAG_FLOAT_REG rax       ; type
+    ret                     ; return
+
 
 integer_divide:
    UNTAG_REG rdi
