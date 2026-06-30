@@ -49,7 +49,8 @@ Special forms are things that are built into the compiler core, and handled spec
   * Create a list.
 * `set!`
   * Set the value of a variable.
-
+* `while`
+  * Run the given body for as long as the specified condition is non-nil.
 
 
 ## Core Primitives
