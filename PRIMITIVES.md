@@ -8,11 +8,11 @@ Note that you might need to consult the source of the standard-library to see fu
 
 ## Symbols / Types
 
-The only notable special symbol is `nil` - the nil value.
+The only notable special symbols are `nil`, which is synonymous with false and the empty list, and `t` which is a true value.
 
 * Comments are begun with ";" and continue until the end of the line.
   * There are no block comments.
-* We only support integers, but they may be written in any base the golang `strconv.ParseInt` function supports:
+* We only support integer numbers, but they may be written in any base the golang `strconv.ParseInt` function supports:
   * `(print 3)`
   * `(print 0xff)`
   * `(print 0b10101010)`
@@ -126,6 +126,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
 
 * `abs`
   * Return the absolute value of the given integer.  (e.g. 3 -> 3, and -3 -> 3).
+* `and`
+  * Test if every item in a list is true.
 * `append`
   * Append the given value to the specified list.  If the list is empty just return the specified item.
 * `even?`
@@ -161,6 +163,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return 1 if the given number is odd, nil otherwise.
 * `one?`
   * Return true if the number is one.
+* `or`
+  * Is any value in the given list non-nil?
 * `pos?`
   * Return true if the number is positive.
 * `print`
