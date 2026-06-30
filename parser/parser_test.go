@@ -95,3 +95,29 @@ func TestEmptyList(t *testing.T) {
 		t.Fatalf("unexpected error parsing valid program; %v", err)
 	}
 }
+
+func TestFloat(t *testing.T) {
+	p := New("(defun main() (print 3.1))")
+	out, err := p.Parse()
+	if err != nil {
+		t.Fatalf("unexpected error parsing valid program; %v", err)
+	}
+
+	for _, x := range out[0].Exprs {
+
+		call, ok := x.(*Call)
+		if !ok {
+			t.Fatalf("expression isn't a call")
+		}
+
+		arg := call.Args[0]
+		f, ok := arg.(*Float)
+		if !ok {
+			t.Fatalf("argument isn't a float: %v", arg)
+		}
+		if f.Value != 3.1 {
+			t.Fatalf("wrong floating point value %f", f)
+		}
+	}
+
+}

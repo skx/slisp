@@ -198,9 +198,14 @@ func (p *Parser) parseExpr() (Expr, error) {
 		return &String{Value: strings.Trim(t, "\"")}, nil
 	}
 
-	// integer
+	// integer?
 	if n, err := strconv.ParseInt(t, 0, 64); err == nil {
 		return &Int{Value: n}, nil
+	}
+
+	// float?
+	if f, err2 := strconv.ParseFloat(t, 64); err2 == nil {
+		return &Float{Value: f}, nil
 	}
 
 	// nil?
