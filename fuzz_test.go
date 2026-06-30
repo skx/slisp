@@ -89,6 +89,13 @@ func FuzzProject(f *testing.F) {
 		     (= n 1) (print "one")
 		     (= n 2) (print "two")
 		     ))))`,
+
+		// while
+		`(defun main() (while nil (print "ok")))`,
+		`(defun main() (let ((i 0))
+				 (while (< i 10)
+				   (println i)
+				   (set! i (+ i 1)))))`,
 	}
 
 	//
