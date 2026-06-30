@@ -208,6 +208,11 @@ func (p *Parser) parseExpr() (Expr, error) {
 		return &Nil{}, nil
 	}
 
+	// true?
+	if t == "t" {
+		return &Int{Value: 1}, nil
+	}
+
 	// symbol
 	return &Symbol{Name: t}, nil
 }
