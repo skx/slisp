@@ -20,7 +20,7 @@
 ;;; 1. macros
 ;;
 ;; We use the lower three bits of values to denote their type,
-;; string, int, char, lambda, cons, etc.
+;; char, cons, float, int, lambda, string, etc.
 ;;
 ;; These macros are to be used to tag a register with a given
 ;; type, or get the type for processing and testing.
@@ -72,6 +72,12 @@
     or %1, TAG_ID_NIL
 %endmacro
 
+; tag a register as a float
+%macro TAG_FLOAT_REG 1
+    sal %1, 3
+    or %1, TAG_ID_FLOAT
+%endmacro
+
 ; remove the tag-bits from a register.
 ; just shift right 3 bits.
 %macro UNTAG_REG 1
@@ -89,6 +95,7 @@ TAG_ID_STRING  equ 0b001
 TAG_ID_CONS    equ 0b010
 TAG_ID_LAMBDA  equ 0b011
 TAG_ID_CHAR    equ 0b100
+TAG_ID_FLOAT   equ 0b101
 TAG_ID_NIL     equ 0b111
 
 
@@ -151,6 +158,21 @@ intp:
     xor rax, rax
     TAG_NIL_REG rax
     ret
+
+;; Is the given value a float?
+floatp:
+    mov rax, rdi
+    GET_TAG_BITS rax
+    cmp rax, TAG_ID_FLOAT
+    jnz .nil
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+.nil:
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+
 
 section .text.charp,"ax",@progbits
 

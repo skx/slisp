@@ -203,6 +203,8 @@ func (c *Compiler) asmName(name string) string {
 		return "consp"
 	case "char?":
 		return "charp"
+	case "float?":
+		return "floatp"
 	case "int?":
 		return "intp"
 	case "lambda?":
