@@ -126,6 +126,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
 
 * `abs`
   * Return the absolute value of the given integer.  (e.g. 3 -> 3, and -3 -> 3).
+* `and`
+  * Test if every item in a list is true.
 * `append`
   * Append the given value to the specified list.  If the list is empty just return the specified item.
 * `even?`
@@ -161,6 +163,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return 1 if the given number is odd, nil otherwise.
 * `one?`
   * Return true if the number is one.
+* `or`
+  * Is any value in the given list non-nil?
 * `pos?`
   * Return true if the number is positive.
 * `print`
