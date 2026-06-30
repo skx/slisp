@@ -326,7 +326,7 @@ minus:
    GET_TAG_BITS rbx     ; type of arg
    GET_TAG_BITS rax     ; type of arg
    add rax, rbx
-   cmp rax, 0           ; both integerss?
+   ; cmp rax, 0           ; both integerss?
    jz integer_minus
 
    ; Okay the values are either:
@@ -396,7 +396,7 @@ divide:
    GET_TAG_BITS rbx     ; type of arg
    GET_TAG_BITS rax     ; type of arg
    add rax, rbx
-   cmp rax, 0           ; both integerss?
+   ;cmp rax, 0           ; both integerss?
    jz integer_divide
    jmp type_error       ; TODO type
 
@@ -440,7 +440,7 @@ multiply:
    GET_TAG_BITS rbx     ; type of arg
    GET_TAG_BITS rax     ; type of arg
    add rax, rbx
-   cmp rax, 0           ; both integerss?
+   ; cmp rax, 0           ; both integerss?
    jz integer_multiply
    jmp type_error       ; TODO type
 
