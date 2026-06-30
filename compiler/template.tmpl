@@ -13,8 +13,8 @@
 ;; 3. User-defined lambdas
 ;; 4. entry-point
 ;; 5. stdlib
-;; 6. string-table
-;;
+;; 6. string literals
+;; 7. floating-point literals
 
 
 ;;; 1. macros
@@ -1704,6 +1704,11 @@ heap_ptr:
 envp_ptr:
     resq 1
 
-;;; 6. strings
+;;; 6. string literals
 
 {{ .StringTable }}
+
+
+;;; 7. floating-point literals
+
+{{ .FloatTable }}
