@@ -63,95 +63,69 @@
             (findClose len program (+ pos 1) depth)))))
 
 
-;;; Brainfuck Handlers
-
-;; + handler
-(defun execPlus (len program i cells ptr)
-  (run len
-       program
-       (+ i 1)
-       (setNth cells ptr (% (+ (nth cells ptr) 1) 256))
-       ptr))
-
-;; - handler
-(defun execMinus (len program i cells ptr)
-  (run len
-       program
-       (+ i 1)
-       (setNth cells ptr (% (- (nth cells ptr) 1) 256))
-       ptr))
-
-;; > handler
-(defun execGt (len program i cells ptr)
-  (run len program (+ i 1) cells (+ ptr 1)))
-
-;; < handler
-(defun execLt (len program i cells ptr)
-  (run len program (+ i 1) cells (- ptr 1)))
-
-;; . handler
-(defun execDot (len program i cells ptr)
-    (putc (chr (nth cells ptr)))
-    (run len program (+ i 1) cells ptr))
-
-;; , handler
-(defun execComma (len program i cells ptr)
-  (let ((x (getc)))
-    (if (nil? x)
-         (set! x 0))
-    (run len program (+ i 1) (setNth cells ptr x) ptr)))
-
-;; [ handler
-(defun execOpen (len program i cells ptr)
-  (if (= (nth cells ptr) 0)
-      (run len program
-           (+ (findClose len program (+ i 1) 1) 1)
-           cells
-           ptr)
-      (run len program
-           (+ i 1)
-           cells
-           ptr)))
-
-;; ] handler
-(defun execClose (len program i cells ptr)
-  (if (= (nth cells ptr) 0)
-      (run len
-           program
-           (+ i 1)
-           cells
-           ptr)
-      (run len
-           program
-           (+ (findOpen len program (- i 1) 1) 1)
-           cells
-           ptr)))
-
 
 ;;; Interpreter
 
-;; Run a brainfuck program
-(defun run (len program i cells ptr)
+(defun run (program)
+  (let ((i 0)
+        (len (length program))
+        (ptr 0)
+        (cells (makeCells 1000)))
 
-  ; if we're inside the program
-  (if (< i len)
-
-      ;; get the instruction
+    (while (< i len)
       (let ((ins (nth program i)))
-
-        ;; dispatch it
         (cond
-          ((= ins #\+)  (execPlus  len program i cells ptr))
-          ((= ins #\-)  (execMinus len program i cells ptr))
-          ((= ins #\>)  (execGt    len program i cells ptr))
-          ((= ins #\<)  (execLt    len program i cells ptr))
-          ((= ins #\.)  (execDot   len program i cells ptr))
-          ((= ins #\,)  (execComma len program i cells ptr))
-          ((= ins #\[)  (execOpen  len program i cells ptr))
-          ((= ins #\])  (execClose len program i cells ptr))
 
-          ;; ignore unknown character/instruction
-          (1 (run len program (+ i 1) cells ptr))))))
+          ;; +
+          ((= ins #\+) (do
+                        (set! cells
+                              (setNth cells ptr
+                                      (% (+ (nth cells ptr) 1) 256)))
+                        (set! i (+ i 1))))
+
+          ;; -
+          ((= ins #\-) (do
+                        (set! cells
+                              (setNth cells ptr
+                                      (% (- (nth cells ptr) 1) 256)))
+                        (set! i (+ i 1))))
+
+          ;; >
+          ((= ins #\>) (do
+                        (set! ptr (+ ptr 1))
+                        (set! i (+ i 1))))
+
+          ;; <
+          ((= ins #\<) (do
+                        (set! ptr (- ptr 1))
+                        (set! i (+ i 1))))
+
+          ;; [
+          ((= ins #\[)
+           (if (= (nth cells ptr) 0)
+               (set! i (+ (findClose len program (+ i 1) 1) 1))
+               (set! i (+ i 1))))
+
+          ;; ]
+          ((= ins #\])
+           (if (= (nth cells ptr) 0)
+               (set! i (+ i 1))
+               (set! i (+ (findOpen len program (- i 1) 1) 1))))
+
+          ;; ,
+          ((= ins #\.) (do
+                        (putc (chr (nth cells ptr)))
+                        (set! i (+ i 1))))
+
+          ;; ,
+          ((= ins #\,) (do
+                        (set! cells
+                              (setNth cells ptr
+                                      (% (getc) 256)))
+                        (set! i (+ i 1))))
+
+          ;; skip over unknown instructions
+          (t (set! i (+ i 1))))))))
 
 
 ;; Create ranges of numbers in a list
@@ -159,11 +133,6 @@
     (if (> count 0)
         (cons 0 (makeCells (- count 1)))
       nil))
-
-;; driver
-(defun brainfuck (program)
-  "Run the given program with 1000 cells."
-  (run (length program) (explode program) 0 (makeCells 1000) 0))
 
 
 ;; Entry-point
@@ -184,4 +153,4 @@
                 (println (car (cdr args)))
                  (exit 1))))))
 
-  (brainfuck program)))
+  (run (explode program))))
