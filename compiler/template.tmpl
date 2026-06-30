@@ -667,37 +667,23 @@ gt_equals:
 
 section .text.lt,"ax",@progbits
 
-;; <
+
+;; < - this is the inverse of >=
 lt:
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-    cmp rdi, rsi
-    jl .true
-    xor rax, rax
-    TAG_NIL_REG rax
+    call gt_equals
+    mov rdi, rax
+    call fn_not
     ret
-.true:
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
+
 
 section .text.gt,"ax",@progbits
 
-;; >
+;; > - this is the inverse of <=
 gt:
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-    cmp rdi, rsi
-    jg .true
-    xor rax, rax
-    TAG_NIL_REG rax
+    call lt_equals
+    mov rdi, rax
+    call fn_not
     ret
-.true:
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-
-
 
 section .text.printfloat,"ax",@progbits
 
