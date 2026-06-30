@@ -143,7 +143,9 @@ _start:
 
 
 ;;; 5. stdlib
-section .text.typep,"ax",@progbits
+
+
+section .text.intp,"ax",@progbits
 
 ;; Is the given value an integer?
 intp:
@@ -158,6 +160,8 @@ intp:
     xor rax, rax
     TAG_NIL_REG rax
     ret
+
+section .text.floatp,"ax",@progbits
 
 ;; Is the given value a float?
 floatp:
@@ -190,6 +194,9 @@ charp:
     TAG_NIL_REG rax
     ret
 
+
+section .text.strp,"ax",@progbits
+
 ;; Is the given value a string?
 strp:
     mov rax, rdi
@@ -203,6 +210,8 @@ strp:
     xor rax, rax
     TAG_NIL_REG rax
     ret
+
+section .text.consp,"ax",@progbits
 
 ;; Is the given value a cons?
 consp:
@@ -218,6 +227,9 @@ consp:
     TAG_NIL_REG rax
     ret
 
+
+section .text.lambdap,"ax",@progbits
+
 ;; is the given value a lambda?
 lambdap:
     mov rax, rdi
@@ -231,6 +243,9 @@ lambdap:
     xor rax, rax
     TAG_NIL_REG rax
     ret
+
+
+section .text.nilp,"ax",@progbits
 
 ;; Is the given value nil?
 nilp:
@@ -247,7 +262,7 @@ nilp:
     ret
 
 
-section .text.maths,"ax",@progbits
+section .text.plus,"ax",@progbits
 
 ;; +
 plus:
@@ -319,6 +334,8 @@ plus_integer:
    TAG_INTEGER_REG rax
    ret
 
+section .text.minus,"ax",@progbits
+
 ;; -
 minus:
    mov rax, rdi
@@ -387,6 +404,9 @@ integer_minus:
    mov rax, rdi
    TAG_INTEGER_REG rax
    ret
+
+
+section .text.divide,"ax",@progbits
 
 ;; /
 divide:
@@ -462,6 +482,8 @@ integer_divide:
    TAG_INTEGER_REG rax
    ret
 
+section .text.modulus,"ax",@progbits
+
 ;; %
 modulus:
    mov rax, rdi
@@ -483,6 +505,8 @@ modulus_integer:
    mov rax, rdx         ; result is an integer
    TAG_INTEGER_REG rax
    ret
+
+section .text.multiply,"ax",@progbits
 
 ;; *
 multiply:
@@ -609,7 +633,7 @@ equals:
     TAG_NIL_REG rax
     ret
 
-section .text.compare,"ax",@progbits
+section .text.lte,"ax",@progbits
 
 ;; <=
 lt_equals:
@@ -625,6 +649,8 @@ lt_equals:
     TAG_INTEGER_REG rax
     ret
 
+section .text.gte,"ax",@progbits
+
 ;; >=
 gt_equals:
     UNTAG_REG rdi
@@ -639,6 +665,8 @@ gt_equals:
     TAG_INTEGER_REG rax
     ret
 
+section .text.lt,"ax",@progbits
+
 ;; <
 lt:
     UNTAG_REG rdi
@@ -652,6 +680,8 @@ lt:
     mov rax, 1
     TAG_INTEGER_REG rax
     ret
+
+section .text.gt,"ax",@progbits
 
 ;; >
 gt:
@@ -974,6 +1004,8 @@ fn_cdr:
     mov rax, [rdi + 8]
     ret
 
+section .text.type_error,"ax",@progbits
+
 type_error:
     mov rdi, type_error_msg
     TAG_STRING_REG rdi
@@ -987,7 +1019,6 @@ type_error_msg:
         db 00
 
 section .text.explode,"ax",@progbits
-
 
 ;; Explode a string to a list of characters.
 ;; Find the length and work backwards.
@@ -1512,6 +1543,8 @@ fn_environment:
 .done:
     ret
 
+
+section .text.split,"ax",@progbits
 
 ;; split(string, char)
 fn_split:
