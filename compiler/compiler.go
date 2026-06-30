@@ -644,7 +644,11 @@ func (c *Compiler) emitCallable(obj any) error {
 	//
 	// Code that is common, and Defun-related
 	//
-	c.emitln(c.asmName(d.Name) + ":")
+	nm := c.asmName(d.Name)
+
+	// functions go into their own sections
+	c.emitln(fmt.Sprintf("section .text.%s,\"ax\",@progbits", nm))
+	c.emitln(nm + ":")
 
 	c.emitln("    push rbp")
 	c.emitln("    mov rbp, rsp")
