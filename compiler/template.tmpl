@@ -420,13 +420,107 @@ section .text.print_float,"ax",@progbits
 fn_printfloat:
 
     UNTAG_REG rax       ; RAX has pointer
-    movsd xmm0, [rax]   ; get the value
+    movq xmm0, [rax]   ; get the value
 
-    ;; TODO
+    sub     rsp,128
+    lea     rsi,[rsp]
+    xor     r8,r8                  ; output length
+
+    xorpd   xmm1,xmm1              ; handle sign
+    ucomisd xmm0,xmm1
+    jae     .positive
+    mov     byte [rsi],'-'
+    inc     rsi
+    inc     r8
+    movq    xmm1,[rel minusmask]
+    xorpd   xmm0,xmm1
+
+.positive:
+    cvttsd2si   rax,xmm0           ; truncate to int
+    mov     r9,rax                 ; save integer
+    movsd   xmm1,[rel million]
+    mulsd   xmm0,xmm1
+    cvttsd2si   rbx,xmm0
+    mov     rcx,1000000
+    imul    r9,rcx
+    sub     rbx,r9                 ; RBX=fraction
+
+    mov     rax,r9
+    mov     rcx,1000000
+    xor     rdx,rdx
+    div     rcx                    ; recover integer
+
+    test    rax,rax
+    jne     .int_nonzero
+
+    mov     byte [rsi],'0'
+    inc     rsi
+    inc     r8
+    jmp     .decimal
+
+.int_nonzero:
+
+    lea     r10,[rsp+120]
+    mov     rdi,r10
+
+    ;mov     rdi,rsp
+    ;add     rdi,120                ; temp end
+
+.int_loop:
+    xor     rdx,rdx
+    mov     rcx,10
+    div     rcx
+    add     dl,'0'
+    dec     rdi
+    mov     [rdi],dl
+    test    rax,rax
+    jne     .int_loop
+
+.copy_int:
+    mov     al, [rdi]
+    mov     [rsi], al
+    inc     rdi
+    inc     rsi
+    inc     r8
+    cmp     rdi, r10
+    jb      .copy_int
+
+.decimal:
+    mov     byte [rsi],'.'
+    inc     rsi
+    inc     r8
+
+    mov     rcx,100000   ; six fractional digits
+.frac_loop:
+    mov     rax,rbx
+    xor     rdx,rdx
+    div     rcx
+    add     al,'0'
+    mov     [rsi],al
+    inc     rsi
+    inc     r8
+    mov     rbx,rdx
+    mov     rax,rcx
+    xor     rdx,rdx
+    mov     rdi,10
+    div     rdi
+    mov     rcx,rax
+    test    rcx,rcx
+    jne     .frac_loop
+
+    mov     eax,1                  ; SYS_write
+    mov     edi,1                  ; stdout
+    lea     rsi,[rsp]
+    mov     rdx,r8
+    syscall
+
+    add     rsp,128
 
     xor rax,rax
     TAG_NIL_REG rax
     ret
+
+
 
 
 section .text.print_int,"ax",@progbits
@@ -1270,10 +1364,9 @@ fn_float1:
 
     ; load the number
     mov rbx, [float1]
-    cvtsi2sd xmm0, rbx  ; convert
 
     ; store
-    movsd [rax], xmm0
+    mov [rax], rbx
     TAG_FLOAT_REG rax
     ret
 
@@ -1285,14 +1378,23 @@ fn_float2:
 
     ; load the number
     mov rbx, [float2]
-    cvtsi2sd xmm0, rbx  ; convert
 
     ; store
-    movsd [rax], xmm0
+    mov [rax], rbx
     TAG_FLOAT_REG rax
     ret
 
 section .data
+
+
+align 8
+;; used by fn_printfloat
+million:
+        dq 1000000.0
+align 8
+;; used by fn_printfloat
+minusmask:
+        dq 0x8000000000000000
 
 align 8
 float1:
