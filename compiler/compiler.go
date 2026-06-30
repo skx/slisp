@@ -606,6 +606,44 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			return nil
 		}
 		return fmt.Errorf("unknown variable: %s", n.Name)
+
+	case *parser.While:
+
+		// create label for now, and the end
+		whileStart := c.label("while_start")
+		whileEnd := c.label("while_end")
+
+		// We're at the start, where we loop again
+		// to test the condition each time
+		c.emitln(whileStart + ":")
+
+		// compile the condition
+		err := c.emitExpr(n.Cond, ev)
+		if err != nil {
+			return err
+		}
+
+		// If the condition is "nil" we jump
+		// to the end.  Otherwise fall through
+		// to run the body..
+		c.emitln("    GET_TAG_BITS rax     ; get type bits")
+		c.emitln("    cmp rax, TAG_ID_NIL  ; is this a nil?")
+		c.emitln("    jz " + whileEnd)
+
+		// assemble the body
+		for _, expr := range n.Exprs {
+			err := c.emitExpr(expr, ev)
+			if err != nil {
+				return err
+			}
+		}
+
+		// loop around again
+		c.emitln("    jmp " + whileStart)
+
+		// but mark where the body is over.
+		c.emitln(whileEnd + ":")
+
 	default:
 		return fmt.Errorf("emitExpr: Unhandled node type:%T value:%V", n, n)
 	}
