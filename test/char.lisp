@@ -10,10 +10,10 @@
     (print "Character: ")
     (println a)
     (print "Number:")
-    (print (+ a 1))
+    (print (+ (ord a) 1))
     (newline)
     (print "Character again: ")
-    (putc (+ a 1))
+    (putc (+ (ord a) 1))
     (newline))
 
 
