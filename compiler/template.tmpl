@@ -414,6 +414,21 @@ gt:
     TAG_INTEGER_REG rax
     ret
 
+section .text.print_float,"ax",@progbits
+
+;; Print a float
+fn_printfloat:
+
+    UNTAG_REG rax       ; RAX has pointer
+    movsd xmm0, [rax]   ; get the value
+
+    ;; TODO
+
+    xor rax,rax
+    TAG_NIL_REG rax
+    ret
+
+
 section .text.print_int,"ax",@progbits
 
 ;; Print an integer
@@ -1247,8 +1262,43 @@ fn_split:
     TAG_CONS_REG rax
     ret
 
+;; float1 is a temporary method to return a float
+fn_float1:
+    ; allocate memory
+    mov rax, [heap_ptr]
+    add qword [heap_ptr],8
+
+    ; load the number
+    mov rbx, [float1]
+    cvtsi2sd xmm0, rbx  ; convert
+
+    ; store
+    movsd [rax], xmm0
+    TAG_FLOAT_REG rax
+    ret
+
+;; float2 is a temporary method to return a float
+fn_float2:
+    ; allocate memory
+    mov rax, [heap_ptr]
+    add qword [heap_ptr],8
+
+    ; load the number
+    mov rbx, [float2]
+    cvtsi2sd xmm0, rbx  ; convert
+
+    ; store
+    movsd [rax], xmm0
+    TAG_FLOAT_REG rax
+    ret
 
 section .data
+
+align 8
+float1:
+        dq 3.1
+float2:
+        dq -14.24
 
 ;; buffer for "\n", used by (newline)
 align 8
