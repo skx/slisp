@@ -256,7 +256,7 @@ plus:
    GET_TAG_BITS rbx     ; type of arg
    GET_TAG_BITS rax     ; type of arg
    add rax, rbx
-   cmp rax, 0           ; both integerss?
+;   cmp rax, 0           ; both integerss?
    jz plus_integer
 
    ; Okay the values are either:
@@ -296,14 +296,14 @@ plus:
 .arg_two_int:
     UNTAG_REG rsi      ; get the int
     cvtsi2sd xmm1, rsi ; convert to float
-    jmp .got_args
+    jmp .got_args_plus
 
 .arg_two_float:
-    UNTAG_REG rsi      ; get the float-ptr
-    movq xmm1, [rsi]   ; load
-    jmp .got_args
+    UNTAG_REG rsi         ; get the float-ptr
+    movq xmm1, [rsi]      ; load
+    ; jmp .got_args_plus  ; fall-through
 
-.got_args:
+.got_args_plus:
     addsd xmm0, xmm1        ; add
     mov rax, [heap_ptr]     ; allocate
     add qword [heap_ptr],8
@@ -369,9 +369,9 @@ minus:
     jmp .got_args_minus
 
 .arg_two_float:
-    UNTAG_REG rsi      ; get the float-ptr
-    movq xmm1, [rsi]   ; load
-    jmp .got_args_minus
+    UNTAG_REG rsi         ; get the float-ptr
+    movq xmm1, [rsi]      ; load
+;    jmp .got_args_minus  ; fall-through
 
 .got_args_minus:
     subsd xmm0, xmm1        ; subtrack
@@ -418,7 +418,7 @@ modulus:
    GET_TAG_BITS rbx     ; type of arg
    GET_TAG_BITS rax     ; type of arg
    add rax, rbx
-   cmp rax, 0           ; both integerss?
+;   cmp rax, 0           ; both integerss?
    jz modulus_integer
    jmp type_error       ; type error
 modulus_integer:
