@@ -10,14 +10,15 @@ Primitive types work as you would expect:
 
 * Comments are begun with ";" and continue until the end of the line.
   * There are no block comments.
-* We only support integer numbers, but they may be written in any base the golang `strconv.ParseInt` function supports:
+* We support integers and floating point numbers for mathematical operations.
+* Integers may be written in any base the golang `strconv.ParseInt` function supports:
   * `(print 3)`
   * `(print 0xff)`
   * `(print 0b10101010)`
-* Floating point numbers are not supported, so this is an error:
+* Floating point numbers are only supported literally, in base10:
   * `(print 3.4)`
 * We don't have a boolean type, but `nil` (or the empty list) is false, and `t` is true.
-* Strings are just encoded literally, and escaped characters are honored:
+* Strings are encoded literally, and escaped characters are honored:
   * `(print "Hello, world\n")`
 * Characters are written with a `#\` prefix:
   * `(print #\*)`

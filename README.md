@@ -54,12 +54,12 @@ It should be noted that we prepend a standard library of functions to all user p
 
 ## Features
 
-* Support for bindings, functions, integers, strings, lambdas, lists, etc.
+* Support for bindings, functions, floating-point numbers, integers, strings, lambdas, lists, etc.
   * The lambdas have support for closures.
   * Run-time type detection via functions such as `int?`, and `cons?`.
 * A rough and ready bump-allocator used for heap-allocated cons-cells.
-* Mathematical operations:
-  * `+`, `-`, `*`, `/`, and `%`.
+* Mathematical operations `+`, `-`, `*`, and `/`.
+  * These work against integers, floating point numbers, or combination of the two.
 * File I/O operations
   * `fopen`, `fclose`, `fread`, and `fwrite`.
 * Comparison operations:
