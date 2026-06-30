@@ -188,15 +188,15 @@ func (c *Compiler) asmName(name string) string {
 
 	// maths
 	case "+":
-		return "integer_plus"
+		return "plus"
 	case "-":
-		return "integer_minus"
+		return "minus"
 	case "*":
-		return "integer_multiply"
+		return "multiply"
 	case "/":
-		return "integer_divide"
+		return "divide"
 	case "%":
-		return "integer_modulus"
+		return "modulus"
 
 	// type checks
 	case "cons?":
