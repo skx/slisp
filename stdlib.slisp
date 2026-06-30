@@ -51,6 +51,24 @@
   (newline))
 
 
+;;; logical functions
+
+
+(defun and (xs)
+  "Return true if every item in the specified list is true.
+
+NOTE: This is not a macro, so all arguments are evaluated."
+  (let ((res (filter xs (lambda (x) x))))
+    (= (length xs) (length res))))
+
+
+(defun or (xs)
+  "Return true if any value in the specified list contains a true value.
+
+NOTE: This is not a macro, so all arguments are evaluated."
+  (let ((res (filter xs (lambda (x) x))))
+    (> (length res) 0)))
+
 ;;; Maths functions
 
 (defun abs (n)
@@ -221,9 +239,7 @@ Incrementing by the given step each time."
   "Create a new list by calling the given function for every list element."
   (if (nil? xs)
       nil
-      (cons
-       (fn (car xs))
-       (map fn (cdr xs)))))
+      (cons (fn (car xs)) (map fn (cdr xs)))))
 
 (defun member? (xs item)
   "Return true if the specified item is found within the given list."
@@ -248,6 +264,12 @@ Incrementing by the given step each time."
   "Reverse the contents of the specified list."
   (reverse-inner xs nil))
 
+
+;;; system functions
+
+(defun getenv (name)
+  (getenv-loop name (environment)))
+
 (defun getenv-loop (name xs)
   (if xs
       (let ((parts (split (car xs) #\=)))
@@ -257,6 +279,3 @@ Incrementing by the given step each time."
                 (getenv-loop name (cdr xs)))
             (getenv-loop name (cdr xs))))
       nil))
-
-(defun getenv (name)
-  (getenv-loop name (environment)))
