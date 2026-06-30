@@ -34,6 +34,10 @@ type Compiler struct {
 	// by their SHA1 sum as ID.  This is how we intern.
 	strings map[string]string
 
+	// floats holds the literal floating point numbers  we've encountered,
+	// indexed by their SHA1 sum as ID.  This is how we intern.
+	floats map[string]float64
+
 	// lambdas holds the lambdas we've encountered.
 	lambdas []*parser.Lambda
 }
@@ -57,8 +61,9 @@ func (c *Compiler) Compile() (string, error) {
 		return "", fmt.Errorf("error parsing program %s", err)
 	}
 
-	// Ensure our string table is pristine
+	// Ensure our tables are pristine
 	c.strings = map[string]string{}
+	c.floats = map[string]float64{}
 
 	defuns := ""
 
@@ -103,6 +108,17 @@ func (c *Compiler) Compile() (string, error) {
 	stringTable = c.text.String()
 	c.text.Reset()
 
+	// Then the literal user-defined floats
+	floatTable := ""
+	c.emitln("section .data")
+	for id, str := range c.floats {
+		c.emitln("align 8")
+		c.emitln(id + ":")
+		c.emitln(fmt.Sprintf("     dq %f", str))
+	}
+	floatTable = c.text.String()
+	c.text.Reset()
+
 	// Define a simple structure we can pass to the text/template
 	// file we render for our output
 	type Generated struct {
@@ -114,6 +130,9 @@ func (c *Compiler) Compile() (string, error) {
 
 		// StringTable contains the strings we've seen.
 		StringTable string
+
+		// FloatTable contains the floating point literals we've seen.
+		FloatTable string
 	}
 
 	// Create an instance to populate the template with
@@ -121,6 +140,7 @@ func (c *Compiler) Compile() (string, error) {
 		Defuns:      defuns,
 		Lambdas:     lambdas,
 		StringTable: stringTable,
+		FloatTable:  floatTable,
 	}
 
 	// Create a buffer to render the template to.
@@ -138,6 +158,16 @@ func (c *Compiler) Compile() (string, error) {
 
 	// Now return the text of that rendered template.
 	return buf.String(), nil
+}
+
+// addFloat creates a unique label for our floats,
+// based on the SHA1-hash.  Interning them.
+func (c *Compiler) addFloat(f float64) string {
+	hasher := sha1.New()
+	hasher.Write([]byte(fmt.Sprintf("%f", f)))
+	sha := hex.EncodeToString(hasher.Sum(nil))
+	id := fmt.Sprintf("float_%s", sha)
+	return id
 }
 
 // addString creates a unique label for our strings,
@@ -188,21 +218,23 @@ func (c *Compiler) asmName(name string) string {
 
 	// maths
 	case "+":
-		return "integer_plus"
+		return "plus"
 	case "-":
-		return "integer_minus"
+		return "minus"
 	case "*":
-		return "integer_multiply"
+		return "multiply"
 	case "/":
-		return "integer_divide"
+		return "divide"
 	case "%":
-		return "integer_modulus"
+		return "modulus"
 
 	// type checks
 	case "cons?":
 		return "consp"
 	case "char?":
 		return "charp"
+	case "float?":
+		return "floatp"
 	case "int?":
 		return "intp"
 	case "lambda?":
@@ -365,6 +397,19 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				return err
 			}
 		}
+
+	case *parser.Float:
+
+		// create a label, based on the hash of the content.
+		// This has the side-effect of interning.
+		lbl := c.addFloat(n.Value)
+
+		c.floats[lbl] = n.Value
+
+		// load the ADDRESS of the value, since we assume
+		// all floats are tagged POINTERS to the value.
+		c.emitln(fmt.Sprintf("    mov rax, %s", lbl))
+		c.emitln("    TAG_FLOAT_REG rax")
 
 	case *parser.Int:
 		c.emitln(fmt.Sprintf("    mov rax, %d", n.Value))

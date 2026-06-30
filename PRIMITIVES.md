@@ -12,13 +12,14 @@ The only notable special symbols are `nil`, which is synonymous with false and t
 
 * Comments are begun with ";" and continue until the end of the line.
   * There are no block comments.
-* We only support integer numbers, but they may be written in any base the golang `strconv.ParseInt` function supports:
+* We support integers and floating point numbers for mathematical operations.
+* Integers may be written in any base the golang `strconv.ParseInt` function supports:
   * `(print 3)`
   * `(print 0xff)`
   * `(print 0b10101010)`
-* Floating point numbers are not supported, so this is an error:
+* Floating point numbers are only supported literally, in base10:
   * `(print 3.4)`
-* Strings are just encoded literally, and escaped characters are honored:
+* Strings are encoded literally, and escaped characters are honored:
   * `(print "Hello, world\n")`
 * Characters are written with a `#\` prefix:
   * `(print #\*)`
@@ -56,9 +57,9 @@ Special forms are things that are built into the compiler core, and handled spec
 Core primitives are implemented in assembly language, and can be found within the file [compiler/template.tmpl](compiler/template.tmpl)
 
 * Type checking functions:
-  * `char?`, `cons?`, `int?`, `lambda?`, `nil?`, and `str?`.
-* (Integer) mathematical operations:
-  * `%`, `*`, `+`, `-`, and `/`.
+  * `char?`, `cons?`, `float?`, `int?`, `lambda?`, `nil?`, and `str?`.
+* mathematical operations  `*`, `+`, `-`, and `/`.
+  * These work against integers, floating point numbers, or mixed operands.
 * (Integer) comparison operations
   * `<`, `<=`, `>=`, `>`, and `=`.
 * Other functions implemented in assembly:
@@ -101,6 +102,8 @@ Core primitives are implemented in assembly language, and can be found within th
     * Return the ASCII code of the specified character.
   * `putc`
     * Print the given character.
+  * `printfloat`
+    * Print the specified floating point number.
   * `printint`
     * Print the specified integer.
   * `printstr`
@@ -170,7 +173,7 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
 * `print`
   * Print "anything".
 * `println`
-  * Print "anything", by invoking `print`, then outputting a newline.
+  * Print "anything" by invoking `print`, then outputting a newline.
 * `range`
   * Return a list of numbers between the given start/end, using the specified step-size.
 * `reduce`

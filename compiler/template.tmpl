@@ -13,14 +13,14 @@
 ;; 3. User-defined lambdas
 ;; 4. entry-point
 ;; 5. stdlib
-;; 6. string-table
-;;
+;; 6. string literals
+;; 7. floating-point literals
 
 
 ;;; 1. macros
 ;;
 ;; We use the lower three bits of values to denote their type,
-;; string, int, char, lambda, cons, etc.
+;; char, cons, float, int, lambda, string, etc.
 ;;
 ;; These macros are to be used to tag a register with a given
 ;; type, or get the type for processing and testing.
@@ -72,6 +72,12 @@
     or %1, TAG_ID_NIL
 %endmacro
 
+; tag a register as a float
+%macro TAG_FLOAT_REG 1
+    sal %1, 3
+    or %1, TAG_ID_FLOAT
+%endmacro
+
 ; remove the tag-bits from a register.
 ; just shift right 3 bits.
 %macro UNTAG_REG 1
@@ -89,6 +95,7 @@ TAG_ID_STRING  equ 0b001
 TAG_ID_CONS    equ 0b010
 TAG_ID_LAMBDA  equ 0b011
 TAG_ID_CHAR    equ 0b100
+TAG_ID_FLOAT   equ 0b101
 TAG_ID_NIL     equ 0b111
 
 
@@ -151,6 +158,21 @@ intp:
     xor rax, rax
     TAG_NIL_REG rax
     ret
+
+;; Is the given value a float?
+floatp:
+    mov rax, rdi
+    GET_TAG_BITS rax
+    cmp rax, TAG_ID_FLOAT
+    jnz .nil
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+.nil:
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+
 
 section .text.charp,"ax",@progbits
 
@@ -228,7 +250,68 @@ nilp:
 section .text.maths,"ax",@progbits
 
 ;; +
-integer_plus:
+plus:
+   mov rax, rdi
+   mov rbx, rsi
+   GET_TAG_BITS rbx     ; type of arg
+   GET_TAG_BITS rax     ; type of arg
+   add rax, rbx
+;   cmp rax, 0           ; both integerss?
+   jz plus_integer
+
+   ; Okay the values are either:
+   ;  float + float
+   ;  float + int
+   ;  int   + float
+   ;
+   ; We have to test each argument and work it out.
+   ; the end result of our addition will be a float.
+   mov rcx, rdi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_one_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_one_int
+   jmp type_error
+
+.arg_one_int:
+    UNTAG_REG rdi      ; get the int
+    cvtsi2sd xmm0, rdi ; convert to float
+    jmp .arg_two
+
+.arg_one_float:
+    UNTAG_REG rdi      ; get the float-ptr
+    movq xmm0, [rdi]   ; load
+    jmp .arg_two
+
+.arg_two:
+   mov rcx, rsi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_two_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_two_int
+   jmp type_error
+
+.arg_two_int:
+    UNTAG_REG rsi      ; get the int
+    cvtsi2sd xmm1, rsi ; convert to float
+    jmp .got_args_plus
+
+.arg_two_float:
+    UNTAG_REG rsi         ; get the float-ptr
+    movq xmm1, [rsi]      ; load
+    ; jmp .got_args_plus  ; fall-through
+
+.got_args_plus:
+    addsd xmm0, xmm1        ; add
+    mov rax, [heap_ptr]     ; allocate
+    add qword [heap_ptr],8
+    movq [rax], xmm0         ; store
+    TAG_FLOAT_REG rax       ; type
+    ret                     ; return
+
+plus_integer:
    UNTAG_REG rdi
    UNTAG_REG rsi
    mov rax, rdi
@@ -237,6 +320,66 @@ integer_plus:
    ret
 
 ;; -
+minus:
+   mov rax, rdi
+   mov rbx, rsi
+   GET_TAG_BITS rbx     ; type of arg
+   GET_TAG_BITS rax     ; type of arg
+   add rax, rbx         ; 0?
+   jz integer_minus     ; both integers
+
+   ; Okay the values are either:
+   ;  float + float
+   ;  float + int
+   ;  int   + float
+   ;
+   ; We have to test each argument and work it out.
+   ; the end result of our addition will be a float.
+   mov rcx, rdi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_one_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_one_int
+   jmp type_error
+
+.arg_one_int:
+    UNTAG_REG rdi      ; get the int
+    cvtsi2sd xmm0, rdi ; convert to float
+    jmp .arg_two
+
+.arg_one_float:
+    UNTAG_REG rdi      ; get the float-ptr
+    movq xmm0, [rdi]   ; load
+    jmp .arg_two
+
+.arg_two:
+   mov rcx, rsi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_two_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_two_int
+   jmp type_error
+
+.arg_two_int:
+    UNTAG_REG rsi      ; get the int
+    cvtsi2sd xmm1, rsi ; convert to float
+    jmp .got_args_minus
+
+.arg_two_float:
+    UNTAG_REG rsi         ; get the float-ptr
+    movq xmm1, [rsi]      ; load
+;    jmp .got_args_minus  ; fall-through
+
+.got_args_minus:
+    subsd xmm0, xmm1        ; subtrack
+    mov rax, [heap_ptr]     ; allocate
+    add qword [heap_ptr],8
+    movq [rax], xmm0        ; store
+    TAG_FLOAT_REG rax       ; type
+    ret                     ; return
+
 integer_minus:
    UNTAG_REG rdi
    UNTAG_REG rsi
@@ -246,6 +389,68 @@ integer_minus:
    ret
 
 ;; /
+divide:
+   mov rax, rdi
+   mov rbx, rsi
+   GET_TAG_BITS rbx     ; type of arg
+   GET_TAG_BITS rax     ; type of arg
+   add rax, rbx         ; zero result?  both ints
+   jz integer_divide
+
+
+   ; Okay the values are either:
+   ;  float + float
+   ;  float + int
+   ;  int   + float
+   ;
+   ; We have to test each argument and work it out.
+   ; the end result of our addition will be a float.
+   mov rcx, rdi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_one_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_one_int
+   jmp type_error
+
+.arg_one_int:
+    UNTAG_REG rdi      ; get the int
+    cvtsi2sd xmm0, rdi ; convert to float
+    jmp .arg_two
+
+.arg_one_float:
+    UNTAG_REG rdi      ; get the float-ptr
+    movq xmm0, [rdi]   ; load
+    jmp .arg_two
+
+.arg_two:
+   mov rcx, rsi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_two_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_two_int
+   jmp type_error
+
+.arg_two_int:
+    UNTAG_REG rsi           ; get the int
+    cvtsi2sd xmm1, rsi      ; convert to float
+    jmp .got_args_divide
+
+.arg_two_float:
+    UNTAG_REG rsi           ; get the float-ptr
+    movq xmm1, [rsi]        ; load
+;    jmp .got_args_divide   ; fall-through
+
+.got_args_divide:
+    divsd xmm0, xmm1        ; multiply
+    mov rax, [heap_ptr]     ; allocate
+    add qword [heap_ptr],8
+    movq [rax], xmm0        ; store
+    TAG_FLOAT_REG rax       ; type
+    ret                     ; return
+
+
 integer_divide:
    UNTAG_REG rdi
    UNTAG_REG rsi
@@ -258,19 +463,89 @@ integer_divide:
    ret
 
 ;; %
-integer_modulus:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-
+modulus:
    mov rax, rdi
+   mov rbx, rsi
+   GET_TAG_BITS rbx     ; type of arg
+   GET_TAG_BITS rax     ; type of arg
+   add rax, rbx
+;   cmp rax, 0           ; both integerss?
+   jz modulus_integer
+   jmp type_error       ; type error
+modulus_integer:
+   UNTAG_REG rdi
+   UNTAG_REG rsi        ; untag arguments
+
+   mov rax, rdi         ; do the magic
    cqo
    idiv rsi
 
-   mov rax, rdx
+   mov rax, rdx         ; result is an integer
    TAG_INTEGER_REG rax
    ret
 
 ;; *
+multiply:
+   mov rax, rdi
+   mov rbx, rsi
+   GET_TAG_BITS rbx     ; type of arg
+   GET_TAG_BITS rax     ; type of arg
+   add rax, rbx         ; zero result? then both ints
+   jz integer_multiply
+
+
+   ; Okay the values are either:
+   ;  float + float
+   ;  float + int
+   ;  int   + float
+   ;
+   ; We have to test each argument and work it out.
+   ; the end result of our addition will be a float.
+   mov rcx, rdi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_one_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_one_int
+   jmp type_error
+
+.arg_one_int:
+    UNTAG_REG rdi      ; get the int
+    cvtsi2sd xmm0, rdi ; convert to float
+    jmp .arg_two
+
+.arg_one_float:
+    UNTAG_REG rdi      ; get the float-ptr
+    movq xmm0, [rdi]   ; load
+    jmp .arg_two
+
+.arg_two:
+   mov rcx, rsi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_two_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_two_int
+   jmp type_error
+
+.arg_two_int:
+    UNTAG_REG rsi      ; get the int
+    cvtsi2sd xmm1, rsi ; convert to float
+    jmp .got_args_star
+
+.arg_two_float:
+    UNTAG_REG rsi         ; get the float-ptr
+    movq xmm1, [rsi]      ; load
+;    jmp .got_args_star   ; fall-through
+
+.got_args_star:
+    mulsd xmm0, xmm1        ; multiply
+    mov rax, [heap_ptr]     ; allocate
+    add qword [heap_ptr],8
+    movq [rax], xmm0        ; store
+    TAG_FLOAT_REG rax       ; type
+    ret                     ; return
+
 integer_multiply:
    UNTAG_REG rdi
    UNTAG_REG rsi
@@ -392,10 +667,125 @@ gt:
     TAG_INTEGER_REG rax
     ret
 
-section .text.print_int,"ax",@progbits
+
+
+section .text.printfloat,"ax",@progbits
+
+;; Print a float
+fn_printfloat:
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_FLOAT
+    jne type_error
+
+    UNTAG_REG rdi      ; RAX has pointer
+    movq xmm0, [rdi]   ; get the value
+
+    sub     rsp,128
+    lea     rsi,[rsp]
+    xor     r8,r8                  ; output length
+
+    xorpd   xmm1,xmm1              ; handle sign
+    ucomisd xmm0,xmm1
+    jae     .positive
+    mov     byte [rsi],'-'
+    inc     rsi
+    inc     r8
+    movq    xmm1,[rel minusmask]
+    xorpd   xmm0,xmm1
+
+.positive:
+    cvttsd2si   rax,xmm0           ; truncate to int
+    mov     r9,rax                 ; save integer
+    movsd   xmm1,[rel million]
+    mulsd   xmm0,xmm1
+    cvttsd2si   rbx,xmm0
+    mov     rcx,1000000
+    imul    r9,rcx
+    sub     rbx,r9                 ; RBX=fraction
+
+    mov     rax,r9
+    mov     rcx,1000000
+    xor     rdx,rdx
+    div     rcx                    ; recover integer
+
+    test    rax,rax
+    jne     .int_nonzero
+
+    mov     byte [rsi],'0'
+    inc     rsi
+    inc     r8
+    jmp     .decimal
+
+.int_nonzero:
+    lea     r10,[rsp+120]
+    mov     rdi,r10
+
+.int_loop:
+    xor     rdx,rdx
+    mov     rcx,10
+    div     rcx
+    add     dl,'0'
+    dec     rdi
+    mov     [rdi],dl
+    test    rax,rax
+    jne     .int_loop
+
+.copy_int:
+    mov     al, [rdi]
+    mov     [rsi], al
+    inc     rdi
+    inc     rsi
+    inc     r8
+    cmp     rdi, r10
+    jb      .copy_int
+
+.decimal:
+    mov     byte [rsi],'.'
+    inc     rsi
+    inc     r8
+
+    mov     rcx,100000   ; six fractional digits
+.frac_loop:
+    mov     rax,rbx
+    xor     rdx,rdx
+    div     rcx
+    add     al,'0'
+    mov     [rsi],al
+    inc     rsi
+    inc     r8
+    mov     rbx,rdx
+    mov     rax,rcx
+    xor     rdx,rdx
+    mov     rdi,10
+    div     rdi
+    mov     rcx,rax
+    test    rcx,rcx
+    jne     .frac_loop
+
+    mov     eax,1                  ; SYS_write
+    mov     edi,1                  ; stdout
+    lea     rsi,[rsp]
+    mov     rdx,r8
+    syscall
+
+    add     rsp,128
+
+    xor rax,rax
+    TAG_NIL_REG rax
+    ret
+
+
+
+
+section .text.printint,"ax",@progbits
 
 ;; Print an integer
 fn_printint:
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
     push rbp
     mov rbp, rsp
     sub rsp, 64
@@ -494,10 +884,14 @@ fn_getc:
      ret
 
 
-section .text.print_str,"ax",@progbits
+section .text.printstr,"ax",@progbits
 
 ;; Print the given string.
 fn_printstr:
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
     UNTAG_REG rdi
     push rdi
     mov rdx, 0                ; length counter
@@ -581,8 +975,16 @@ fn_cdr:
     ret
 
 type_error:
+    mov rdi, type_error_msg
+    TAG_STRING_REG rdi
+    call fn_printstr
     jmp fn_exit
 
+section .data
+align 8
+type_error_msg:
+        db `Type error.  Aborting.\n`
+        db 00
 
 section .text.explode,"ax",@progbits
 
@@ -1228,6 +1630,15 @@ fn_split:
 
 section .data
 
+align 8
+;; used by fn_printfloat
+million:
+        dq 1000000.0
+align 8
+;; used by fn_printfloat
+minusmask:
+        dq 0x8000000000000000
+
 ;; buffer for "\n", used by (newline)
 align 8
 newline_str:
@@ -1259,6 +1670,11 @@ heap_ptr:
 envp_ptr:
     resq 1
 
-;;; 6. strings
+;;; 6. string literals
 
 {{ .StringTable }}
+
+
+;;; 7. floating-point literals
+
+{{ .FloatTable }}

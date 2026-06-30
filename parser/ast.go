@@ -12,6 +12,10 @@ type Char struct {
 	Value byte
 }
 
+type Float struct {
+	Value float64
+}
+
 type Int struct {
 	Value int64
 }
