@@ -250,7 +250,17 @@ nilp:
 section .text.maths,"ax",@progbits
 
 ;; +
-integer_plus:
+plus:
+   mov rax, rdi
+   mov rbx, rsi
+   GET_TAG_BITS rbx     ; type of arg
+   GET_TAG_BITS rax     ; type of arg
+   add rax, rbx
+   cmp rax, 0           ; both integerss?
+   jz plus_integer
+   jmp type_error       ; TODO type
+
+plus_integer:
    UNTAG_REG rdi
    UNTAG_REG rsi
    mov rax, rdi
@@ -259,6 +269,7 @@ integer_plus:
    ret
 
 ;; -
+minus:
 integer_minus:
    UNTAG_REG rdi
    UNTAG_REG rsi
@@ -268,6 +279,7 @@ integer_minus:
    ret
 
 ;; /
+divide:
 integer_divide:
    UNTAG_REG rdi
    UNTAG_REG rsi
@@ -280,19 +292,29 @@ integer_divide:
    ret
 
 ;; %
-integer_modulus:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-
+modulus:
    mov rax, rdi
+   mov rbx, rsi
+   GET_TAG_BITS rbx     ; type of arg
+   GET_TAG_BITS rax     ; type of arg
+   add rax, rbx
+   cmp rax, 0           ; both integerss?
+   jz modulus_integer
+   jmp type_error       ; type error
+modulus_integer:
+   UNTAG_REG rdi
+   UNTAG_REG rsi        ; untag arguments
+
+   mov rax, rdi         ; do the magic
    cqo
    idiv rsi
 
-   mov rax, rdx
+   mov rax, rdx         ; result is an integer
    TAG_INTEGER_REG rax
    ret
 
 ;; *
+multiply:
 integer_multiply:
    UNTAG_REG rdi
    UNTAG_REG rsi
