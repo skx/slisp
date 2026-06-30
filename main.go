@@ -7,6 +7,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/skx/slisp/compiler"
 )
@@ -14,8 +17,8 @@ import (
 //go:embed stdlib.slisp
 var stdlibLisp string
 
-// compile is a helper to compile a program
-func compile(prg string) (string, error) {
+// generate is a helper to compile a program
+func generate(prg string) (string, error) {
 
 	// Create a compiler
 	c := compiler.New(prg)
@@ -28,16 +31,64 @@ func compile(prg string) (string, error) {
 	return txt, nil
 }
 
+// compile will compile the given program into an object,
+// then a binary.
+func compile(name string, txt string) {
+
+	// Get the basename
+	nm := filepath.Base(name)
+
+	// Remove the .lisp suffix
+	nm = strings.TrimSuffix(nm, filepath.Ext(nm))
+
+	// write the assembly
+	err := os.WriteFile(nm+".asm", []byte(txt), 0644)
+	if err != nil {
+		fmt.Printf("failed to write assembly to %s: %s\n",
+			nm+".asm", err)
+		return
+	}
+
+	// nasm
+	assembleCmd := []string{"nasm", "-f", "elf64", nm + ".asm"}
+
+	c := exec.Command(assembleCmd[0], assembleCmd[1:]...)
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+
+	err = c.Run()
+	if err != nil {
+		fmt.Printf("error running assembler %v: %s\n", assembleCmd, err)
+		return
+	}
+
+	// link
+	linkCmd := []string{"ld", "-o", nm, "--gc-sections", "-s", nm + ".o"}
+
+	c = exec.Command(linkCmd[0], linkCmd[1:]...)
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+
+	err = c.Run()
+	if err != nil {
+		fmt.Printf("error running linker %v: %s\n", linkCmd, err)
+		return
+	}
+
+}
+
 // main is our entry-point
 func main() {
 
 	// CLI flags
-	stdlib := flag.Bool("stdlib", true, "Prepend our Lisp standard library to user-programs")
+	stdlibFlag := flag.Bool("stdlib", true, "Prepend our Lisp standard library to user-programs.")
+	compileFlag := flag.Bool("compile", false, "Automatically generate a binary.")
+	c := flag.Bool("c", false, "Automatically generate a binary.s")
 	flag.Parse()
 
 	// Do we have a file?
 	if len(flag.Args()) != 1 {
-		fmt.Println("usage: slisp [-stdlib=false] file.lisp")
+		fmt.Println("usage: slisp [flags] file.lisp")
 		os.Exit(1)
 	}
 
@@ -50,16 +101,20 @@ func main() {
 
 	// Prepend the stdlib if we should.
 	prg := string(data)
-	if *stdlib {
+	if *stdlibFlag {
 		prg = stdlibLisp + "\n" + prg
 	}
 
-	txt, err := compile(prg)
+	txt, err := generate(prg)
 	if err != nil {
 		fmt.Printf("error processing: %s\n", err)
 		return
 	}
 
-	// Print the code to STDOUT
-	fmt.Print(txt)
+	if *c || *compileFlag {
+		compile(flag.Args()[0], txt)
+	} else {
+		// Print the code to STDOUT
+		fmt.Print(txt)
+	}
 }
