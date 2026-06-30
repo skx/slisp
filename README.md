@@ -92,13 +92,17 @@ Build the compiler:
 
     go build .
 
-Use it to compile and link a program:
+Then use it to compile and link a program:
+
+    ./slisp -compile example.lisp
+
+That will create "example.asm", and "example.o", before creating "example".  If you prefer to run the commands manually you can do it this way:
 
     ./slisp example.lisp  > example.s
     nasm -f elf64 example.s
     ld -o example example.o
 
-Finally execute your program:
+Finally you may execute your compiled program:
 
     ./example
 
