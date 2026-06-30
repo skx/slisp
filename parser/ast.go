@@ -13,7 +13,7 @@ type Char struct {
 }
 
 type Float struct {
-	Value float64
+       Value float64
 }
 
 type Int struct {
@@ -88,3 +88,9 @@ type Set struct {
 	Name string
 	Expr Expr
 }
+
+type While struct {
+	Cond  Expr
+	Exprs []Expr
+}
+
