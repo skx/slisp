@@ -1,6 +1,7 @@
 # Brief `slisp` Introduction
 
-`slisp` is a typical toy lisp with support for integers, strings, characters, lambdas, and functions.
+`slisp` is a typical toy lisp with support for floating-point numbers,
+integers, strings, characters, lambdas, and functions.
 
 
 
@@ -152,6 +153,19 @@ But using the `list` function allows that to be done more neatly:
     (list 1 2 3)
 
 (For the common case of creating lists of numbers see the `nat`, `seq` and `range` functions in our [PRIMITIVES.md](PRIMITIVES.md) list.)
+
+
+
+## Looping
+
+We support the `while` expression to run loops:
+
+    (let ((i 0))
+      (while (< i 10)
+        (println i)
+        (set! i (+ i 1))))
+
+You can see this demonstrated in the [brainfuck.lisp](brainfuck.lisp) program.
 
 
 
