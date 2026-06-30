@@ -7,7 +7,18 @@
   (println (+ (float1) (float1)))
 
   ; So that was float+float
-  (println "mixed maths:")
+  (println "mixed addition:")
   (println (+ 1 (float1)))
   (println (+ (float1) 1))
+
+  (print (float1))
+  (print " - ")
+  (print (float1))
+  (print " = ")
+  (println (- (float1) (float1)))
+
+  ; So that was float-float
+  (println "mixed subtraction:")
+  (println (- (float1) 100 ))
+  (println (- 1 (float1)))
   )
