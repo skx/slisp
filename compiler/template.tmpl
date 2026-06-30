@@ -635,12 +635,75 @@ equals:
 
 section .text.lte,"ax",@progbits
 
-;; <=
+
+;; <= - Work with either integers, floats, or both.
+;;
+;; Note: The result of this function is inverted for ">".
+;;
 lt_equals:
+   mov rax, rdi
+   mov rbx, rsi
+   GET_TAG_BITS rbx     ; type of arg
+   GET_TAG_BITS rax     ; type of arg
+   add rax, rbx         ; both integers? == 0
+   jz lte_integer
+
+
+   ; Okay the values are either:
+   ;  float + float
+   ;  float + int
+   ;  int   + float
+   ;
+   ; We have to test each argument and work it out.
+   ; the end result of our addition will be a float.
+   mov rcx, rdi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_one_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_one_int
+   jmp type_error
+
+.arg_one_int:
+    UNTAG_REG rdi      ; get the int
+    cvtsi2sd xmm0, rdi ; convert to float
+    jmp .arg_two
+
+.arg_one_float:
+    UNTAG_REG rdi      ; get the float-ptr
+    movq xmm0, [rdi]   ; load
+    ; jmp .arg_two     ; fall through
+
+.arg_two:
+   mov rcx, rsi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_two_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_two_int
+   jmp type_error
+
+.arg_two_int:
+    UNTAG_REG rsi      ; get the int
+    cvtsi2sd xmm1, rsi ; convert to float
+    jmp .got_args_lte
+
+.arg_two_float:
+    UNTAG_REG rsi         ; get the float-ptr
+    movq xmm1, [rsi]      ; load
+    ; jmp .got_args_lte   ; fall-through
+
+.got_args_lte:
+    ucomisd xmm0, xmm1
+    jbe lte_integer.true
+    jmp lte_integer.false
+
+lte_integer:
     UNTAG_REG rdi
     UNTAG_REG rsi
     cmp rdi, rsi
     jle .true
+.false:
     xor rax, rax
     TAG_NIL_REG rax
     ret
