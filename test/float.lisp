@@ -21,4 +21,11 @@
   (println "mixed subtraction:")
   (println (- (float1) 100 ))
   (println (- 1 (float1)))
+
+  ;; multiplication
+  (println "multiplication:")
+  (println (* (float1) (float1)))
+  (println (* 1 (float1)))
+  (println (* (float1) 1))
+
   )
