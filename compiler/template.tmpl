@@ -414,13 +414,19 @@ gt:
     TAG_INTEGER_REG rax
     ret
 
-section .text.print_float,"ax",@progbits
+
+
+section .text.printfloat,"ax",@progbits
 
 ;; Print a float
 fn_printfloat:
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_FLOAT
+    jne type_error
 
-    UNTAG_REG rax       ; RAX has pointer
-    movq xmm0, [rax]   ; get the value
+    UNTAG_REG rdi      ; RAX has pointer
+    movq xmm0, [rdi]   ; get the value
 
     sub     rsp,128
     lea     rsi,[rsp]
@@ -459,12 +465,8 @@ fn_printfloat:
     jmp     .decimal
 
 .int_nonzero:
-
     lea     r10,[rsp+120]
     mov     rdi,r10
-
-    ;mov     rdi,rsp
-    ;add     rdi,120                ; temp end
 
 .int_loop:
     xor     rdx,rdx
@@ -523,10 +525,14 @@ fn_printfloat:
 
 
 
-section .text.print_int,"ax",@progbits
+section .text.printint,"ax",@progbits
 
 ;; Print an integer
 fn_printint:
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
     push rbp
     mov rbp, rsp
     sub rsp, 64
@@ -625,10 +631,14 @@ fn_getc:
      ret
 
 
-section .text.print_str,"ax",@progbits
+section .text.printstr,"ax",@progbits
 
 ;; Print the given string.
 fn_printstr:
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
     UNTAG_REG rdi
     push rdi
     mov rdx, 0                ; length counter
@@ -712,8 +722,16 @@ fn_cdr:
     ret
 
 type_error:
+    mov rdi, type_error_msg
+    TAG_STRING_REG rdi
+    call fn_printstr
     jmp fn_exit
 
+section .data
+align 8
+type_error_msg:
+        db `Type error.  Aborting.\n`
+        db 00
 
 section .text.explode,"ax",@progbits
 
