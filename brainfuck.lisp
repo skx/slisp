@@ -1,32 +1,13 @@
 ;; brainfuck.lisp - Brainfuck interpreter in slisp
 ;;
-;; This is slow.
-;; This is terrible.
-;; This works.
+;; This is slow.  This is terrible.  This works.
 ;;
 ;; Usage:
 ;;
 ;;   ./brainfuck [path/to/program.bf]
 ;;
-;; If no program is supplied the default one is executed.
-;;
-;;
-;; IMPORTANT NOTE!
-;; ###############
-;;
-;; Note that this program is **deeply** recursive, and
-;; because each function call reserves (currently) 256 bytes
-;; of stack space it will blow up the stack and end up
-;; terminating with a segfault for all but the smallest
-;; programs.
-;;
-;; To work around that run:
-;;
-;;   ulimit -s unlimited
-;;
-;; Before running this program, which will make the stack
-;; allocation unlimited, and allow that deep recursion to
-;; succeed.
+;; If no program is supplied the default one is executed
+;; (which is the "hello world" program).
 ;;
 
 ;;; Helpers
@@ -67,13 +48,19 @@
 ;;; Interpreter
 
 (defun run (program)
-  (let ((i 0)
-        (len (length program))
-        (ptr 0)
-        (cells (makeCells 1000)))
+  (let ((i 0)                     ; offset into program
+        (len (length program))    ; length of program
+        (ptr 0)                   ; PTR value
+        (cells (makeCells 1000))) ; cells.
 
+    ; while we've not run off the end of the program
     (while (< i len)
+
+      ; get the instruction
       (let ((ins (nth program i)))
+
+
+        ; handle it
         (cond
 
           ;; +
@@ -151,6 +138,6 @@
                (do
                 (print "failed to read file ")
                 (println (car (cdr args)))
-                 (exit 1))))))
+                (exit 1))))))
 
   (run (explode program))))
