@@ -56,7 +56,7 @@ Special forms are things that are built into the compiler core, and handled spec
 Core primitives are implemented in assembly language, and can be found within the file [compiler/template.tmpl](compiler/template.tmpl)
 
 * Type checking functions:
-  * `char?`, `cons?`, `int?`, `lambda?`, `nil?`, and `str?`.
+  * `char?`, `cons?`, `float?`, `int?`, `lambda?`, `nil?`, and `str?`.
 * (Integer) mathematical operations:
   * `%`, `*`, `+`, `-`, and `/`.
 * (Integer) comparison operations
