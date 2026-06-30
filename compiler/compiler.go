@@ -114,7 +114,7 @@ func (c *Compiler) Compile() (string, error) {
 	for id, str := range c.floats {
 		c.emitln("align 8")
 		c.emitln(id + ":")
-		c.emitln(fmt.Sprintf("     dq `%f`", str))
+		c.emitln(fmt.Sprintf("     dq %f", str))
 	}
 	floatTable = c.text.String()
 	c.text.Reset()
@@ -406,8 +406,9 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 		c.floats[lbl] = n.Value
 
-		// load the value from the label and tag.
-		c.emitln(fmt.Sprintf("    mov rax, [%s]", lbl))
+		// load the ADDRESS of the value, since we assume
+		// all floats are tagged POINTERS to the value.
+		c.emitln(fmt.Sprintf("    mov rax, %s", lbl))
 		c.emitln("    TAG_FLOAT_REG rax")
 
 	case *parser.Int:
