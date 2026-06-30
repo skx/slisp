@@ -24,3 +24,7 @@ jobs:
 
      - name: Ensure our example works
        run: make clean example
+
+     - name: See our sizes
+       run: find . -type f -executable  -exec ls -l {} \;
+
