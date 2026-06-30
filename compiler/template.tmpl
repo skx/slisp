@@ -270,6 +270,15 @@ plus_integer:
 
 ;; -
 minus:
+   mov rax, rdi
+   mov rbx, rsi
+   GET_TAG_BITS rbx     ; type of arg
+   GET_TAG_BITS rax     ; type of arg
+   add rax, rbx
+   cmp rax, 0           ; both integerss?
+   jz integer_minus
+   jmp type_error       ; TODO type
+
 integer_minus:
    UNTAG_REG rdi
    UNTAG_REG rsi
@@ -280,6 +289,15 @@ integer_minus:
 
 ;; /
 divide:
+   mov rax, rdi
+   mov rbx, rsi
+   GET_TAG_BITS rbx     ; type of arg
+   GET_TAG_BITS rax     ; type of arg
+   add rax, rbx
+   cmp rax, 0           ; both integerss?
+   jz integer_divide
+   jmp type_error       ; TODO type
+
 integer_divide:
    UNTAG_REG rdi
    UNTAG_REG rsi
@@ -315,6 +333,15 @@ modulus_integer:
 
 ;; *
 multiply:
+   mov rax, rdi
+   mov rbx, rsi
+   GET_TAG_BITS rbx     ; type of arg
+   GET_TAG_BITS rax     ; type of arg
+   add rax, rbx
+   cmp rax, 0           ; both integerss?
+   jz integer_multiply
+   jmp type_error       ; TODO type
+
 integer_multiply:
    UNTAG_REG rdi
    UNTAG_REG rsi
