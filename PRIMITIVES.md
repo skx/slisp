@@ -8,11 +8,11 @@ Note that you might need to consult the source of the standard-library to see fu
 
 ## Symbols / Types
 
-The only notable special symbol is `nil` - the nil value.
+The only notable special symbols are `nil`, which is synonymous with false and the empty list, and `t` which is a true value.
 
 * Comments are begun with ";" and continue until the end of the line.
   * There are no block comments.
-* We only support integers, but they may be written in any base the golang `strconv.ParseInt` function supports:
+* We only support integer numbers, but they may be written in any base the golang `strconv.ParseInt` function supports:
   * `(print 3)`
   * `(print 0xff)`
   * `(print 0b10101010)`
