@@ -15,21 +15,17 @@
 
 (defun print (x)
   "Print the given item intelligently."
-  (if (int? x)
-      (printint x))
-  (if (char? x)
-      (putc x))
-  (if (nil? x)
-      (printstr "<nil>"))
-  (if (str? x)
-      (printstr x))
-  (if (lambda? x)
-      (printstr "<lambda>"))
-  (if (cons? x)
-      (do
-       (putc #\()
-       (print-cons x)  ; List items, separated by spaces
-       (putc #\)))))
+  (cond
+    ((char? x)   (putc x))
+    ((int? x)    (printint x))
+    ((lambda? x) (printstr "<lambda>"))
+    ((nil? x)    (printstr "<nil>"))
+    ((str? x)    (printstr x))
+    ((cons? x)   (do
+                  (putc #\()
+                  (print-cons x)  ; List items, separated by spaces
+                  (putc #\))))
+    (t           (printstr "uknown type"))))
 
 (defun print-cons (x)
   "Print the contents of the cons X, recursively."
