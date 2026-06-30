@@ -271,8 +271,7 @@ plus:
    mov rbx, rsi
    GET_TAG_BITS rbx     ; type of arg
    GET_TAG_BITS rax     ; type of arg
-   add rax, rbx
-;   cmp rax, 0           ; both integerss?
+   add rax, rbx         ; both integers? == 0
    jz plus_integer
 
    ; Okay the values are either:
@@ -298,7 +297,7 @@ plus:
 .arg_one_float:
     UNTAG_REG rdi      ; get the float-ptr
     movq xmm0, [rdi]   ; load
-    jmp .arg_two
+    ; jmp .arg_two     ; fall through
 
 .arg_two:
    mov rcx, rsi
@@ -323,7 +322,7 @@ plus:
     addsd xmm0, xmm1        ; add
     mov rax, [heap_ptr]     ; allocate
     add qword [heap_ptr],8
-    movq [rax], xmm0         ; store
+    movq [rax], xmm0        ; store
     TAG_FLOAT_REG rax       ; type
     ret                     ; return
 
@@ -369,7 +368,7 @@ minus:
 .arg_one_float:
     UNTAG_REG rdi      ; get the float-ptr
     movq xmm0, [rdi]   ; load
-    jmp .arg_two
+    ; jmp .arg_two     ; fall through
 
 .arg_two:
    mov rcx, rsi
@@ -442,7 +441,7 @@ divide:
 .arg_one_float:
     UNTAG_REG rdi      ; get the float-ptr
     movq xmm0, [rdi]   ; load
-    jmp .arg_two
+    ; jmp .arg_two     ; fall-through
 
 .arg_two:
    mov rcx, rsi
@@ -542,7 +541,7 @@ multiply:
 .arg_one_float:
     UNTAG_REG rdi      ; get the float-ptr
     movq xmm0, [rdi]   ; load
-    jmp .arg_two
+    ; jmp .arg_two
 
 .arg_two:
    mov rcx, rsi
@@ -1011,6 +1010,7 @@ type_error:
     mov rdi, type_error_msg
     TAG_STRING_REG rdi
     call fn_printstr
+    mov rdi, 1              ; exit-code
     jmp fn_exit
 
 section .data
