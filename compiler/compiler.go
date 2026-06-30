@@ -684,7 +684,6 @@ func (c *Compiler) emitCallable(obj any) error {
 		for _, cap := range l.Captures {
 			ev.DefineCapture(cap)
 		}
-		fmt.Printf("; lambda %s captures %v\n", l.Name, l.Captures)
 	}
 
 	//
