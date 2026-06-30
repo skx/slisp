@@ -769,8 +769,8 @@ gt_equals:
 
 .got_args_gte:
     ucomisd xmm0, xmm1
-    jge gte_integer.true
-    jmp gte_integer.false
+    jb  gte_integer.false
+    jmp gte_integer.true
 
 gte_integer:
     UNTAG_REG rdi
