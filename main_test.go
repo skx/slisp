@@ -7,7 +7,7 @@ import (
 
 func TestOK(t *testing.T) {
 
-	out, err := compile("(defun main() (print 22))")
+	out, err := generate("(defun main() (print 22))")
 	if err != nil {
 		t.Fatalf("unexpected error compiling: %s", err)
 	}
