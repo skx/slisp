@@ -21,6 +21,22 @@
       (print (>= 34 4))
       (newline)
 
+          (if (<= 3.9 4)
+      (println "OK1"))
+    (if (<= 3 4)
+      (println "OK2"))
+    (if (<= 3 4.3)
+      (println "OK3"))
+
+    (if (<= 39 4)
+      (println "fail1"))
+    (if (<= 34 4)
+      (println "fail2"))
+    (if (<= 34 .3)
+      (println "fail3"))
+
+
+
       (print "(<= 3 4):")
       (print (<= 3 4))
       (print " (<= 4 4):")
