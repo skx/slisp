@@ -73,6 +73,7 @@ It should be noted that we prepend a standard library of functions to all user p
   * `(let ..)`
   * `(list ..)`
   * `(set! ..)`
+  * `(while! ..)`
 
 You can see a complete list of our primitives, and their details in [PRIMITIVES.md](PRIMITIVES.md) - documenting both the built-in special-forms, and the parts of the standard library which are implemented in assembly, or `slisp` itself.
 
