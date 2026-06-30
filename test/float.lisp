@@ -1,3 +1,6 @@
+(defun float1 ()
+  3.1)
+
 (defun main()
   "Print floating point numbers!"
 
