@@ -101,6 +101,8 @@ Core primitives are implemented in assembly language, and can be found within th
     * Return the ASCII code of the specified character.
   * `putc`
     * Print the given character.
+  * `printfloat`
+    * Print the specified floating point number.
   * `printint`
     * Print the specified integer.
   * `printstr`
@@ -170,7 +172,7 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
 * `print`
   * Print "anything".
 * `println`
-  * Print "anything", by invoking `print`, then outputting a newline.
+  * Print "anything" by invoking `print`, then outputting a newline.
 * `range`
   * Return a list of numbers between the given start/end, using the specified step-size.
 * `reduce`

@@ -17,6 +17,7 @@
   "Print the given item intelligently."
   (cond
     ((char? x)   (putc x))
+    ((float? x)  (printfloat x))
     ((int? x)    (printint x))
     ((lambda? x) (printstr "<lambda>"))
     ((nil? x)    (printstr "<nil>"))
