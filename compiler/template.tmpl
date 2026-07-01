@@ -92,15 +92,27 @@
     and %1, 7
 %endmacro
 
-; The value of the tag-bits we use to denote types
-TAG_ID_INTEGER equ 0b000
-TAG_ID_STRING  equ 0b001
-TAG_ID_CONS    equ 0b010
-TAG_ID_LAMBDA  equ 0b011
-TAG_ID_CHAR    equ 0b100
-TAG_ID_FLOAT   equ 0b101
-TAG_ID_UNUSED  equ 0b110  ; boolean? error?
-TAG_ID_NIL     equ 0b111
+; The value of the tag-bits we use to denote types.
+;
+; All the values are chosen "randomly", but int is special because we
+; often want to determine if two arguments are *both* integers.  We
+; can get the bits and add them like so:
+;
+;   GET_TAG_BITS rsi
+;   GET_TAG_BITS rdi
+;   mov rax, rsi
+;   add rax, rdi
+;   jz  xxxx       -> ZERO?  Both are zero == both are ints
+;
+
+TAG_ID_INTEGER equ 0b000  ; 0 - int is special, as noted above.
+TAG_ID_STRING  equ 0b001  ; 1
+TAG_ID_CONS    equ 0b010  ; 2
+TAG_ID_LAMBDA  equ 0b011  ; 3
+TAG_ID_CHAR    equ 0b100  ; 4
+TAG_ID_FLOAT   equ 0b101  ; 5
+TAG_ID_UNUSED  equ 0b110  ; 6 - boolean? error?
+TAG_ID_NIL     equ 0b111  ; 7
 
 
 ;;
@@ -176,7 +188,7 @@ _start:
 ;;; 5.1 type-checking utilities
 
 ;; Extract the tag-bits, and see if they match RBX
-;; If they do return 1, otherwise nil
+;; If they do return the integer 1, otherwise nil
 is_type:
     mov rax, rdi
     GET_TAG_BITS rax
@@ -191,9 +203,14 @@ is_type:
     ret
 
 
-;; Is the given value an integer?
-intp:
-    mov rbx, TAG_ID_INTEGER
+;; Is the given value an character?
+charp:
+    mov rbx, TAG_ID_CHAR
+    jmp is_type
+
+;; Is the given value a cons?
+consp:
+    mov rbx, TAG_ID_CONS
     jmp is_type
 
 ;; Is the given value a float?
@@ -201,19 +218,9 @@ floatp:
     mov rbx, TAG_ID_FLOAT
     jmp is_type
 
-;; Is the given value an character?
-charp:
-    mov rbx, TAG_ID_CHAR
-    jmp is_type
-
-;; Is the given value a string?
-strp:
-    mov rbx, TAG_ID_STRING
-    jmp is_type
-
-;; Is the given value a cons?
-consp:
-    mov rbx, TAG_ID_CONS
+;; Is the given value an integer?
+intp:
+    mov rbx, TAG_ID_INTEGER
     jmp is_type
 
 ;; is the given value a lambda?
@@ -226,19 +233,36 @@ nilp:
     mov rbx, TAG_ID_NIL
     jmp is_type
 
+;; Is the given value a string?
+strp:
+    mov rbx, TAG_ID_STRING
+    jmp is_type
+
+
 
 
 
 
 ;;; 5.2. math functions
 
-;; +
-FUNC plus
+
+;; helper - are both arguments integers?
+;; Here "both" means RDI and RSI which are the
+;; first two arguments according to the SysV ABI
+;;
+;; We use these for maths/comparison operations.
+are_both_integers:
    mov rax, rdi
    mov rbx, rsi
    GET_TAG_BITS rbx     ; type of arg
    GET_TAG_BITS rax     ; type of arg
    add rax, rbx         ; both integers? == 0
+   ret
+
+
+;; +
+FUNC plus
+   call are_both_integers
    jz plus_integer
 
    ; Okay the values are either:
@@ -305,12 +329,8 @@ plus_integer:
 
 ;; -
 FUNC minus
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; 0?
-   jz integer_minus     ; both integers
+   call are_both_integers
+   jz integer_minus
 
    ; Okay the values are either:
    ;  float + float
@@ -376,11 +396,7 @@ integer_minus:
 
 ;; /
 FUNC divide
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; zero result?  both ints
+   call are_both_integers
    jz integer_divide
 
 
@@ -449,11 +465,7 @@ integer_divide:
 
 ;; *
 FUNC multiply
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; zero result? then both ints
+   call are_both_integers
    jz integer_multiply
 
    ; Okay the values are either:
@@ -522,21 +534,15 @@ integer_multiply:
 
 ;; %
 FUNC modulus
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx
+   call are_both_integers
    jz modulus_integer
    jmp type_error       ; type error
 modulus_integer:
    UNTAG_REG rdi
    UNTAG_REG rsi        ; untag arguments
-
    mov rax, rdi         ; do the magic
    cqo
    idiv rsi
-
    mov rax, rdx         ; result is an integer
    TAG_INTEGER_REG rax
    ret
@@ -584,11 +590,7 @@ FUNC equals
 ;; Note: The result of this function is inverted for ">".
 ;;
 FUNC lt_equals
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; both integers? == 0
+   call are_both_integers
    jz lte_integer
 
 
@@ -659,11 +661,7 @@ lte_integer:
 
 ;; >=
 FUNC gt_equals
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; both integers? == 0
+   call are_both_integers
    jz gte_integer
 
    ; Okay the values are either:
