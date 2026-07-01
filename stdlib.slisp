@@ -26,7 +26,7 @@
                   (putc #\()
                   (print-cons x)  ; List items, separated by spaces
                   (putc #\))))
-    (t           (printstr "uknown type"))))
+    (t           (printstr "unknown type"))))
 
 (defun print-cons (x)
   "Print the contents of the cons X, recursively."
