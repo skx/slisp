@@ -724,11 +724,451 @@ fn_printstr:
 
 
 
-;;; 5.4. fn_XXX
+;;; 5.4. fn_XXX - alphabetical order
 
-;; NOT
-;; a nil becomes 1.
-;; anything else becomes nil
+;; Get the first item in the cons cell.
+FUNC fn_car
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_CONS
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, [rdi]
+    ret
+
+
+
+;; Get the second item in the cons cell.
+FUNC fn_cdr
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_CONS
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, [rdi + 8]
+    ret
+
+
+;; chr - convert an integer to a character
+FUNC fn_chr
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, rdi
+    and rax, 0xFF        ; Only 0-255 is ASCII
+    TAG_CHAR_REG rax
+    ret
+
+
+
+;; Allocate space for a new cons cell, return it in RAX.
+;;
+;; 16-bytes; first has the CAR, second the CDR.
+FUNC fn_cons
+    mov rax, [heap_ptr]      ; get the value of the heap pointer
+    add qword [heap_ptr], 16 ; bump it by 2x ptrs
+    mov [rax], rdi           ; store first item
+    mov [rax+8], rsi         ; second item
+    TAG_CONS_REG rax         ; return the tagged allocation
+    ret
+
+
+
+;; Return a list of all environmental variables
+FUNC fn_environment
+    mov rbx, [envp_ptr]
+    xor rcx, rcx     ;; Count entries into RCX
+.count:
+    mov rdx, [rbx + rcx*8]
+    test rdx, rdx
+    jz .build
+    inc rcx
+    jmp .count
+.build:
+    xor rax, rax
+    TAG_NIL_REG rax
+.loop:
+    test rcx, rcx
+    jz .done
+    dec rcx
+
+    ;; string pointer
+    mov rdx, [rbx + rcx*8]
+    TAG_STRING_REG rdx
+
+    ;; allocate cons pair
+    mov r8, [heap_ptr]
+    add qword [heap_ptr], 16
+    mov [r8], rdx        ; car = string
+    mov [r8+8], rax      ; cdr = list-so-far
+    mov rax, r8
+    TAG_CONS_REG rax
+    jmp .loop
+.done:
+    ret
+
+
+
+;; terminate execution with the given exit-code
+FUNC fn_exit
+    UNTAG_REG rdi
+    mov rax, 60     ; sys_exit
+    syscall
+    ret
+
+
+
+;; Explode a string to a list of characters.
+;; Find the length and work backwards.
+FUNC fn_explode
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    mov rsi, rdi
+.find_end:
+    cmp byte [rsi], 0
+    je .found_end
+    inc rsi
+    jmp .find_end
+.found_end:
+    xor rax, rax
+    TAG_NIL_REG rax
+.loop:
+    ; reached beginning?
+    cmp rsi, rdi
+    je .done
+    dec rsi
+    movzx rcx, byte [rsi]
+    mov rdx, rcx
+    TAG_CHAR_REG rdx
+    mov r8, [heap_ptr]
+    add qword [heap_ptr], 16
+    mov [r8], rdx
+    mov [r8+8], rax
+    mov rax, r8
+    TAG_CONS_REG rax
+    jmp .loop
+.done:
+    ret
+
+
+;; Close a file handle
+;;
+;; As a special case closing a nil-filehandle is valid.
+;;
+FUNC fn_fclose
+    mov rbx, rdi             ; type-check arg1 (path)
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_NIL
+    je .fclose_return_nil
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+
+    UNTAG_REG rdi
+    mov rax, 3            ; SYS_close
+    syscall
+    xor rax, rax          ; return nil
+.fclose_return_nil:
+    TAG_NIL_REG rax
+    ret
+
+
+
+;; Open a file handle, modes are "r", "w", or "a"
+FUNC fn_fopen
+    mov rbx, rdi             ; type-check arg1 (path)
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    mov rbx, rsi             ; type-check arg2 (mode)
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+
+    mov al, [rsi]          ; We only look at the first character..
+    cmp al, 'a'
+    je .fopen_append
+    cmp al, 'r'
+    je .fopen_read
+    cmp al, 'w'
+    je .fopen_write
+
+    ; fall through to bad mode
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+
+.fopen_append:
+        mov rax, 2          ; SYS_open
+        mov rsi, 1089       ; O_WRONLY|O_CREAT|O_APPEND
+        mov rdx, 0644
+        syscall
+        jmp .fopen_done
+.fopen_read:
+        mov rax, 2          ; SYS_open
+        mov rsi, 0          ; O_RDONLY
+        xor rdx, rdx
+        syscall
+        jmp .fopen_done
+.fopen_write:
+        mov rax, 2          ; SYS_open
+        mov rsi, 577        ; O_WRONLY|O_CREAT|O_TRUNC
+        mov rdx, 0o644
+        syscall
+.fopen_done:
+        test rax, rax
+        js .fopen_syscall_fail
+        TAG_INTEGER_REG rax
+        ret
+.fopen_syscall_fail:
+        xor rax, rax
+        TAG_NIL_REG rax
+        ret
+
+
+
+;; Read ALL data from the given file handle.
+;;
+;; As a special case reading from a nil-filehandle
+;; will return nil.
+FUNC fn_fread
+        mov rbx, rdi             ; type-check arg1
+        GET_TAG_BITS rbx
+        cmp rbx, TAG_ID_NIL      ; special case the nil-handle
+        je .fread_return_nil
+        cmp rbx, TAG_ID_INTEGER
+        jne type_error
+
+        UNTAG_REG rdi
+        mov [random_buffer], rdi   ; save file handle
+
+        mov rax, 8                 ; SYS_lseek
+        xor rsi, rsi               ; offset = 0
+        mov rdx, 2                 ; SEEK_END
+        syscall
+
+        test rax, rax
+        js .fread_seek_end_fail
+
+        mov rbx, rax                ; file size
+        push rbx                    ; save size
+
+        ; allocate size+1 bytes
+        mov rdi, rbx
+        inc rdi
+
+        mov rax, [heap_ptr]       ; rax contains allocated storage
+        add qword [heap_ptr], rdi
+
+        pop rbx                   ; restore size
+        mov r12, rax              ; data pointer in r12.
+
+        mov rax, 8                ; seek to start of file
+        mov rdi,[random_buffer]   ; saved file handle
+        xor rsi, rsi
+        xor rdx, rdx              ; SEEK_SET
+        syscall
+
+        test rax, rax
+        js .fread_seek_start_fail
+
+        ; Read until we've consumed the entire file.
+        xor r13, r13       ; bytes_read_so_far = 0
+
+.read_loop:
+
+        cmp r13, rbx                ; got all the file?  Yay!
+        je .read_complete
+
+        mov rdi, [random_buffer]    ; file handle
+        lea rsi, [r12+r13]          ; destination offset
+
+        mov rdx, rbx
+        sub rdx, r13                ; remaining bytes
+
+        xor rax, rax                ; SYS_read
+        syscall
+
+        test rax, rax               ; failed to read
+        js .fread_read_fail
+
+        test rax, rax
+        je .fread_short_read         ; unexpected EOF
+
+        add r13, rax
+        jmp .read_loop
+
+.read_complete:
+        mov byte [r12+r13], 0   ; null-terminate
+        mov rax, r12
+        TAG_STRING_REG rax
+        ret
+
+%ifdef DEBUG
+.fread_short_read:
+        mov rax, 1
+        TAG_INTEGER_REG rax
+        ret
+.fread_read_fail:
+        mov rax, 2
+        TAG_INTEGER_REG rax
+        ret
+.fread_seek_start_fail:
+        mov rax, 3
+        TAG_INTEGER_REG rax
+        ret
+.fread_seek_end_fail:
+        mov rax, 4
+        TAG_INTEGER_REG rax
+        ret
+.fread_return_nil:
+        xor rax,rax
+        TAG_NIL_REG rax
+        ret
+%else
+.fread_short_read:
+.fread_read_fail:
+.fread_seek_start_fail:
+.fread_seek_end_fail:
+.fread_return_nil:
+        xor rax,rax
+        TAG_NIL_REG rax
+        ret
+%endif
+
+
+
+
+
+;; Write data, with a size, to the given file handle
+;; e.g.  (fwrite handle "Steve" 5)
+;;
+;; As a special case writing to a nil-filehandle
+;; will return nil.
+FUNC fn_fwrite
+        mov rbx, rdi             ; type-check arg1: int
+        GET_TAG_BITS rbx
+        cmp rbx, TAG_ID_NIL      ; special case the nil-handle
+        je .fwrite_return_nil
+        cmp rbx, TAG_ID_INTEGER
+        jne type_error
+
+        mov rbx, rsi             ; type-check arg2: str
+        GET_TAG_BITS rbx
+        cmp rbx, TAG_ID_STRING
+        jne type_error
+
+        mov rbx, rdx             ; type-check arg3: int
+        GET_TAG_BITS rbx
+        cmp rbx, TAG_ID_INTEGER
+        jne type_error
+
+        UNTAG_REG rsi
+        UNTAG_REG rdi
+        UNTAG_REG rdx
+
+        mov rax, 1             ; SYS_write
+        syscall
+        TAG_INTEGER_REG rax
+        ret
+
+.fwrite_return_nil:
+        xor rax,rax
+        TAG_NIL_REG rax
+        ret
+
+
+
+;; Read an ASCII character from STDIN, return NIL on failure.
+FUNC fn_getc
+     mov     rax, 0        ; SYS_read
+     mov     rdi, 0        ; STDIN
+     mov rsi, random_buffer
+     mov     rdx, 1        ; 1 byte
+     syscall
+
+     cmp rax, 1
+     jne .getc_failed
+
+     xor rax,rax
+     mov al, byte [random_buffer]
+     TAG_INTEGER_REG rax
+     ret
+.getc_failed:
+     xor rax, rax
+     TAG_NIL_REG rax
+     ret
+
+
+
+;; join a character list to a string.
+FUNC fn_implode
+    mov rbx,rdi
+    xor rcx,rcx
+
+.count:
+    mov rax,rbx
+    GET_TAG_BITS rax
+    cmp rax,TAG_ID_NIL
+    je .have_len
+
+    ; verify cons
+    mov rax,rbx
+    GET_TAG_BITS rax
+    cmp rax,TAG_ID_CONS
+    jne type_error
+    inc rcx
+    mov rax,rbx
+    UNTAG_REG rax
+    mov rbx,[rax+8]
+    jmp .count
+
+.have_len:
+    mov rax,[heap_ptr]
+    mov rdx,rcx
+    inc rdx
+    add [heap_ptr],rdx
+    mov r8,rax
+
+    mov rbx,rdi
+    xor rcx,rcx
+.copy:
+    mov rax,rbx
+    GET_TAG_BITS rax
+    cmp rax,TAG_ID_NIL
+    je .finish
+
+    mov rax,rbx
+    UNTAG_REG rax
+    mov rdx,[rax]
+    ; verify char
+    mov r9,rdx
+    GET_TAG_BITS r9
+    cmp r9,TAG_ID_CHAR
+    jne type_error
+    UNTAG_REG rdx
+    mov [r8+rcx],dl
+    inc rcx
+    mov rbx,[rax+8]
+    jmp .copy
+.finish:
+    mov byte [r8+rcx],0
+    mov rax,r8
+    TAG_STRING_REG rax
+    ret
+
+
+
+;; A nil becomes 1, anything else becomes nil.
 FUNC fn_not
     mov rax, rdi
     GET_TAG_BITS rax
@@ -739,6 +1179,301 @@ FUNC fn_not
     ret
 .nil:
     mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; ord - convert a character to an integer.
+FUNC fn_ord
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_CHAR
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, rdi
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; Write the given ASCII character to STDOUT
+FUNC fn_putc
+    mov rax, rdi
+    UNTAG_REG rax
+    mov [random_buffer],  al  ; store character
+    mov rax, 1                ; SYS_write
+    mov rdi, 1                ; STDOUT
+    mov rsi, random_buffer
+    mov rdx, 1              ; 1 byte
+    syscall
+    ret
+
+
+
+;; Generate a random number 0-N
+FUNC fn_random
+    mov rbx, rdi             ; type-check arg1
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+
+    UNTAG_REG rdi
+    push rdi                        ; push the limit
+
+    mov rax, 318               ; syscall: getrandom
+    lea rdi, [ random_buffer]  ; random value location
+    mov rsi, 4                 ; number of bytes
+    xor rdx, rdx               ; flags = 0
+    syscall
+
+    pop rcx                    ; limit the value
+    mov eax, [random_buffer]
+    xor edx, edx
+    div ecx
+
+    mov rax, rdx
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; split(string, char)
+FUNC fn_split
+    mov rbx, rdi              ; type-check arg1: string
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    mov rbx, rsi              ; type-check arg2: char
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_CHAR
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+
+    and rsi, 0xff            ; separator byte
+
+    mov r8, rdi              ; original string
+
+    xor rcx, rcx             ; offset for finding separator
+.find:
+    mov al, [rdi]
+    test al, al
+    jz .not_found
+    cmp al, sil
+    je .found
+    inc rdi
+    inc rcx
+    jmp .find
+
+.not_found:                   ; separator not found in string -> nil
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+
+.found:
+    mov r10, [heap_ptr]       ; allocate left
+    mov r11, r10
+
+    mov rax, rcx
+    inc rax
+    add [heap_ptr], rax
+
+    mov rsi, rcx
+    mov rdx, r8
+
+.copy_left:                   ; copy left
+    test rsi, rsi
+    jz .left_done
+    mov al, [rdx]
+    mov [r11], al
+    inc r11
+    inc rdx
+    dec rsi
+    jmp .copy_left
+
+.left_done:
+    mov byte [r11], 0
+    mov rax, r10
+    TAG_STRING_REG rax
+    mov r10, rax
+
+    lea rdx, [rdi+1]      ; get length of right
+    xor rcx, rcx
+
+.count_right:
+    mov al, [rdx]
+    test al, al
+    jz .alloc_right
+    inc rcx
+    inc rdx
+    jmp .count_right
+
+.alloc_right:
+    mov r11, [heap_ptr]   ; allocate
+    mov r12, r11
+    mov rax, rcx
+    inc rax
+    add [heap_ptr], rax
+
+    lea rdx, [rdi+1]
+    mov rsi, rcx
+.copy_right:
+    test rsi, rsi
+    jz .right_done
+    mov al, [rdx]
+    mov [r12], al
+    inc r12
+    inc rdx
+    dec rsi
+    jmp .copy_right
+
+.right_done:
+    mov byte [r12], 0
+    mov rax, r11
+    TAG_STRING_REG rax
+    mov r11, rax
+
+    xor rax, rax                    ; right
+    TAG_NIL_REG rax
+    mov rbx, [heap_ptr]
+    add qword [heap_ptr],16
+    mov [rbx], r11
+    mov [rbx+8], rax
+    mov rax, rbx
+    TAG_CONS_REG rax
+
+    mov rbx, [heap_ptr]
+    add qword [heap_ptr],16
+    mov [rbx], r10
+    mov [rbx+8], rax
+    mov rax, rbx
+    TAG_CONS_REG rax
+    ret
+
+
+
+;; join the two given strings and return a new one.
+FUNC fn_strcat
+    mov rbx, rdi            ; type-check arg1: str
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    mov rbx, rsi            ; type-check arg2: str
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    push rdi
+    push rsi
+
+    mov rax, rdi
+.len1:
+    cmp byte [rax],0
+    je .len1_done
+    inc rax
+    jmp .len1
+.len1_done:
+    sub rax,rdi
+    mov r8,rax         ; r8 to save strlen(a)
+
+    mov rax,rsi
+.len2:
+    cmp byte [rax],0
+    je .len2_done
+    inc rax
+    jmp .len2
+.len2_done:
+    sub rax,rsi
+    mov r9,rax         ; r9 to save strlen(b)
+
+    ; allocate
+    mov rax,[heap_ptr]
+    mov rcx,r8
+    add rcx,r9
+    inc rcx                  ; +1 for '\0'
+    add [heap_ptr],rcx
+
+    mov rdx,rax              ; destination
+    pop rsi                  ; restore strings
+    pop rdi
+
+.copy1:                      ; copy first
+    mov bl,[rdi]
+    test bl,bl
+    jz .copy2
+    mov [rdx],bl
+    inc rdi
+    inc rdx
+    jmp .copy1
+
+.copy2:                      ; append second
+    mov bl,[rsi]
+    test bl,bl
+    jz .done
+    mov [rdx],bl
+    inc rsi
+    inc rdx
+    jmp .copy2
+
+.done:                       ; terminate and return
+    mov byte [rdx],0
+    TAG_STRING_REG rax
+    ret
+
+
+;; Compare the two specified strings.
+FUNC fn_strcmp
+    mov rbx, rdi             ; type-check arg1
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    mov rbx, rsi             ; type-check arg2
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+
+.strcmp_next_char:
+    mov al, byte [rdi]
+    cmp al, byte [rsi]
+    jne .strcmp_diff
+    test al, al
+    je .strcmp_done
+    inc rdi
+    inc rsi
+    jmp .strcmp_next_char
+.strcmp_diff:
+    movzx rdx, byte [rsi]
+    sub al, dl
+.strcmp_done:
+    movsx rax, al            ; Truncate, but keep the sign
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; Find the length of the given string.
+FUNC fn_strlen
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    xor rax, rax
+.find:
+    cmp byte [rdi], 0
+    je .found_end
+    inc rdi
+    inc rax
+    jmp .find
+.found_end:
     TAG_INTEGER_REG rax
     ret
 
@@ -949,15 +1684,6 @@ FUNC gt
 
 
 
-;; terminate execution with the given exit-code
-FUNC fn_exit
-    UNTAG_REG rdi
-    mov rax, 60     ; sys_exit
-    syscall
-    ret
-
-section .text.newline,"ax",@progbits
-
 ;; print a newline.
 fn_newline:
     mov rax, 1      ; SYS_write
@@ -969,105 +1695,22 @@ fn_newline:
 
 
 
-;; Write the given ASCII character to STDOUT
-FUNC fn_putc
-    mov rax, rdi
-    UNTAG_REG rax
-    mov [random_buffer],  al  ; store character
-    mov rax, 1                ; SYS_write
-    mov rdi, 1                ; STDOUT
-    mov rsi, random_buffer
-    mov rdx, 1              ; 1 byte
-    syscall
-    ret
-
-
-
-;; Read an ASCII character from STDIN, return NIL on failure.
-FUNC fn_getc
-     mov     rax, 0        ; SYS_read
-     mov     rdi, 0        ; STDIN
-     mov rsi, random_buffer
-     mov     rdx, 1        ; 1 byte
-     syscall
-
-     cmp rax, 1
-     jne .getc_failed
-
-     xor rax,rax
-     mov al, byte [random_buffer]
-     TAG_INTEGER_REG rax
-     ret
-.getc_failed:
-     xor rax, rax
-     TAG_NIL_REG rax
-     ret
 
 
 
 
 
-;; chr - convert an integer to a character
-FUNC fn_chr
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_INTEGER
-    jne type_error
-    UNTAG_REG rdi
-    mov rax, rdi
-    and rax, 0xFF        ; Only 0-255 is ASCII
-    TAG_CHAR_REG rax
-    ret
 
 
 
-;; ord - convert a character to an integer.
-FUNC fn_ord
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_CHAR
-    jne type_error
-    UNTAG_REG rdi
-    mov rax, rdi
-    TAG_INTEGER_REG rax
-    ret
 
 
 
-;; Allocate space for a new cons cell, return it in RAX.
-;;
-;; 16-bytes; first has the CAR, second the CDR.
-FUNC fn_cons
-    mov rax, [heap_ptr]      ; get the value of the heap pointer
-    add qword [heap_ptr], 16 ; bump it by 2x ptrs
-    mov [rax], rdi           ; store first item
-    mov [rax+8], rsi         ; second item
-    TAG_CONS_REG rax         ; return the tagged allocation
-    ret
 
 
 
-;; Get the first item in the cons cell.
-FUNC fn_car
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_CONS
-    jne type_error
-    UNTAG_REG rdi
-    mov rax, [rdi]
-    ret
 
 
-
-;; Get the second item in the cons cell.
-FUNC fn_cdr
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_CONS
-    jne type_error
-    UNTAG_REG rdi
-    mov rax, [rdi + 8]
-    ret
 
 section .text.type_error,"ax",@progbits
 
@@ -1084,632 +1727,25 @@ type_error:
 
 
 
-;; Explode a string to a list of characters.
-;; Find the length and work backwards.
-FUNC fn_explode
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
 
-    UNTAG_REG rdi
-    mov rsi, rdi
-.find_end:
-    cmp byte [rsi], 0
-    je .found_end
-    inc rsi
-    jmp .find_end
-.found_end:
-    xor rax, rax
-    TAG_NIL_REG rax
-.loop:
-    ; reached beginning?
-    cmp rsi, rdi
-    je .done
-    dec rsi
-    movzx rcx, byte [rsi]
-    mov rdx, rcx
-    TAG_CHAR_REG rdx
-    mov r8, [heap_ptr]
-    add qword [heap_ptr], 16
-    mov [r8], rdx
-    mov [r8+8], rax
-    mov rax, r8
-    TAG_CONS_REG rax
-    jmp .loop
-.done:
-    ret
 
 
 
-;; join a character list to a string.
-FUNC fn_implode
-    mov rbx,rdi
-    xor rcx,rcx
 
-.count:
-    mov rax,rbx
-    GET_TAG_BITS rax
-    cmp rax,TAG_ID_NIL
-    je .have_len
 
-    ; verify cons
-    mov rax,rbx
-    GET_TAG_BITS rax
-    cmp rax,TAG_ID_CONS
-    jne type_error
-    inc rcx
-    mov rax,rbx
-    UNTAG_REG rax
-    mov rbx,[rax+8]
-    jmp .count
 
-.have_len:
-    mov rax,[heap_ptr]
-    mov rdx,rcx
-    inc rdx
-    add [heap_ptr],rdx
-    mov r8,rax
 
-    mov rbx,rdi
-    xor rcx,rcx
-.copy:
-    mov rax,rbx
-    GET_TAG_BITS rax
-    cmp rax,TAG_ID_NIL
-    je .finish
 
-    mov rax,rbx
-    UNTAG_REG rax
-    mov rdx,[rax]
-    ; verify char
-    mov r9,rdx
-    GET_TAG_BITS r9
-    cmp r9,TAG_ID_CHAR
-    jne type_error
-    UNTAG_REG rdx
-    mov [r8+rcx],dl
-    inc rcx
-    mov rbx,[rax+8]
-    jmp .copy
-.finish:
-    mov byte [r8+rcx],0
-    mov rax,r8
-    TAG_STRING_REG rax
-    ret
 
 
 
-;; Find the length of the given string.
-FUNC fn_strlen
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
 
-    UNTAG_REG rdi
-    xor rax, rax
-.find:
-    cmp byte [rdi], 0
-    je .found_end
-    inc rdi
-    inc rax
-    jmp .find
-.found_end:
-    TAG_INTEGER_REG rax
-    ret
 
 
 
-;; Compare the two specified strings.
-FUNC fn_strcmp
-    mov rbx, rdi             ; type-check arg1
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-    mov rbx, rsi             ; type-check arg2
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
 
-    UNTAG_REG rdi
-    UNTAG_REG rsi
 
-.strcmp_next_char:
-    mov al, byte [rdi]
-    cmp al, byte [rsi]
-    jne .strcmp_diff
-    test al, al
-    je .strcmp_done
-    inc rdi
-    inc rsi
-    jmp .strcmp_next_char
-.strcmp_diff:
-    movzx rdx, byte [rsi]
-    sub al, dl
-.strcmp_done:
-    movsx rax, al            ; Truncate, but keep the sign
-    TAG_INTEGER_REG rax
-    ret
 
-
-
-;; join the two given strings and return a new one.
-FUNC fn_strcat
-    mov rbx, rdi            ; type-check arg1: str
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-    mov rbx, rsi            ; type-check arg2: str
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-    push rdi
-    push rsi
-
-    mov rax, rdi
-.len1:
-    cmp byte [rax],0
-    je .len1_done
-    inc rax
-    jmp .len1
-.len1_done:
-    sub rax,rdi
-    mov r8,rax         ; r8 to save strlen(a)
-
-    mov rax,rsi
-.len2:
-    cmp byte [rax],0
-    je .len2_done
-    inc rax
-    jmp .len2
-.len2_done:
-    sub rax,rsi
-    mov r9,rax         ; r9 to save strlen(b)
-
-    ; allocate
-    mov rax,[heap_ptr]
-    mov rcx,r8
-    add rcx,r9
-    inc rcx                  ; +1 for '\0'
-    add [heap_ptr],rcx
-
-    mov rdx,rax              ; destination
-    pop rsi                  ; restore strings
-    pop rdi
-
-.copy1:                      ; copy first
-    mov bl,[rdi]
-    test bl,bl
-    jz .copy2
-    mov [rdx],bl
-    inc rdi
-    inc rdx
-    jmp .copy1
-
-.copy2:                      ; append second
-    mov bl,[rsi]
-    test bl,bl
-    jz .done
-    mov [rdx],bl
-    inc rsi
-    inc rdx
-    jmp .copy2
-
-.done:                       ; terminate and return
-    mov byte [rdx],0
-    TAG_STRING_REG rax
-    ret
-
-
-
-;; Generate a random number 0-N
-FUNC fn_random
-    mov rbx, rdi             ; type-check arg1
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_INTEGER
-    jne type_error
-
-    UNTAG_REG rdi
-    push rdi                        ; push the limit
-
-    mov rax, 318               ; syscall: getrandom
-    lea rdi, [ random_buffer]  ; random value location
-    mov rsi, 4                 ; number of bytes
-    xor rdx, rdx               ; flags = 0
-    syscall
-
-    pop rcx                    ; limit the value
-    mov eax, [random_buffer]
-    xor edx, edx
-    div ecx
-
-    mov rax, rdx
-    TAG_INTEGER_REG rax
-    ret
-
-
-
-;; Close a file handle
-;;
-;; As a special case closing a nil-filehandle is valid.
-;;
-FUNC fn_fclose
-    mov rbx, rdi             ; type-check arg1 (path)
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_NIL
-    je .fclose_return_nil
-    cmp rbx, TAG_ID_INTEGER
-    jne type_error
-
-    UNTAG_REG rdi
-    mov rax, 3            ; SYS_close
-    syscall
-    xor rax, rax          ; return nil
-.fclose_return_nil:
-    TAG_NIL_REG rax
-    ret
-
-
-
-;; Open a file handle, modes are "r", "w", or "a"
-FUNC fn_fopen
-    mov rbx, rdi             ; type-check arg1 (path)
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    mov rbx, rsi             ; type-check arg2 (mode)
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-
-    mov al, [rsi]          ; We only look at the first character..
-    cmp al, 'a'
-    je .fopen_append
-    cmp al, 'r'
-    je .fopen_read
-    cmp al, 'w'
-    je .fopen_write
-
-    ; fall through to bad mode
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-.fopen_append:
-        mov rax, 2          ; SYS_open
-        mov rsi, 1089       ; O_WRONLY|O_CREAT|O_APPEND
-        mov rdx, 0644
-        syscall
-        jmp .fopen_done
-.fopen_read:
-        mov rax, 2          ; SYS_open
-        mov rsi, 0          ; O_RDONLY
-        xor rdx, rdx
-        syscall
-        jmp .fopen_done
-.fopen_write:
-        mov rax, 2          ; SYS_open
-        mov rsi, 577        ; O_WRONLY|O_CREAT|O_TRUNC
-        mov rdx, 0o644
-        syscall
-.fopen_done:
-        test rax, rax
-        js .fopen_syscall_fail
-        TAG_INTEGER_REG rax
-        ret
-.fopen_syscall_fail:
-        xor rax, rax
-        TAG_NIL_REG rax
-        ret
-
-
-
-;; Read ALL data from the given file handle.
-;;
-;; As a special case reading from a nil-filehandle
-;; will return nil.
-FUNC fn_fread
-        mov rbx, rdi             ; type-check arg1
-        GET_TAG_BITS rbx
-        cmp rbx, TAG_ID_NIL      ; special case the nil-handle
-        je .fread_return_nil
-        cmp rbx, TAG_ID_INTEGER
-        jne type_error
-
-        UNTAG_REG rdi
-        mov [random_buffer], rdi   ; save file handle
-
-        mov rax, 8                 ; SYS_lseek
-        xor rsi, rsi               ; offset = 0
-        mov rdx, 2                 ; SEEK_END
-        syscall
-
-        test rax, rax
-        js .fread_seek_end_fail
-
-        mov rbx, rax                ; file size
-        push rbx                    ; save size
-
-        ; allocate size+1 bytes
-        mov rdi, rbx
-        inc rdi
-
-        mov rax, [heap_ptr]       ; rax contains allocated storage
-        add qword [heap_ptr], rdi
-
-        pop rbx                   ; restore size
-        mov r12, rax              ; data pointer in r12.
-
-        mov rax, 8                ; seek to start of file
-        mov rdi,[random_buffer]   ; saved file handle
-        xor rsi, rsi
-        xor rdx, rdx              ; SEEK_SET
-        syscall
-
-        test rax, rax
-        js .fread_seek_start_fail
-
-        ; Read until we've consumed the entire file.
-        xor r13, r13       ; bytes_read_so_far = 0
-
-.read_loop:
-
-        cmp r13, rbx                ; got all the file?  Yay!
-        je .read_complete
-
-        mov rdi, [random_buffer]    ; file handle
-        lea rsi, [r12+r13]          ; destination offset
-
-        mov rdx, rbx
-        sub rdx, r13                ; remaining bytes
-
-        xor rax, rax                ; SYS_read
-        syscall
-
-        test rax, rax               ; failed to read
-        js .fread_read_fail
-
-        test rax, rax
-        je .fread_short_read         ; unexpected EOF
-
-        add r13, rax
-        jmp .read_loop
-
-.read_complete:
-        mov byte [r12+r13], 0   ; null-terminate
-        mov rax, r12
-        TAG_STRING_REG rax
-        ret
-
-%ifdef DEBUG
-.fread_short_read:
-        mov rax, 1
-        TAG_INTEGER_REG rax
-        ret
-.fread_read_fail:
-        mov rax, 2
-        TAG_INTEGER_REG rax
-        ret
-.fread_seek_start_fail:
-        mov rax, 3
-        TAG_INTEGER_REG rax
-        ret
-.fread_seek_end_fail:
-        mov rax, 4
-        TAG_INTEGER_REG rax
-        ret
-.fread_return_nil:
-        xor rax,rax
-        TAG_NIL_REG rax
-        ret
-%else
-.fread_short_read:
-.fread_read_fail:
-.fread_seek_start_fail:
-.fread_seek_end_fail:
-.fread_return_nil:
-        xor rax,rax
-        TAG_NIL_REG rax
-        ret
-%endif
-
-
-
-;; Write data, with a size, to the given file handle
-;; e.g.  (fwrite handle "Steve" 5)
-;;
-;; As a special case writing to a nil-filehandle
-;; will return nil.
-FUNC fn_fwrite
-        mov rbx, rdi             ; type-check arg1: int
-        GET_TAG_BITS rbx
-        cmp rbx, TAG_ID_NIL      ; special case the nil-handle
-        je .fwrite_return_nil
-        cmp rbx, TAG_ID_INTEGER
-        jne type_error
-
-        mov rbx, rsi             ; type-check arg2: str
-        GET_TAG_BITS rbx
-        cmp rbx, TAG_ID_STRING
-        jne type_error
-
-        mov rbx, rdx             ; type-check arg3: int
-        GET_TAG_BITS rbx
-        cmp rbx, TAG_ID_INTEGER
-        jne type_error
-
-        UNTAG_REG rsi
-        UNTAG_REG rdi
-        UNTAG_REG rdx
-
-        mov rax, 1             ; SYS_write
-        syscall
-        TAG_INTEGER_REG rax
-        ret
-
-.fwrite_return_nil:
-        xor rax,rax
-        TAG_NIL_REG rax
-        ret
-
-
-
-;; Return a list of all environmental variables
-FUNC fn_environment
-    mov rbx, [envp_ptr]
-    xor rcx, rcx     ;; Count entries into RCX
-.count:
-    mov rdx, [rbx + rcx*8]
-    test rdx, rdx
-    jz .build
-    inc rcx
-    jmp .count
-.build:
-    xor rax, rax
-    TAG_NIL_REG rax
-.loop:
-    test rcx, rcx
-    jz .done
-    dec rcx
-
-    ;; string pointer
-    mov rdx, [rbx + rcx*8]
-    TAG_STRING_REG rdx
-
-    ;; allocate cons pair
-    mov r8, [heap_ptr]
-    add qword [heap_ptr], 16
-    mov [r8], rdx        ; car = string
-    mov [r8+8], rax      ; cdr = list-so-far
-    mov rax, r8
-    TAG_CONS_REG rax
-    jmp .loop
-.done:
-    ret
-
-
-
-;; split(string, char)
-FUNC fn_split
-    mov rbx, rdi              ; type-check arg1: string
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-    mov rbx, rsi              ; type-check arg2: char
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_CHAR
-    jne type_error
-
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-
-    and rsi, 0xff            ; separator byte
-
-    mov r8, rdi              ; original string
-
-    xor rcx, rcx             ; offset for finding separator
-.find:
-    mov al, [rdi]
-    test al, al
-    jz .not_found
-    cmp al, sil
-    je .found
-    inc rdi
-    inc rcx
-    jmp .find
-
-.not_found:                   ; separator not found in string -> nil
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-.found:
-    mov r10, [heap_ptr]       ; allocate left
-    mov r11, r10
-
-    mov rax, rcx
-    inc rax
-    add [heap_ptr], rax
-
-    mov rsi, rcx
-    mov rdx, r8
-
-.copy_left:                   ; copy left
-    test rsi, rsi
-    jz .left_done
-    mov al, [rdx]
-    mov [r11], al
-    inc r11
-    inc rdx
-    dec rsi
-    jmp .copy_left
-
-.left_done:
-    mov byte [r11], 0
-    mov rax, r10
-    TAG_STRING_REG rax
-    mov r10, rax
-
-    lea rdx, [rdi+1]      ; get length of right
-    xor rcx, rcx
-
-.count_right:
-    mov al, [rdx]
-    test al, al
-    jz .alloc_right
-    inc rcx
-    inc rdx
-    jmp .count_right
-
-.alloc_right:
-    mov r11, [heap_ptr]   ; allocate
-    mov r12, r11
-    mov rax, rcx
-    inc rax
-    add [heap_ptr], rax
-
-    lea rdx, [rdi+1]
-    mov rsi, rcx
-.copy_right:
-    test rsi, rsi
-    jz .right_done
-    mov al, [rdx]
-    mov [r12], al
-    inc r12
-    inc rdx
-    dec rsi
-    jmp .copy_right
-
-.right_done:
-    mov byte [r12], 0
-    mov rax, r11
-    TAG_STRING_REG rax
-    mov r11, rax
-
-    xor rax, rax                    ; right
-    TAG_NIL_REG rax
-    mov rbx, [heap_ptr]
-    add qword [heap_ptr],16
-    mov [rbx], r11
-    mov [rbx+8], rax
-    mov rax, rbx
-    TAG_CONS_REG rax
-
-    mov rbx, [heap_ptr]
-    add qword [heap_ptr],16
-    mov [rbx], r10
-    mov [rbx+8], rax
-    mov rax, rbx
-    TAG_CONS_REG rax
-    ret
 
 
 section .data
