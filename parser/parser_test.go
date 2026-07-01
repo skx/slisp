@@ -8,11 +8,15 @@ func TestParseValid(t *testing.T) {
 
 	src := `
 (defun main ()
-
+  (if t (print "OK") (print "fail"))
   (if 1 (print "OK") (print "fail"))
   (if 1 (print "OK"))
   (let ((x 1))
-   (set! x 2))
+   (set! x 2)
+   (while (> x 0)
+     (println x)
+     (set! x (- x 1))))
+
   (print (list 1 2 3 ))
   (print ( (lambda (x) 3) 3))
   (do
@@ -54,6 +58,7 @@ func TestBroken(t *testing.T) {
 
 		// defun
 		`(defun (a ) `,
+		`(defun (a b c`,
 		`(defun (a `,
 		`(defun (`,
 		`(defun `,
@@ -76,6 +81,18 @@ func TestBroken(t *testing.T) {
 		`(len (do (print ((`,
 		`(len (do ((`,
 		`(len (do((`,
+
+		// while
+		`(while (< 1 1) (do (print ok))`,
+		`(while (< 1 1) (do (print ok)`,
+		`(while (< 1 1) (do (print`,
+		`(while (< 1 1) (do (`,
+		`(while (< 1 1) (`,
+		`(while (< 1 1`,
+		`(while (<`,
+		`(while (`,
+
+		`(foo `,
 	}
 
 	for _, txt := range tests {
