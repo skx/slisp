@@ -2,7 +2,12 @@
 
 Here is a list of all the primitives which are available to `slisp`.
 
-Note that you might need to consult the source of the standard-library to see further details.  This document is primarily intended as a quick summary, and might lag behind reality at times.
+Note that you might need to consult the source code to more details.  This document is primarily intended as a quick summary, and might lag behind reality at times.
+
+* The standard library, written in slisp itself:
+  * [stdlib.slisp](stdlib.slisp)
+* The low-level primitives, written in Linux/AM64 assembly language:
+  * [compiler/template.tmpl](compiler/template.tmpl)
 
 
 
@@ -19,8 +24,10 @@ The only notable special symbols are `nil`, which is synonymous with false and t
   * `(print 0b10101010)`
 * Floating point numbers are only supported literally, in base10:
   * `(print 3.4)`
+* We don't have a boolean type, but `nil` (or the empty list) is false.
+  * Anything else is true, and we have a `t` symbol for when you want to show that explicitly.
 * Strings are encoded literally, and escaped characters are honored:
-  * `(print "Hello, world\n")`
+  * `(print "Hello, world\n")` has a trailing newline, as you would expect.
 * Characters are written with a `#\` prefix:
   * `(print #\*)`
 * Lists are written using parenthesis to group them:
@@ -53,9 +60,13 @@ Special forms are things that are built into the compiler core, and handled spec
   * Run the given body for as long as the specified condition is non-nil.
 
 
+
 ## Core Primitives
 
 Core primitives are implemented in assembly language, and can be found within the file [compiler/template.tmpl](compiler/template.tmpl)
+
+Note that functions have their names mangled a little bit ("-" is converted to "_", a
+"fn_" prefix is added, and we rename trailing question-markes, such as "int?", to "intp").
 
 * Type checking functions:
   * `char?`, `cons?`, `float?`, `int?`, `lambda?`, `nil?`, and `str?`.
