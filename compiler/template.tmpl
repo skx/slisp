@@ -13,6 +13,10 @@
 ;; 3. User-defined lambdas
 ;; 4. entry-point
 ;; 5. stdlib
+;; 5.1. type checking utilities
+;; 5.2. math functions
+;; 5.3. printing functions
+;; 5.4. fn_XXX
 ;; 6. string literals
 ;; 7. floating-point literals
 
@@ -168,126 +172,64 @@ _start:
 ;;; 5. stdlib
 
 
-section .text.intp,"ax",@progbits
+;;; 5.1 type-checking utilities
+
+;; Extract the tag-bits, and see if they match RBX
+;; If they do return 1, otherwise nil
+is_type:
+    mov rax, rdi
+    GET_TAG_BITS rax
+    cmp rax, rbx
+    jnz .nil
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+.nil:
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+
 
 ;; Is the given value an integer?
 intp:
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_INTEGER
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-section .text.floatp,"ax",@progbits
+    mov rbx, TAG_ID_INTEGER
+    jmp is_type
 
 ;; Is the given value a float?
 floatp:
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_FLOAT
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-section .text.charp,"ax",@progbits
+    mov rbx, TAG_ID_FLOAT
+    jmp is_type
 
 ;; Is the given value an character?
 charp:
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_CHAR
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-section .text.strp,"ax",@progbits
+    mov rbx, TAG_ID_CHAR
+    jmp is_type
 
 ;; Is the given value a string?
 strp:
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_STRING
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-section .text.consp,"ax",@progbits
+    mov rbx, TAG_ID_STRING
+    jmp is_type
 
 ;; Is the given value a cons?
 consp:
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_CONS
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-section .text.lambdap,"ax",@progbits
+    mov rbx, TAG_ID_CONS
+    jmp is_type
 
 ;; is the given value a lambda?
 lambdap:
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_LAMBDA
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-section .text.nilp,"ax",@progbits
+    mov rbx, TAG_ID_LAMBDA
+    jmp is_type
 
 ;; Is the given value nil?
 nilp:
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_NIL
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
+    mov rbx, TAG_ID_NIL
+    jmp is_type
 
 
-section .text.plus,"ax",@progbits
+
+
+
+;;; 5.2. math functions
 
 ;; +
 FUNC plus
@@ -359,7 +301,6 @@ plus_integer:
    ret
 
 
-section .text.minus,"ax",@progbits
 
 ;; -
 FUNC minus
@@ -431,7 +372,6 @@ integer_minus:
    ret
 
 
-section .text.divide,"ax",@progbits
 
 ;; /
 FUNC divide
@@ -506,33 +446,6 @@ integer_divide:
    TAG_INTEGER_REG rax
    ret
 
-
-section .text.modulus,"ax",@progbits
-
-;; %
-FUNC modulus
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx
-   jz modulus_integer
-   jmp type_error       ; type error
-modulus_integer:
-   UNTAG_REG rdi
-   UNTAG_REG rsi        ; untag arguments
-
-   mov rax, rdi         ; do the magic
-   cqo
-   idiv rsi
-
-   mov rax, rdx         ; result is an integer
-   TAG_INTEGER_REG rax
-   ret
-
-
-section .text.multiply,"ax",@progbits
-
 ;; *
 FUNC multiply
    mov rax, rdi
@@ -605,235 +518,33 @@ integer_multiply:
    ret
 
 
-section .text.not,"ax",@progbits
 
-;; NOT
-;; a nil becomes 1.
-;; anything else becomes nil
-FUNC fn_not
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_NIL
-    jz .nil
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-.nil:
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-
-
-section .text.equals,"ax",@progbits
-
-;; =
-FUNC equals
-    mov rax, rdi
-    mov rbx, rsi
-    GET_TAG_BITS rbx     ; type of arg
-    GET_TAG_BITS rax     ; type of arg
-    cmp rax, rbx
-    jnz .nil         ; different types?  Then not equal
-
-    ; If one of the types is a string then we know both are.
-    ; RSI/RDI will still have their original values so we can
-    ; call strcmp.  If the value is 0 we know they are equal
-    cmp rax, TAG_ID_STRING
-    jnz .not_strings
-    call fn_strcmp
-    UNTAG_REG rax
-    cmp rax, 0
-    jz .equal
-    jmp .nil
-
-.not_strings:
-    cmp rdi, rsi     ; same types, so compare the values directly
-    jnz .nil
-.equal:
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-section .text.lte,"ax",@progbits
-
-;; <= - Work with either integers, floats, or both.
-;;
-;; Note: The result of this function is inverted for ">".
-;;
-FUNC lt_equals
+;; %
+FUNC modulus
    mov rax, rdi
    mov rbx, rsi
    GET_TAG_BITS rbx     ; type of arg
    GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; both integers? == 0
-   jz lte_integer
+   add rax, rbx
+   jz modulus_integer
+   jmp type_error       ; type error
+modulus_integer:
+   UNTAG_REG rdi
+   UNTAG_REG rsi        ; untag arguments
+
+   mov rax, rdi         ; do the magic
+   cqo
+   idiv rsi
+
+   mov rax, rdx         ; result is an integer
+   TAG_INTEGER_REG rax
+   ret
 
 
-   ; Okay the values are either:
-   ;  float + float
-   ;  float + int
-   ;  int   + float
-   ;
-   ; We have to test each argument and work it out.
-   ; the end result of our addition will be a float.
-   mov rcx, rdi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_one_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_one_int
-   jmp type_error
 
-.arg_one_int:
-    UNTAG_REG rdi      ; get the int
-    cvtsi2sd xmm0, rdi ; convert to float
-    jmp .arg_two
+;;; 5.3. printing functions
 
-.arg_one_float:
-    UNTAG_REG rdi      ; get the float-ptr
-    movq xmm0, [rdi]   ; load
-    ; jmp .arg_two     ; fall through
-
-.arg_two:
-   mov rcx, rsi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_two_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_two_int
-   jmp type_error
-
-.arg_two_int:
-    UNTAG_REG rsi      ; get the int
-    cvtsi2sd xmm1, rsi ; convert to float
-    jmp .got_args_lte
-
-.arg_two_float:
-    UNTAG_REG rsi         ; get the float-ptr
-    movq xmm1, [rsi]      ; load
-    ; jmp .got_args_lte   ; fall-through
-
-.got_args_lte:
-    ucomisd xmm0, xmm1
-    jbe lte_integer.true
-    jmp lte_integer.false
-
-lte_integer:
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-    cmp rdi, rsi
-    jle .true
-.false:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-.true:
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-
-
-section .text.gte,"ax",@progbits
-
-;; >=
-FUNC gt_equals
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; both integers? == 0
-   jz gte_integer
-
-   ; Okay the values are either:
-   ;  float + float
-   ;  float + int
-   ;  int   + float
-   ;
-   ; We have to test each argument and work it out.
-   ; the end result of our addition will be a float.
-   mov rcx, rdi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_one_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_one_int
-   jmp type_error
-
-.arg_one_int:
-    UNTAG_REG rdi      ; get the int
-    cvtsi2sd xmm0, rdi ; convert to float
-    jmp .arg_two
-
-.arg_one_float:
-    UNTAG_REG rdi      ; get the float-ptr
-    movq xmm0, [rdi]   ; load
-    ; jmp .arg_two     ; fall through
-
-.arg_two:
-   mov rcx, rsi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_two_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_two_int
-   jmp type_error
-
-.arg_two_int:
-    UNTAG_REG rsi      ; get the int
-    cvtsi2sd xmm1, rsi ; convert to float
-    jmp .got_args_gte
-
-.arg_two_float:
-    UNTAG_REG rsi         ; get the float-ptr
-    movq xmm1, [rsi]      ; load
-    ; jmp .got_args_gte   ; fall-through
-
-.got_args_gte:
-    ucomisd xmm0, xmm1
-    jb  gte_integer.false
-    jmp gte_integer.true
-
-gte_integer:
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-    cmp rdi, rsi
-    jge .true
-.false:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-.true:
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-
-
-section .text.lt,"ax",@progbits
-
-;; < - this is the inverse of >=
-FUNC lt
-    call gt_equals
-    mov rdi, rax
-    call fn_not
-    ret
-
-
-section .text.gt,"ax",@progbits
-
-;; > - this is the inverse of <=
-FUNC gt
-    call lt_equals
-    mov rdi, rax
-    call fn_not
-    ret
-
-
-section .text.printfloat,"ax",@progbits
+section .text.printing,"ax",@progbits
 
 ;; Print a float
 fn_printfloat:
@@ -940,7 +651,6 @@ fn_printfloat:
     ret
 
 
-section .text.printint,"ax",@progbits
 
 ;; Print an integer
 fn_printint:
@@ -990,64 +700,6 @@ fn_printint:
     ret
 
 
-section .text.exit,"ax",@progbits
-
-;; terminate execution with the given exit-code
-FUNC fn_exit
-    UNTAG_REG rdi
-    mov rax, 60     ; sys_exit
-    syscall
-    ret
-
-section .text.newline,"ax",@progbits
-
-;; print a newline.
-fn_newline:
-    mov rax, 1      ; SYS_write
-    mov rdi, 1      ; stdout
-    mov rsi, newline_str
-    mov rdx, 1
-    syscall
-    ret
-
-section .text.putc,"ax",@progbits
-
-;; Write the given ASCII character to STDOUT
-FUNC fn_putc
-    mov rax, rdi
-    UNTAG_REG rax
-    mov [putc_buffer],  al  ; store character
-    mov rax, 1              ; SYS_write
-    mov rdi, 1              ; STDOUT
-    mov rsi, putc_buffer
-    mov rdx, 1              ; 1 byte
-    syscall
-    ret
-
-section .text.getc,"ax",@progbits
-
-;; Read an ASCII character from STDIN, return NIL on failure.
-FUNC fn_getc
-     mov     rax, 0        ; SYS_read
-     mov     rdi, 0        ; STDIN
-     mov rsi, putc_buffer
-     mov     rdx, 1        ; 1 byte
-     syscall
-
-     cmp rax, 1
-     jne .getc_failed
-
-     xor rax,rax
-     mov al, byte [putc_buffer]
-     TAG_INTEGER_REG rax
-     ret
-.getc_failed:
-     xor rax, rax
-     TAG_NIL_REG rax
-     ret
-
-
-section .text.printstr,"ax",@progbits
 
 ;; Print the given string.
 fn_printstr:
@@ -1071,7 +723,289 @@ fn_printstr:
     ret
 
 
-section .text.chr,"ax",@progbits
+
+;;; 5.4. fn_XXX
+
+;; NOT
+;; a nil becomes 1.
+;; anything else becomes nil
+FUNC fn_not
+    mov rax, rdi
+    GET_TAG_BITS rax
+    cmp rax, TAG_ID_NIL
+    jz .nil
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+.nil:
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; =
+FUNC equals
+    mov rax, rdi
+    mov rbx, rsi
+    GET_TAG_BITS rbx     ; type of arg
+    GET_TAG_BITS rax     ; type of arg
+    cmp rax, rbx
+    jnz .nil         ; different types?  Then not equal
+
+    ; If one of the types is a string then we know both are.
+    ; RSI/RDI will still have their original values so we can
+    ; call strcmp.  If the value is 0 we know they are equal
+    cmp rax, TAG_ID_STRING
+    jnz .not_strings
+    call fn_strcmp
+    UNTAG_REG rax
+    cmp rax, 0
+    jz .equal
+    jmp .nil
+
+.not_strings:
+    cmp rdi, rsi     ; same types, so compare the values directly
+    jnz .nil
+.equal:
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+.nil:
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+
+
+
+;; <= - Work with either integers, floats, or both.
+;;
+;; Note: The result of this function is inverted for ">".
+;;
+FUNC lt_equals
+   mov rax, rdi
+   mov rbx, rsi
+   GET_TAG_BITS rbx     ; type of arg
+   GET_TAG_BITS rax     ; type of arg
+   add rax, rbx         ; both integers? == 0
+   jz lte_integer
+
+
+   ; Okay the values are either:
+   ;  float + float
+   ;  float + int
+   ;  int   + float
+   ;
+   ; We have to test each argument and work it out.
+   ; the end result of our addition will be a float.
+   mov rcx, rdi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_one_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_one_int
+   jmp type_error
+
+.arg_one_int:
+    UNTAG_REG rdi      ; get the int
+    cvtsi2sd xmm0, rdi ; convert to float
+    jmp .arg_two
+
+.arg_one_float:
+    UNTAG_REG rdi      ; get the float-ptr
+    movq xmm0, [rdi]   ; load
+    ; jmp .arg_two     ; fall through
+
+.arg_two:
+   mov rcx, rsi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_two_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_two_int
+   jmp type_error
+
+.arg_two_int:
+    UNTAG_REG rsi      ; get the int
+    cvtsi2sd xmm1, rsi ; convert to float
+    jmp .got_args_lte
+
+.arg_two_float:
+    UNTAG_REG rsi         ; get the float-ptr
+    movq xmm1, [rsi]      ; load
+    ; jmp .got_args_lte   ; fall-through
+
+.got_args_lte:
+    ucomisd xmm0, xmm1
+    jbe lte_integer.true
+    jmp lte_integer.false
+
+lte_integer:
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    cmp rdi, rsi
+    jle .true
+.false:
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+.true:
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; >=
+FUNC gt_equals
+   mov rax, rdi
+   mov rbx, rsi
+   GET_TAG_BITS rbx     ; type of arg
+   GET_TAG_BITS rax     ; type of arg
+   add rax, rbx         ; both integers? == 0
+   jz gte_integer
+
+   ; Okay the values are either:
+   ;  float + float
+   ;  float + int
+   ;  int   + float
+   ;
+   ; We have to test each argument and work it out.
+   ; the end result of our addition will be a float.
+   mov rcx, rdi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_one_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_one_int
+   jmp type_error
+
+.arg_one_int:
+    UNTAG_REG rdi      ; get the int
+    cvtsi2sd xmm0, rdi ; convert to float
+    jmp .arg_two
+
+.arg_one_float:
+    UNTAG_REG rdi      ; get the float-ptr
+    movq xmm0, [rdi]   ; load
+    ; jmp .arg_two     ; fall through
+
+.arg_two:
+   mov rcx, rsi
+   GET_TAG_BITS rcx
+   cmp rcx, TAG_ID_FLOAT
+   jz .arg_two_float
+   cmp rcx, TAG_ID_INTEGER
+   jz .arg_two_int
+   jmp type_error
+
+.arg_two_int:
+    UNTAG_REG rsi      ; get the int
+    cvtsi2sd xmm1, rsi ; convert to float
+    jmp .got_args_gte
+
+.arg_two_float:
+    UNTAG_REG rsi         ; get the float-ptr
+    movq xmm1, [rsi]      ; load
+    ; jmp .got_args_gte   ; fall-through
+
+.got_args_gte:
+    ucomisd xmm0, xmm1
+    jb  gte_integer.false
+    jmp gte_integer.true
+
+gte_integer:
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    cmp rdi, rsi
+    jge .true
+.false:
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+.true:
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; < - this is the inverse of >=
+FUNC lt
+    call gt_equals
+    mov rdi, rax
+    call fn_not
+    ret
+
+
+
+;; > - this is the inverse of <=
+FUNC gt
+    call lt_equals
+    mov rdi, rax
+    call fn_not
+    ret
+
+
+
+
+;; terminate execution with the given exit-code
+FUNC fn_exit
+    UNTAG_REG rdi
+    mov rax, 60     ; sys_exit
+    syscall
+    ret
+
+section .text.newline,"ax",@progbits
+
+;; print a newline.
+fn_newline:
+    mov rax, 1      ; SYS_write
+    mov rdi, 1      ; stdout
+    mov rsi, newline_str
+    mov rdx, 1
+    syscall
+    ret
+
+
+
+;; Write the given ASCII character to STDOUT
+FUNC fn_putc
+    mov rax, rdi
+    UNTAG_REG rax
+    mov [random_buffer],  al  ; store character
+    mov rax, 1                ; SYS_write
+    mov rdi, 1                ; STDOUT
+    mov rsi, random_buffer
+    mov rdx, 1              ; 1 byte
+    syscall
+    ret
+
+
+
+;; Read an ASCII character from STDIN, return NIL on failure.
+FUNC fn_getc
+     mov     rax, 0        ; SYS_read
+     mov     rdi, 0        ; STDIN
+     mov rsi, random_buffer
+     mov     rdx, 1        ; 1 byte
+     syscall
+
+     cmp rax, 1
+     jne .getc_failed
+
+     xor rax,rax
+     mov al, byte [random_buffer]
+     TAG_INTEGER_REG rax
+     ret
+.getc_failed:
+     xor rax, rax
+     TAG_NIL_REG rax
+     ret
+
+
+
+
 
 ;; chr - convert an integer to a character
 FUNC fn_chr
@@ -1086,7 +1020,6 @@ FUNC fn_chr
     ret
 
 
-section .text.ord,"ax",@progbits
 
 ;; ord - convert a character to an integer.
 FUNC fn_ord
@@ -1099,7 +1032,7 @@ FUNC fn_ord
     TAG_INTEGER_REG rax
     ret
 
-section .text.cons,"ax",@progbits
+
 
 ;; Allocate space for a new cons cell, return it in RAX.
 ;;
@@ -1112,7 +1045,7 @@ FUNC fn_cons
     TAG_CONS_REG rax         ; return the tagged allocation
     ret
 
-section .text.car,"ax",@progbits
+
 
 ;; Get the first item in the cons cell.
 FUNC fn_car
@@ -1124,7 +1057,7 @@ FUNC fn_car
     mov rax, [rdi]
     ret
 
-section .text.cdr,"ax",@progbits
+
 
 ;; Get the second item in the cons cell.
 FUNC fn_cdr
@@ -1149,13 +1082,7 @@ type_error:
     mov rdi, 1              ; exit-code
     jmp fn_exit
 
-section .data
-align 8
-type_error_msg:
-        db `Type error! Aborted inside `
-        db 00
 
-section .text.explode,"ax",@progbits
 
 ;; Explode a string to a list of characters.
 ;; Find the length and work backwards.
@@ -1194,7 +1121,6 @@ FUNC fn_explode
     ret
 
 
-section .text.implode,"ax",@progbits
 
 ;; join a character list to a string.
 FUNC fn_implode
@@ -1253,7 +1179,6 @@ FUNC fn_implode
     ret
 
 
-section .text.strlen,"ax",@progbits
 
 ;; Find the length of the given string.
 FUNC fn_strlen
@@ -1274,7 +1199,7 @@ FUNC fn_strlen
     TAG_INTEGER_REG rax
     ret
 
-section .text.strcmp,"ax",@progbits
+
 
 ;; Compare the two specified strings.
 FUNC fn_strcmp
@@ -1308,7 +1233,6 @@ FUNC fn_strcmp
     ret
 
 
-section .text.strcat,"ax",@progbigs
 
 ;; join the two given strings and return a new one.
 FUNC fn_strcat
@@ -1382,8 +1306,6 @@ FUNC fn_strcat
 
 
 
-section .text.random,"ax",@progbits
-
 ;; Generate a random number 0-N
 FUNC fn_random
     mov rbx, rdi             ; type-check arg1
@@ -1411,8 +1333,6 @@ FUNC fn_random
 
 
 
-section .text.fclose,"ax",@progbits
-
 ;; Close a file handle
 ;;
 ;; As a special case closing a nil-filehandle is valid.
@@ -1434,8 +1354,6 @@ FUNC fn_fclose
     ret
 
 
-
-section .text.fopen,"ax",@progbits
 
 ;; Open a file handle, modes are "r", "w", or "a"
 FUNC fn_fopen
@@ -1493,7 +1411,6 @@ FUNC fn_fopen
         ret
 
 
-section .text.fread,"ax",@progbits
 
 ;; Read ALL data from the given file handle.
 ;;
@@ -1606,8 +1523,6 @@ FUNC fn_fread
 
 
 
-section .text.fwrite,"ax",@progbits
-
 ;; Write data, with a size, to the given file handle
 ;; e.g.  (fwrite handle "Steve" 5)
 ;;
@@ -1645,7 +1560,7 @@ FUNC fn_fwrite
         TAG_NIL_REG rax
         ret
 
-section .text.environment,"ax",@progbits
+
 
 ;; Return a list of all environmental variables
 FUNC fn_environment
@@ -1681,7 +1596,6 @@ FUNC fn_environment
     ret
 
 
-section .text.split,"ax",@progbits
 
 ;; split(string, char)
 FUNC fn_split
@@ -1801,6 +1715,12 @@ FUNC fn_split
 section .data
 
 align 8
+type_error_msg:
+        db `Type error! Aborted inside `
+        db 00
+
+
+align 8
 ;; used by fn_printfloat
 million:
         dq 1000000.0
@@ -1814,15 +1734,10 @@ align 8
 newline_str:
     db 10
 
-;; buffer for storing a single character, used by (putc x)
-align 8
-putc_buffer:
-    db 10
-
 ;; buffer for our random function to read into
 align 8
 random_buffer:
-    db 0x01, 0x02, 0x03, 0x04
+    db `skx!`
 
 ;; zero section
 section .bss
