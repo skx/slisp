@@ -26,13 +26,13 @@
 ;; type, or get the type for processing and testing.
 ;;
 
-;
-; If DEBUG is defined we'll return specific error-codes from
-; our `fread` implementation, which was helpful for debugging.
-;
-; Without it defined we'll just return Nil on all failures which
-; is what we document, and what the user will expect.
-;
+;;
+;; If DEBUG is defined we'll return specific error-codes from
+;; our `fread` implementation, which was helpful for debugging.
+;;
+;; Without it defined we'll just return Nil on all failures which
+;; is what we document, and what the user will expect.
+;;
 %define DEBUG 1
 %undef  DEBUG     ;; Comment out this line to enable debugging.
 
@@ -77,8 +77,7 @@
     or %1, TAG_ID_FLOAT
 %endmacro
 
-; remove the tag-bits from a register.
-; just shift right 3 bits.
+; remove the tag-bits from a register - by shifting right 3 bits.
 %macro UNTAG_REG 1
     sar %1, 3
 %endmacro
@@ -95,18 +94,23 @@ TAG_ID_CONS    equ 0b010
 TAG_ID_LAMBDA  equ 0b011
 TAG_ID_CHAR    equ 0b100
 TAG_ID_FLOAT   equ 0b101
-TAG_ID_UNUSED  equ 0b110  ; boolean?
+TAG_ID_UNUSED  equ 0b110  ; boolean? error?
 TAG_ID_NIL     equ 0b111
 
 
 ;;
 ;; Declare a function which will record itself as having
-;; been started.  We use this in our type-error handler to
-;; allow easy debugging.  LOL.
+;; been started.
+;;
+;; The function will be in its own section, which allows
+;; easy dead-code elimination by the linker.
+;;
+;; We use this for almost all of our standard library,
+;; BUT NOT the printing functions, or functions that
+;; accept any type.
 ;;
 %macro FUNC 1
     %defstr __fname %1    ; Define a string
-
     section .rodata       ; Place the string in the RODATA section
 %%name:
     db __fname, 0
@@ -135,29 +139,26 @@ _start:
     mov rax, heap
     mov [heap_ptr], rax
 
-    mov rcx, [rsp]          ; argc
-    lea rbx, [rsp+8]        ; argv
+    mov rcx, [rsp]             ; argc
+    lea rbx, [rsp+8]           ; argv
 
-    lea rdx, [rbx + rcx*8 + 8]
-    mov [envp_ptr], rdx
-    xor rsi, rsi         ; Start with NIL
+    lea rdx, [rbx + rcx*8 + 8] ; start of environmental variables
+    mov [envp_ptr], rdx        ; save that
+    xor rsi, rsi               ; Start with NIL
     TAG_NIL_REG rsi
-
-.loop:
+.loop:                         ; build up a list of cli arguments in a list
     test rcx, rcx
     jz .done
     dec rcx
-    mov rdi, [rbx + rcx*8]  ; argv[rcx]
-    TAG_STRING_REG rdi      ; Tag as Lisp string
-    call fn_cons            ; cons(string, list)
-    mov rsi, rax            ; result becomes next list
+    mov rdi, [rbx + rcx*8]     ; argv[rcx]
+    TAG_STRING_REG rdi         ; Tag as Lisp string
+    call fn_cons               ; cons(string, list)
+    mov rsi, rax               ; result becomes next list
     jmp .loop
-
 .done:
-    mov rdi, rsi            ; first SysV argument
-
+    mov rdi, rsi               ; first SysV argument
     call fn_main
-    mov rdi, rax            ; exit code is the last expression
+    mov rdi, rax               ; exit code is the last expression
     UNTAG_REG rdi
     mov rax, 60
     syscall
@@ -182,6 +183,7 @@ intp:
     xor rax, rax
     TAG_NIL_REG rax
     ret
+
 
 section .text.floatp,"ax",@progbits
 
@@ -232,6 +234,7 @@ strp:
     xor rax, rax
     TAG_NIL_REG rax
     ret
+
 
 section .text.consp,"ax",@progbits
 
@@ -354,6 +357,7 @@ plus_integer:
    add rax, rsi
    TAG_INTEGER_REG rax
    ret
+
 
 section .text.minus,"ax",@progbits
 
@@ -502,6 +506,7 @@ integer_divide:
    TAG_INTEGER_REG rax
    ret
 
+
 section .text.modulus,"ax",@progbits
 
 ;; %
@@ -524,6 +529,7 @@ modulus_integer:
    mov rax, rdx         ; result is an integer
    TAG_INTEGER_REG rax
    ret
+
 
 section .text.multiply,"ax",@progbits
 
@@ -617,6 +623,7 @@ FUNC fn_not
     TAG_INTEGER_REG rax
     ret
 
+
 section .text.equals,"ax",@progbits
 
 ;; =
@@ -651,8 +658,8 @@ FUNC equals
     TAG_NIL_REG rax
     ret
 
-section .text.lte,"ax",@progbits
 
+section .text.lte,"ax",@progbits
 
 ;; <= - Work with either integers, floats, or both.
 ;;
@@ -729,6 +736,7 @@ lte_integer:
     mov rax, 1
     TAG_INTEGER_REG rax
     ret
+
 
 section .text.gte,"ax",@progbits
 
@@ -807,7 +815,6 @@ gte_integer:
 
 section .text.lt,"ax",@progbits
 
-
 ;; < - this is the inverse of >=
 FUNC lt
     call gt_equals
@@ -824,6 +831,7 @@ FUNC gt
     mov rdi, rax
     call fn_not
     ret
+
 
 section .text.printfloat,"ax",@progbits
 
@@ -930,8 +938,6 @@ fn_printfloat:
     xor rax,rax
     TAG_NIL_REG rax
     ret
-
-
 
 
 section .text.printint,"ax",@progbits
@@ -1062,7 +1068,6 @@ fn_printstr:
     mov rax, 1      ; write
     mov rdi, 1      ; stdout
     syscall
-
     ret
 
 
@@ -1154,7 +1159,7 @@ section .text.explode,"ax",@progbits
 
 ;; Explode a string to a list of characters.
 ;; Find the length and work backwards.
-fn_explode:
+FUNC fn_explode
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -1192,7 +1197,7 @@ fn_explode:
 section .text.implode,"ax",@progbits
 
 ;; join a character list to a string.
-fn_implode:
+FUNC fn_implode
     mov rbx,rdi
     xor rcx,rcx
 
@@ -1251,7 +1256,7 @@ fn_implode:
 section .text.strlen,"ax",@progbits
 
 ;; Find the length of the given string.
-fn_strlen:
+FUNC fn_strlen
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -1272,7 +1277,7 @@ fn_strlen:
 section .text.strcmp,"ax",@progbits
 
 ;; Compare the two specified strings.
-fn_strcmp:
+FUNC fn_strcmp
     mov rbx, rdi             ; type-check arg1
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -1306,7 +1311,7 @@ fn_strcmp:
 section .text.strcat,"ax",@progbigs
 
 ;; join the two given strings and return a new one.
-fn_strcat:
+FUNC fn_strcat
     mov rbx, rdi            ; type-check arg1: str
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -1380,7 +1385,7 @@ fn_strcat:
 section .text.random,"ax",@progbits
 
 ;; Generate a random number 0-N
-fn_random:
+FUNC fn_random
     mov rbx, rdi             ; type-check arg1
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_INTEGER
@@ -1412,7 +1417,7 @@ section .text.fclose,"ax",@progbits
 ;;
 ;; As a special case closing a nil-filehandle is valid.
 ;;
-fn_fclose:
+FUNC fn_fclose
     mov rbx, rdi             ; type-check arg1 (path)
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_NIL
@@ -1433,7 +1438,7 @@ fn_fclose:
 section .text.fopen,"ax",@progbits
 
 ;; Open a file handle, modes are "r", "w", or "a"
-fn_fopen:
+FUNC fn_fopen
     mov rbx, rdi             ; type-check arg1 (path)
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -1494,7 +1499,7 @@ section .text.fread,"ax",@progbits
 ;;
 ;; As a special case reading from a nil-filehandle
 ;; will return nil.
-fn_fread:
+FUNC fn_fread
         mov rbx, rdi             ; type-check arg1
         GET_TAG_BITS rbx
         cmp rbx, TAG_ID_NIL      ; special case the nil-handle
@@ -1608,7 +1613,7 @@ section .text.fwrite,"ax",@progbits
 ;;
 ;; As a special case writing to a nil-filehandle
 ;; will return nil.
-fn_fwrite:
+FUNC fn_fwrite
         mov rbx, rdi             ; type-check arg1: int
         GET_TAG_BITS rbx
         cmp rbx, TAG_ID_NIL      ; special case the nil-handle
@@ -1643,7 +1648,7 @@ fn_fwrite:
 section .text.environment,"ax",@progbits
 
 ;; Return a list of all environmental variables
-fn_environment:
+FUNC fn_environment
     mov rbx, [envp_ptr]
     xor rcx, rcx     ;; Count entries into RCX
 .count:
@@ -1679,7 +1684,7 @@ fn_environment:
 section .text.split,"ax",@progbits
 
 ;; split(string, char)
-fn_split:
+FUNC fn_split
     mov rbx, rdi              ; type-check arg1: string
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
