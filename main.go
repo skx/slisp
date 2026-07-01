@@ -44,8 +44,7 @@ func compile(name string, txt string) {
 	// write the assembly
 	err := os.WriteFile(nm+".asm", []byte(txt), 0644)
 	if err != nil {
-		fmt.Printf("failed to write assembly to %s: %s\n",
-			nm+".asm", err)
+		fmt.Printf("failed to write assembly to %s: %s\n", nm+".asm", err)
 		return
 	}
 

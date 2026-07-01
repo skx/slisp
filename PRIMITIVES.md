@@ -66,7 +66,7 @@ Special forms are things that are built into the compiler core, and handled spec
 Core primitives are implemented in assembly language, and can be found within the file [compiler/template.tmpl](compiler/template.tmpl)
 
 Note that functions have their names mangled a little bit ("-" is converted to "_", a
-"fn_" prefix is added, and we rename trailing question-markes, such as "int?", to "intp").
+"fn_" prefix is added, and we rename trailing question-marks, such as "int?", to "intp").
 
 * Type checking functions:
   * `char?`, `cons?`, `float?`, `int?`, `lambda?`, `nil?`, and `str?`.
