@@ -406,9 +406,9 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 		c.floats[lbl] = n.Value
 
-		// load the ADDRESS of the value, since we assume
-		// all floats are tagged POINTERS to the value.
-		c.emitln(fmt.Sprintf("    mov rax, %s", lbl))
+		// load the address of the label and tag.
+		// same as our string-handling.
+		c.emitln(fmt.Sprintf("    lea rax, %s", lbl))
 		c.emitln("    TAG_FLOAT_REG rax")
 
 	case *parser.Int:
@@ -562,6 +562,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		c.strings[lbl] = n.Value
 
 		// load the address of the label and tag.
+		// same as our float-handling.
 		c.emitln(fmt.Sprintf("    lea rax, %s", lbl))
 		c.emitln("    TAG_STRING_REG rax")
 
