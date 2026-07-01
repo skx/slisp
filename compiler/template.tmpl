@@ -273,6 +273,7 @@ are_both_integers:
 ;; have the two arguments anyway.
 load_both_floats:
    mov rcx, rdi
+   UNTAG_REG rdi
    GET_TAG_BITS rcx
    cmp rcx, TAG_ID_FLOAT
    jz .arg_one_float
@@ -281,16 +282,15 @@ load_both_floats:
    jmp type_error
 
 .arg_one_int:
-    UNTAG_REG rdi      ; get the int
     cvtsi2sd xmm0, rdi ; convert to float
     jmp .arg_two
 .arg_one_float:
-    UNTAG_REG rdi      ; get the float-ptr
     movq xmm0, [rdi]   ; load
     ; jmp .arg_two     ; fall through
 
 .arg_two:
    mov rcx, rsi
+   UNTAG_REG rsi
    GET_TAG_BITS rcx
    cmp rcx, TAG_ID_FLOAT
    jz .arg_two_float
@@ -299,12 +299,9 @@ load_both_floats:
    jmp type_error
 
 .arg_two_int:
-   UNTAG_REG rsi      ; get the int
    cvtsi2sd xmm1, rsi ; convert to float
    ret
-
 .arg_two_float:
-   UNTAG_REG rsi         ; get the float-ptr
    movq xmm1, [rsi]      ; load
    ret
 
