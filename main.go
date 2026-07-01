@@ -82,7 +82,7 @@ func main() {
 	// CLI flags
 	stdlibFlag := flag.Bool("stdlib", true, "Prepend our Lisp standard library to user-programs.")
 	compileFlag := flag.Bool("compile", false, "Automatically generate a binary.")
-	c := flag.Bool("c", false, "Automatically generate a binary.s")
+	c := flag.Bool("c", false, "Automatically generate a binary.")
 	flag.Parse()
 
 	// Do we have a file?
