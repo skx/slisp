@@ -13,6 +13,11 @@
 ;; 3. User-defined lambdas
 ;; 4. entry-point
 ;; 5. stdlib
+;; 5.1. type checking utilities
+;; 5.2. math functions
+;; 5.2.1 comparison functions
+;; 5.3 printing functions
+;; 5.4 fn_XXX
 ;; 6. string literals
 ;; 7. floating-point literals
 
@@ -87,15 +92,27 @@
     and %1, 7
 %endmacro
 
-; The value of the tag-bits we use to denote types
-TAG_ID_INTEGER equ 0b000
-TAG_ID_STRING  equ 0b001
-TAG_ID_CONS    equ 0b010
-TAG_ID_LAMBDA  equ 0b011
-TAG_ID_CHAR    equ 0b100
-TAG_ID_FLOAT   equ 0b101
-TAG_ID_UNUSED  equ 0b110  ; boolean? error?
-TAG_ID_NIL     equ 0b111
+; The value of the tag-bits we use to denote types.
+;
+; All the values are chosen "randomly", but int is special because we
+; often want to determine if two arguments are *both* integers.  We
+; can get the bits and add them like so:
+;
+;   GET_TAG_BITS rsi
+;   GET_TAG_BITS rdi
+;   mov rax, rsi
+;   add rax, rdi
+;   jz  xxxx       -> ZERO?  Both are zero == both are ints
+;
+
+TAG_ID_INTEGER equ 0b000  ; 0 - int is special, as noted above.
+TAG_ID_STRING  equ 0b001  ; 1
+TAG_ID_CONS    equ 0b010  ; 2
+TAG_ID_LAMBDA  equ 0b011  ; 3
+TAG_ID_CHAR    equ 0b100  ; 4
+TAG_ID_FLOAT   equ 0b101  ; 5
+TAG_ID_UNUSED  equ 0b110  ; 6 - boolean? error?
+TAG_ID_NIL     equ 0b111  ; 7
 
 
 ;;
@@ -168,13 +185,14 @@ _start:
 ;;; 5. stdlib
 
 
-section .text.intp,"ax",@progbits
+;;; 5.1 type-checking utilities
 
-;; Is the given value an integer?
-intp:
+;; Extract the tag-bits, and see if they match RBX
+;; If they do return the integer 1, otherwise nil
+is_type:
     mov rax, rdi
     GET_TAG_BITS rax
-    cmp rax, TAG_ID_INTEGER
+    cmp rax, rbx
     jnz .nil
     mov rax, 1
     TAG_INTEGER_REG rax
@@ -184,127 +202,76 @@ intp:
     TAG_NIL_REG rax
     ret
 
-
-section .text.floatp,"ax",@progbits
-
-;; Is the given value a float?
-floatp:
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_FLOAT
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-section .text.charp,"ax",@progbits
 
 ;; Is the given value an character?
 charp:
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_CHAR
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-section .text.strp,"ax",@progbits
-
-;; Is the given value a string?
-strp:
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_STRING
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-section .text.consp,"ax",@progbits
+    mov rbx, TAG_ID_CHAR
+    jmp is_type
 
 ;; Is the given value a cons?
 consp:
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_CONS
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
+    mov rbx, TAG_ID_CONS
+    jmp is_type
 
+;; Is the given value a float?
+floatp:
+    mov rbx, TAG_ID_FLOAT
+    jmp is_type
 
-section .text.lambdap,"ax",@progbits
+;; Is the given value an integer?
+intp:
+    mov rbx, TAG_ID_INTEGER
+    jmp is_type
 
 ;; is the given value a lambda?
 lambdap:
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_LAMBDA
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-section .text.nilp,"ax",@progbits
+    mov rbx, TAG_ID_LAMBDA
+    jmp is_type
 
 ;; Is the given value nil?
 nilp:
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_NIL
-    jnz .nil
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
+    mov rbx, TAG_ID_NIL
+    jmp is_type
+
+;; Is the given value a string?
+strp:
+    mov rbx, TAG_ID_STRING
+    jmp is_type
 
 
-section .text.plus,"ax",@progbits
 
-;; +
-FUNC plus
+
+
+
+;;; 5.2. math functions
+
+
+;; helper - are both arguments integers?
+;;
+;; Here "both" means RDI and RSI which are the
+;; first two arguments according to the SysV ABI
+;;
+;; We use these for maths/comparison operations.
+are_both_integers:
    mov rax, rdi
    mov rbx, rsi
    GET_TAG_BITS rbx     ; type of arg
    GET_TAG_BITS rax     ; type of arg
    add rax, rbx         ; both integers? == 0
-   jz plus_integer
+   ret
 
-   ; Okay the values are either:
-   ;  float + float
-   ;  float + int
-   ;  int   + float
-   ;
-   ; We have to test each argument and work it out.
-   ; the end result of our addition will be a float.
+;; helper - load both floating point numbers.
+;;
+;; Here "both" means RDI and RSI which are the
+;; first two arguments according to the SysV ABI.
+;;
+;; We only use this function if both arguments
+;; are not integers.  So one/both arg might be
+;; a float, but we have to test and decide.
+;;
+;; When this function returns xmm0 and xmm1 will
+;; have the two arguments anyway.
+load_both_floats:
    mov rcx, rdi
    GET_TAG_BITS rcx
    cmp rcx, TAG_ID_FLOAT
@@ -317,7 +284,6 @@ FUNC plus
     UNTAG_REG rdi      ; get the int
     cvtsi2sd xmm0, rdi ; convert to float
     jmp .arg_two
-
 .arg_one_float:
     UNTAG_REG rdi      ; get the float-ptr
     movq xmm0, [rdi]   ; load
@@ -333,22 +299,28 @@ FUNC plus
    jmp type_error
 
 .arg_two_int:
-    UNTAG_REG rsi      ; get the int
-    cvtsi2sd xmm1, rsi ; convert to float
-    jmp .got_args_plus
+   UNTAG_REG rsi      ; get the int
+   cvtsi2sd xmm1, rsi ; convert to float
+   ret
 
 .arg_two_float:
-    UNTAG_REG rsi         ; get the float-ptr
-    movq xmm1, [rsi]      ; load
-    ; jmp .got_args_plus  ; fall-through
+   UNTAG_REG rsi         ; get the float-ptr
+   movq xmm1, [rsi]      ; load
+   ret
 
-.got_args_plus:
-    addsd xmm0, xmm1        ; add
-    mov rax, [heap_ptr]     ; allocate
-    add qword [heap_ptr],8
-    movq [rax], xmm0        ; store
-    TAG_FLOAT_REG rax       ; type
-    ret                     ; return
+
+;; +
+FUNC plus
+   call are_both_integers
+   jz plus_integer
+
+   call load_both_floats
+   addsd xmm0, xmm1        ; add
+   mov rax, [heap_ptr]     ; allocate
+   add qword [heap_ptr],8
+   movq [rax], xmm0        ; store
+   TAG_FLOAT_REG rax       ; type
+   ret                     ; return
 
 plus_integer:
    UNTAG_REG rdi
@@ -359,68 +331,19 @@ plus_integer:
    ret
 
 
-section .text.minus,"ax",@progbits
 
 ;; -
 FUNC minus
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; 0?
-   jz integer_minus     ; both integers
+   call are_both_integers
+   jz integer_minus
 
-   ; Okay the values are either:
-   ;  float + float
-   ;  float + int
-   ;  int   + float
-   ;
-   ; We have to test each argument and work it out.
-   ; the end result of our addition will be a float.
-   mov rcx, rdi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_one_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_one_int
-   jmp type_error
-
-.arg_one_int:
-    UNTAG_REG rdi      ; get the int
-    cvtsi2sd xmm0, rdi ; convert to float
-    jmp .arg_two
-
-.arg_one_float:
-    UNTAG_REG rdi      ; get the float-ptr
-    movq xmm0, [rdi]   ; load
-    ; jmp .arg_two     ; fall through
-
-.arg_two:
-   mov rcx, rsi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_two_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_two_int
-   jmp type_error
-
-.arg_two_int:
-    UNTAG_REG rsi      ; get the int
-    cvtsi2sd xmm1, rsi ; convert to float
-    jmp .got_args_minus
-
-.arg_two_float:
-    UNTAG_REG rsi         ; get the float-ptr
-    movq xmm1, [rsi]      ; load
-;    jmp .got_args_minus  ; fall-through
-
-.got_args_minus:
-    subsd xmm0, xmm1        ; subtrack
-    mov rax, [heap_ptr]     ; allocate
-    add qword [heap_ptr],8
-    movq [rax], xmm0        ; store
-    TAG_FLOAT_REG rax       ; type
-    ret                     ; return
+   call load_both_floats
+   subsd xmm0, xmm1        ; subtrack
+   mov rax, [heap_ptr]     ; allocate
+   add qword [heap_ptr],8
+   movq [rax], xmm0        ; store
+   TAG_FLOAT_REG rax       ; type
+   ret                     ; return
 
 integer_minus:
    UNTAG_REG rdi
@@ -431,168 +354,41 @@ integer_minus:
    ret
 
 
-section .text.divide,"ax",@progbits
 
 ;; /
 FUNC divide
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; zero result?  both ints
+   call are_both_integers
    jz integer_divide
 
-
-   ; Okay the values are either:
-   ;  float + float
-   ;  float + int
-   ;  int   + float
-   ;
-   ; We have to test each argument and work it out.
-   ; the end result of our addition will be a float.
-   mov rcx, rdi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_one_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_one_int
-   jmp type_error
-
-.arg_one_int:
-    UNTAG_REG rdi      ; get the int
-    cvtsi2sd xmm0, rdi ; convert to float
-    jmp .arg_two
-
-.arg_one_float:
-    UNTAG_REG rdi      ; get the float-ptr
-    movq xmm0, [rdi]   ; load
-    ; jmp .arg_two     ; fall-through
-
-.arg_two:
-   mov rcx, rsi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_two_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_two_int
-   jmp type_error
-
-.arg_two_int:
-    UNTAG_REG rsi           ; get the int
-    cvtsi2sd xmm1, rsi      ; convert to float
-    jmp .got_args_divide
-
-.arg_two_float:
-    UNTAG_REG rsi           ; get the float-ptr
-    movq xmm1, [rsi]        ; load
-;    jmp .got_args_divide   ; fall-through
-
-.got_args_divide:
-    divsd xmm0, xmm1        ; multiply
-    mov rax, [heap_ptr]     ; allocate
-    add qword [heap_ptr],8
-    movq [rax], xmm0        ; store
-    TAG_FLOAT_REG rax       ; type
-    ret                     ; return
+   call load_both_floats
+   divsd xmm0, xmm1        ; multiply
+   mov rax, [heap_ptr]     ; allocate
+   add qword [heap_ptr],8
+   movq [rax], xmm0        ; store
+   TAG_FLOAT_REG rax       ; type
+   ret                     ; return
 
 integer_divide:
    UNTAG_REG rdi
    UNTAG_REG rsi
-
    mov rax, rdi
    cqo
    idiv rsi
-
    TAG_INTEGER_REG rax
    ret
-
-
-section .text.modulus,"ax",@progbits
-
-;; %
-FUNC modulus
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx
-   jz modulus_integer
-   jmp type_error       ; type error
-modulus_integer:
-   UNTAG_REG rdi
-   UNTAG_REG rsi        ; untag arguments
-
-   mov rax, rdi         ; do the magic
-   cqo
-   idiv rsi
-
-   mov rax, rdx         ; result is an integer
-   TAG_INTEGER_REG rax
-   ret
-
-
-section .text.multiply,"ax",@progbits
 
 ;; *
 FUNC multiply
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; zero result? then both ints
+   call are_both_integers
    jz integer_multiply
 
-   ; Okay the values are either:
-   ;  float + float
-   ;  float + int
-   ;  int   + float
-   ;
-   ; We have to test each argument and work it out.
-   ; the end result of our addition will be a float.
-   mov rcx, rdi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_one_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_one_int
-   jmp type_error
-
-.arg_one_int:
-    UNTAG_REG rdi      ; get the int
-    cvtsi2sd xmm0, rdi ; convert to float
-    jmp .arg_two
-
-.arg_one_float:
-    UNTAG_REG rdi      ; get the float-ptr
-    movq xmm0, [rdi]   ; load
-    ; jmp .arg_two
-
-.arg_two:
-   mov rcx, rsi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_two_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_two_int
-   jmp type_error
-
-.arg_two_int:
-    UNTAG_REG rsi      ; get the int
-    cvtsi2sd xmm1, rsi ; convert to float
-    jmp .got_args_star
-
-.arg_two_float:
-    UNTAG_REG rsi         ; get the float-ptr
-    movq xmm1, [rsi]      ; load
-;    jmp .got_args_star   ; fall-through
-
-.got_args_star:
-    mulsd xmm0, xmm1        ; multiply
-    mov rax, [heap_ptr]     ; allocate
-    add qword [heap_ptr],8
-    movq [rax], xmm0        ; store
-    TAG_FLOAT_REG rax       ; type
-    ret                     ; return
+   call load_both_floats
+   mulsd xmm0, xmm1        ; multiply
+   mov rax, [heap_ptr]     ; allocate
+   add qword [heap_ptr],8
+   movq [rax], xmm0        ; store
+   TAG_FLOAT_REG rax       ; type
+   ret                     ; return
 
 integer_multiply:
    UNTAG_REG rdi
@@ -605,26 +401,25 @@ integer_multiply:
    ret
 
 
-section .text.not,"ax",@progbits
 
-;; NOT
-;; a nil becomes 1.
-;; anything else becomes nil
-FUNC fn_not
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_NIL
-    jz .nil
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-.nil:
-    mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
+;; %
+FUNC modulus
+   call are_both_integers
+   jz modulus_integer
+   jmp type_error       ; type error
+modulus_integer:
+   UNTAG_REG rdi
+   UNTAG_REG rsi        ; untag arguments
+   mov rax, rdi         ; do the magic
+   cqo
+   idiv rsi
+   mov rax, rdx         ; result is an integer
+   TAG_INTEGER_REG rax
+   ret
 
 
-section .text.equals,"ax",@progbits
+
+;;; 5.2.1 comparison functions
 
 ;; =
 FUNC equals
@@ -659,69 +454,19 @@ FUNC equals
     ret
 
 
-section .text.lte,"ax",@progbits
 
 ;; <= - Work with either integers, floats, or both.
 ;;
 ;; Note: The result of this function is inverted for ">".
 ;;
 FUNC lt_equals
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; both integers? == 0
+   call are_both_integers
    jz lte_integer
 
-
-   ; Okay the values are either:
-   ;  float + float
-   ;  float + int
-   ;  int   + float
-   ;
-   ; We have to test each argument and work it out.
-   ; the end result of our addition will be a float.
-   mov rcx, rdi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_one_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_one_int
-   jmp type_error
-
-.arg_one_int:
-    UNTAG_REG rdi      ; get the int
-    cvtsi2sd xmm0, rdi ; convert to float
-    jmp .arg_two
-
-.arg_one_float:
-    UNTAG_REG rdi      ; get the float-ptr
-    movq xmm0, [rdi]   ; load
-    ; jmp .arg_two     ; fall through
-
-.arg_two:
-   mov rcx, rsi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_two_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_two_int
-   jmp type_error
-
-.arg_two_int:
-    UNTAG_REG rsi      ; get the int
-    cvtsi2sd xmm1, rsi ; convert to float
-    jmp .got_args_lte
-
-.arg_two_float:
-    UNTAG_REG rsi         ; get the float-ptr
-    movq xmm1, [rsi]      ; load
-    ; jmp .got_args_lte   ; fall-through
-
-.got_args_lte:
-    ucomisd xmm0, xmm1
-    jbe lte_integer.true
-    jmp lte_integer.false
+   call load_both_floats
+   ucomisd xmm0, xmm1
+   jbe lte_integer.true
+   jmp lte_integer.false
 
 lte_integer:
     UNTAG_REG rdi
@@ -738,65 +483,16 @@ lte_integer:
     ret
 
 
-section .text.gte,"ax",@progbits
 
 ;; >=
 FUNC gt_equals
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; both integers? == 0
+   call are_both_integers
    jz gte_integer
 
-   ; Okay the values are either:
-   ;  float + float
-   ;  float + int
-   ;  int   + float
-   ;
-   ; We have to test each argument and work it out.
-   ; the end result of our addition will be a float.
-   mov rcx, rdi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_one_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_one_int
-   jmp type_error
-
-.arg_one_int:
-    UNTAG_REG rdi      ; get the int
-    cvtsi2sd xmm0, rdi ; convert to float
-    jmp .arg_two
-
-.arg_one_float:
-    UNTAG_REG rdi      ; get the float-ptr
-    movq xmm0, [rdi]   ; load
-    ; jmp .arg_two     ; fall through
-
-.arg_two:
-   mov rcx, rsi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_two_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_two_int
-   jmp type_error
-
-.arg_two_int:
-    UNTAG_REG rsi      ; get the int
-    cvtsi2sd xmm1, rsi ; convert to float
-    jmp .got_args_gte
-
-.arg_two_float:
-    UNTAG_REG rsi         ; get the float-ptr
-    movq xmm1, [rsi]      ; load
-    ; jmp .got_args_gte   ; fall-through
-
-.got_args_gte:
-    ucomisd xmm0, xmm1
-    jb  gte_integer.false
-    jmp gte_integer.true
+   call load_both_floats
+   ucomisd xmm0, xmm1
+   jb  gte_integer.false
+   jmp gte_integer.true
 
 gte_integer:
     UNTAG_REG rdi
@@ -813,7 +509,6 @@ gte_integer:
     ret
 
 
-section .text.lt,"ax",@progbits
 
 ;; < - this is the inverse of >=
 FUNC lt
@@ -823,7 +518,6 @@ FUNC lt
     ret
 
 
-section .text.gt,"ax",@progbits
 
 ;; > - this is the inverse of <=
 FUNC gt
@@ -833,7 +527,23 @@ FUNC gt
     ret
 
 
-section .text.printfloat,"ax",@progbits
+
+
+;;; 5.3 printing functions
+
+section .text.printing,"ax",@progbits
+
+;; print a newline.
+fn_newline:
+    mov rax, 1              ; SYS_write
+    mov rdi, 1              ; stdout
+    mov rsi, random_buffer  ; point to the buffer
+    mov byte [rsi], 10      ; add a newline character there
+    mov rdx, 1
+    syscall
+    ret
+
+
 
 ;; Print a float
 fn_printfloat:
@@ -940,7 +650,6 @@ fn_printfloat:
     ret
 
 
-section .text.printint,"ax",@progbits
 
 ;; Print an integer
 fn_printint:
@@ -990,64 +699,6 @@ fn_printint:
     ret
 
 
-section .text.exit,"ax",@progbits
-
-;; terminate execution with the given exit-code
-FUNC fn_exit
-    UNTAG_REG rdi
-    mov rax, 60     ; sys_exit
-    syscall
-    ret
-
-section .text.newline,"ax",@progbits
-
-;; print a newline.
-fn_newline:
-    mov rax, 1      ; SYS_write
-    mov rdi, 1      ; stdout
-    mov rsi, newline_str
-    mov rdx, 1
-    syscall
-    ret
-
-section .text.putc,"ax",@progbits
-
-;; Write the given ASCII character to STDOUT
-FUNC fn_putc
-    mov rax, rdi
-    UNTAG_REG rax
-    mov [putc_buffer],  al  ; store character
-    mov rax, 1              ; SYS_write
-    mov rdi, 1              ; STDOUT
-    mov rsi, putc_buffer
-    mov rdx, 1              ; 1 byte
-    syscall
-    ret
-
-section .text.getc,"ax",@progbits
-
-;; Read an ASCII character from STDIN, return NIL on failure.
-FUNC fn_getc
-     mov     rax, 0        ; SYS_read
-     mov     rdi, 0        ; STDIN
-     mov rsi, putc_buffer
-     mov     rdx, 1        ; 1 byte
-     syscall
-
-     cmp rax, 1
-     jne .getc_failed
-
-     xor rax,rax
-     mov al, byte [putc_buffer]
-     TAG_INTEGER_REG rax
-     ret
-.getc_failed:
-     xor rax, rax
-     TAG_NIL_REG rax
-     ret
-
-
-section .text.printstr,"ax",@progbits
 
 ;; Print the given string.
 fn_printstr:
@@ -1071,7 +722,31 @@ fn_printstr:
     ret
 
 
-section .text.chr,"ax",@progbits
+
+;;; 5.4. fn_XXX - alphabetical order
+
+;; Get the first item in the cons cell.
+FUNC fn_car
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_CONS
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, [rdi]
+    ret
+
+
+
+;; Get the second item in the cons cell.
+FUNC fn_cdr
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_CONS
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, [rdi + 8]
+    ret
+
 
 ;; chr - convert an integer to a character
 FUNC fn_chr
@@ -1086,20 +761,6 @@ FUNC fn_chr
     ret
 
 
-section .text.ord,"ax",@progbits
-
-;; ord - convert a character to an integer.
-FUNC fn_ord
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_CHAR
-    jne type_error
-    UNTAG_REG rdi
-    mov rax, rdi
-    TAG_INTEGER_REG rax
-    ret
-
-section .text.cons,"ax",@progbits
 
 ;; Allocate space for a new cons cell, return it in RAX.
 ;;
@@ -1112,50 +773,51 @@ FUNC fn_cons
     TAG_CONS_REG rax         ; return the tagged allocation
     ret
 
-section .text.car,"ax",@progbits
 
-;; Get the first item in the cons cell.
-FUNC fn_car
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_CONS
-    jne type_error
-    UNTAG_REG rdi
-    mov rax, [rdi]
+
+;; Return a list of all environmental variables
+FUNC fn_environment
+    mov rbx, [envp_ptr]
+    xor rcx, rcx     ;; Count entries into RCX
+.count:
+    mov rdx, [rbx + rcx*8]
+    test rdx, rdx
+    jz .build
+    inc rcx
+    jmp .count
+.build:
+    xor rax, rax
+    TAG_NIL_REG rax
+.loop:
+    test rcx, rcx
+    jz .done
+    dec rcx
+
+    ;; string pointer
+    mov rdx, [rbx + rcx*8]
+    TAG_STRING_REG rdx
+
+    ;; allocate cons pair
+    mov r8, [heap_ptr]
+    add qword [heap_ptr], 16
+    mov [r8], rdx        ; car = string
+    mov [r8+8], rax      ; cdr = list-so-far
+    mov rax, r8
+    TAG_CONS_REG rax
+    jmp .loop
+.done:
     ret
 
-section .text.cdr,"ax",@progbits
 
-;; Get the second item in the cons cell.
-FUNC fn_cdr
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_CONS
-    jne type_error
+
+;; terminate execution with the given exit-code
+FUNC fn_exit
     UNTAG_REG rdi
-    mov rax, [rdi + 8]
+    mov rax, 60     ; sys_exit
+    syscall
     ret
 
-section .text.type_error,"ax",@progbits
 
-type_error:
-    mov rdi, type_error_msg
-    TAG_STRING_REG rdi
-    call fn_printstr
-    mov rdi, qword [rel last_function]
-    TAG_STRING_REG rdi
-    call fn_printstr
-    call fn_newline
-    mov rdi, 1              ; exit-code
-    jmp fn_exit
-
-section .data
-align 8
-type_error_msg:
-        db `Type error! Aborted inside `
-        db 00
-
-section .text.explode,"ax",@progbits
 
 ;; Explode a string to a list of characters.
 ;; Find the length and work backwards.
@@ -1194,225 +856,6 @@ FUNC fn_explode
     ret
 
 
-section .text.implode,"ax",@progbits
-
-;; join a character list to a string.
-FUNC fn_implode
-    mov rbx,rdi
-    xor rcx,rcx
-
-.count:
-    mov rax,rbx
-    GET_TAG_BITS rax
-    cmp rax,TAG_ID_NIL
-    je .have_len
-
-    ; verify cons
-    mov rax,rbx
-    GET_TAG_BITS rax
-    cmp rax,TAG_ID_CONS
-    jne type_error
-    inc rcx
-    mov rax,rbx
-    UNTAG_REG rax
-    mov rbx,[rax+8]
-    jmp .count
-
-.have_len:
-    mov rax,[heap_ptr]
-    mov rdx,rcx
-    inc rdx
-    add [heap_ptr],rdx
-    mov r8,rax
-
-    mov rbx,rdi
-    xor rcx,rcx
-.copy:
-    mov rax,rbx
-    GET_TAG_BITS rax
-    cmp rax,TAG_ID_NIL
-    je .finish
-
-    mov rax,rbx
-    UNTAG_REG rax
-    mov rdx,[rax]
-    ; verify char
-    mov r9,rdx
-    GET_TAG_BITS r9
-    cmp r9,TAG_ID_CHAR
-    jne type_error
-    UNTAG_REG rdx
-    mov [r8+rcx],dl
-    inc rcx
-    mov rbx,[rax+8]
-    jmp .copy
-.finish:
-    mov byte [r8+rcx],0
-    mov rax,r8
-    TAG_STRING_REG rax
-    ret
-
-
-section .text.strlen,"ax",@progbits
-
-;; Find the length of the given string.
-FUNC fn_strlen
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-    xor rax, rax
-.find:
-    cmp byte [rdi], 0
-    je .found_end
-    inc rdi
-    inc rax
-    jmp .find
-.found_end:
-    TAG_INTEGER_REG rax
-    ret
-
-section .text.strcmp,"ax",@progbits
-
-;; Compare the two specified strings.
-FUNC fn_strcmp
-    mov rbx, rdi             ; type-check arg1
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-    mov rbx, rsi             ; type-check arg2
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-
-.strcmp_next_char:
-    mov al, byte [rdi]
-    cmp al, byte [rsi]
-    jne .strcmp_diff
-    test al, al
-    je .strcmp_done
-    inc rdi
-    inc rsi
-    jmp .strcmp_next_char
-.strcmp_diff:
-    movzx rdx, byte [rsi]
-    sub al, dl
-.strcmp_done:
-    movsx rax, al            ; Truncate, but keep the sign
-    TAG_INTEGER_REG rax
-    ret
-
-
-section .text.strcat,"ax",@progbigs
-
-;; join the two given strings and return a new one.
-FUNC fn_strcat
-    mov rbx, rdi            ; type-check arg1: str
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-    mov rbx, rsi            ; type-check arg2: str
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-    push rdi
-    push rsi
-
-    mov rax, rdi
-.len1:
-    cmp byte [rax],0
-    je .len1_done
-    inc rax
-    jmp .len1
-.len1_done:
-    sub rax,rdi
-    mov r8,rax         ; r8 to save strlen(a)
-
-    mov rax,rsi
-.len2:
-    cmp byte [rax],0
-    je .len2_done
-    inc rax
-    jmp .len2
-.len2_done:
-    sub rax,rsi
-    mov r9,rax         ; r9 to save strlen(b)
-
-    ; allocate
-    mov rax,[heap_ptr]
-    mov rcx,r8
-    add rcx,r9
-    inc rcx                  ; +1 for '\0'
-    add [heap_ptr],rcx
-
-    mov rdx,rax              ; destination
-    pop rsi                  ; restore strings
-    pop rdi
-
-.copy1:                      ; copy first
-    mov bl,[rdi]
-    test bl,bl
-    jz .copy2
-    mov [rdx],bl
-    inc rdi
-    inc rdx
-    jmp .copy1
-
-.copy2:                      ; append second
-    mov bl,[rsi]
-    test bl,bl
-    jz .done
-    mov [rdx],bl
-    inc rsi
-    inc rdx
-    jmp .copy2
-
-.done:                       ; terminate and return
-    mov byte [rdx],0
-    TAG_STRING_REG rax
-    ret
-
-
-
-section .text.random,"ax",@progbits
-
-;; Generate a random number 0-N
-FUNC fn_random
-    mov rbx, rdi             ; type-check arg1
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_INTEGER
-    jne type_error
-
-    UNTAG_REG rdi
-    push rdi                        ; push the limit
-
-    mov rax, 318               ; syscall: getrandom
-    lea rdi, [ random_buffer]  ; random value location
-    mov rsi, 4                 ; number of bytes
-    xor rdx, rdx               ; flags = 0
-    syscall
-
-    pop rcx                    ; limit the value
-    mov eax, [random_buffer]
-    xor edx, edx
-    div ecx
-
-    mov rax, rdx
-    TAG_INTEGER_REG rax
-    ret
-
-
-
-section .text.fclose,"ax",@progbits
-
 ;; Close a file handle
 ;;
 ;; As a special case closing a nil-filehandle is valid.
@@ -1434,8 +877,6 @@ FUNC fn_fclose
     ret
 
 
-
-section .text.fopen,"ax",@progbits
 
 ;; Open a file handle, modes are "r", "w", or "a"
 FUNC fn_fopen
@@ -1493,7 +934,6 @@ FUNC fn_fopen
         ret
 
 
-section .text.fread,"ax",@progbits
 
 ;; Read ALL data from the given file handle.
 ;;
@@ -1606,7 +1046,7 @@ FUNC fn_fread
 
 
 
-section .text.fwrite,"ax",@progbits
+
 
 ;; Write data, with a size, to the given file handle
 ;; e.g.  (fwrite handle "Steve" 5)
@@ -1645,43 +1085,157 @@ FUNC fn_fwrite
         TAG_NIL_REG rax
         ret
 
-section .text.environment,"ax",@progbits
 
-;; Return a list of all environmental variables
-FUNC fn_environment
-    mov rbx, [envp_ptr]
-    xor rcx, rcx     ;; Count entries into RCX
+
+;; Read an ASCII character from STDIN, return NIL on failure.
+FUNC fn_getc
+     mov     rax, 0        ; SYS_read
+     mov     rdi, 0        ; STDIN
+     mov rsi, random_buffer
+     mov     rdx, 1        ; 1 byte
+     syscall
+
+     cmp rax, 1
+     jne .getc_failed
+
+     xor rax,rax
+     mov al, byte [random_buffer]
+     TAG_INTEGER_REG rax
+     ret
+.getc_failed:
+     xor rax, rax
+     TAG_NIL_REG rax
+     ret
+
+
+
+;; join a character list to a string.
+FUNC fn_implode
+    mov rbx,rdi
+    xor rcx,rcx
+
 .count:
-    mov rdx, [rbx + rcx*8]
-    test rdx, rdx
-    jz .build
+    mov rax,rbx
+    GET_TAG_BITS rax
+    cmp rax,TAG_ID_NIL
+    je .have_len
+
+    ; verify cons
+    mov rax,rbx
+    GET_TAG_BITS rax
+    cmp rax,TAG_ID_CONS
+    jne type_error
     inc rcx
+    mov rax,rbx
+    UNTAG_REG rax
+    mov rbx,[rax+8]
     jmp .count
-.build:
-    xor rax, rax
-    TAG_NIL_REG rax
-.loop:
-    test rcx, rcx
-    jz .done
-    dec rcx
 
-    ;; string pointer
-    mov rdx, [rbx + rcx*8]
-    TAG_STRING_REG rdx
+.have_len:
+    mov rax,[heap_ptr]
+    mov rdx,rcx
+    inc rdx
+    add [heap_ptr],rdx
+    mov r8,rax
 
-    ;; allocate cons pair
-    mov r8, [heap_ptr]
-    add qword [heap_ptr], 16
-    mov [r8], rdx        ; car = string
-    mov [r8+8], rax      ; cdr = list-so-far
-    mov rax, r8
-    TAG_CONS_REG rax
-    jmp .loop
-.done:
+    mov rbx,rdi
+    xor rcx,rcx
+.copy:
+    mov rax,rbx
+    GET_TAG_BITS rax
+    cmp rax,TAG_ID_NIL
+    je .finish
+
+    mov rax,rbx
+    UNTAG_REG rax
+    mov rdx,[rax]
+    ; verify char
+    mov r9,rdx
+    GET_TAG_BITS r9
+    cmp r9,TAG_ID_CHAR
+    jne type_error
+    UNTAG_REG rdx
+    mov [r8+rcx],dl
+    inc rcx
+    mov rbx,[rax+8]
+    jmp .copy
+.finish:
+    mov byte [r8+rcx],0
+    mov rax,r8
+    TAG_STRING_REG rax
     ret
 
 
-section .text.split,"ax",@progbits
+
+;; A nil becomes 1, anything else becomes nil.
+FUNC fn_not
+    mov rax, rdi
+    GET_TAG_BITS rax
+    cmp rax, TAG_ID_NIL
+    jz .nil
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+.nil:
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; ord - convert a character to an integer.
+FUNC fn_ord
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_CHAR
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, rdi
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; Write the given ASCII character to STDOUT
+FUNC fn_putc
+    mov rax, rdi
+    UNTAG_REG rax
+    mov [random_buffer],  al  ; store character
+    mov rax, 1                ; SYS_write
+    mov rdi, 1                ; STDOUT
+    mov rsi, random_buffer
+    mov rdx, 1              ; 1 byte
+    syscall
+    ret
+
+
+
+;; Generate a random number 0-N
+FUNC fn_random
+    mov rbx, rdi             ; type-check arg1
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+
+    UNTAG_REG rdi
+    push rdi                        ; push the limit
+
+    mov rax, 318               ; syscall: getrandom
+    lea rdi, [ random_buffer]  ; random value location
+    mov rsi, 4                 ; number of bytes
+    xor rdx, rdx               ; flags = 0
+    syscall
+
+    pop rcx                    ; limit the value
+    mov eax, [random_buffer]
+    xor edx, edx
+    div ecx
+
+    mov rax, rdx
+    TAG_INTEGER_REG rax
+    ret
+
+
 
 ;; split(string, char)
 FUNC fn_split
@@ -1798,39 +1352,174 @@ FUNC fn_split
     ret
 
 
+
+;; join the two given strings and return a new one.
+FUNC fn_strcat
+    mov rbx, rdi            ; type-check arg1: str
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    mov rbx, rsi            ; type-check arg2: str
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    push rdi
+    push rsi
+
+    mov rax, rdi
+.len1:
+    cmp byte [rax],0
+    je .len1_done
+    inc rax
+    jmp .len1
+.len1_done:
+    sub rax,rdi
+    mov r8,rax         ; r8 to save strlen(a)
+
+    mov rax,rsi
+.len2:
+    cmp byte [rax],0
+    je .len2_done
+    inc rax
+    jmp .len2
+.len2_done:
+    sub rax,rsi
+    mov r9,rax         ; r9 to save strlen(b)
+
+    ; allocate
+    mov rax,[heap_ptr]
+    mov rcx,r8
+    add rcx,r9
+    inc rcx                  ; +1 for '\0'
+    add [heap_ptr],rcx
+
+    mov rdx,rax              ; destination
+    pop rsi                  ; restore strings
+    pop rdi
+
+.copy1:                      ; copy first
+    mov bl,[rdi]
+    test bl,bl
+    jz .copy2
+    mov [rdx],bl
+    inc rdi
+    inc rdx
+    jmp .copy1
+
+.copy2:                      ; append second
+    mov bl,[rsi]
+    test bl,bl
+    jz .done
+    mov [rdx],bl
+    inc rsi
+    inc rdx
+    jmp .copy2
+
+.done:                       ; terminate and return
+    mov byte [rdx],0
+    TAG_STRING_REG rax
+    ret
+
+
+;; Compare the two specified strings.
+FUNC fn_strcmp
+    mov rbx, rdi             ; type-check arg1
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    mov rbx, rsi             ; type-check arg2
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+
+.strcmp_next_char:
+    mov al, byte [rdi]
+    cmp al, byte [rsi]
+    jne .strcmp_diff
+    test al, al
+    je .strcmp_done
+    inc rdi
+    inc rsi
+    jmp .strcmp_next_char
+.strcmp_diff:
+    movzx rdx, byte [rsi]
+    sub al, dl
+.strcmp_done:
+    movsx rax, al            ; Truncate, but keep the sign
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; Find the length of the given string.
+FUNC fn_strlen
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    xor rax, rax
+.find:
+    cmp byte [rdi], 0
+    je .found_end
+    inc rdi
+    inc rax
+    jmp .find
+.found_end:
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+section .text.type_error,"ax",@progbits
+
+type_error:
+    mov rdi, type_error_msg
+    TAG_STRING_REG rdi
+    call fn_printstr
+    mov rdi, qword [rel last_function]
+    TAG_STRING_REG rdi
+    call fn_printstr
+    call fn_newline
+    mov rdi, 1              ; exit-code
+    jmp fn_exit
+
+
+
 section .data
 
+;; error message for type-errors
 align 8
+type_error_msg:
+        db `Type error! Aborted inside `
+        db 00
+
 ;; used by fn_printfloat
+align 8
 million:
         dq 1000000.0
-align 8
+
 ;; used by fn_printfloat
+align 8
 minusmask:
         dq 0x8000000000000000
 
-;; buffer for "\n", used by (newline)
-align 8
-newline_str:
-    db 10
-
-;; buffer for storing a single character, used by (putc x)
-align 8
-putc_buffer:
-    db 10
-
-;; buffer for our random function to read into
+;; buffer for our random function to read into.
+;; other functions, such as getc, newline, use it
+;; too.  Because why not?
 align 8
 random_buffer:
-    db 0x01, 0x02, 0x03, 0x04
+    db `skx!`
 
 ;; zero section
 section .bss
-
-;; heap storage
-align 16
-heap:
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
 
 ;; last function we've called
 last_function:
@@ -1843,6 +1532,10 @@ heap_ptr:
 ;; start of the environmental variable array
 envp_ptr:
     resq 1
+
+;; heap storage
+heap:
+    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
 
 ;;; 6. string literals
 
