@@ -66,14 +66,22 @@ func (c *Compiler) Compile() (string, error) {
 	c.floats = map[string]float64{}
 
 	defuns := ""
+	main := false
 
 	// Generate the user-defined functions to our internal buffer.
 	for _, d := range defs {
+		if d.Name == "main" {
+			main = true
+		}
 		err = c.emitCallable(d)
 		if err != nil {
 			return "", err
 		}
 		c.emitln("")
+	}
+
+	if !main {
+		return "", fmt.Errorf("There is no entry-point defined; we need a defun named 'main'")
 	}
 
 	// Get them, and clear the buffer.
