@@ -648,53 +648,60 @@ fn_printfloat:
 
 
 
-;; Print an integer
+;; Print an integer.
 fn_printint:
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_INTEGER
     jne type_error
-    push rbp
-    mov rbp, rsp
-    sub rsp, 64
     mov rax, rdi
     UNTAG_REG rax
 
+    ; format the integer into the
+    ; random buffer, and return it.
+    call fn_printint_format
+.write:
+    mov rax, 1
+    mov rdi, 1
+    mov rdx, rcx
+    syscall
+    ret
+
+;; convert the (untagged) integer in RAX into a string.
+;;
+;; This reuses the "random_buffer", so you need to copy
+;; the value elsewhere if you want to keep it.
+;;
+;; On return RSI pointing to the formatted result,
+;; with RCX holding the length.
+fn_printint_format:
     mov r8, 0            ; remember sign
     test rax, rax
     jge .positive
     neg rax
     mov r8, 1
 .positive:
-    lea rsi, [rsp+63]
+    lea rsi, random_buffer_end   ; end of random buffer
     mov byte [rsi], 0
     xor rcx, rcx
-
 .convert:
     xor rdx, rdx
     mov rbx, 10
     div rbx
     add dl, '0'
-    dec rsi
+    dec rsi                       ; we move backward.
     mov [rsi], dl
     inc rcx
     test rax, rax
     jnz .convert
 
-    ; prepend minus sign if needed
-    cmp r8, 0
-    je .write
+    cmp r8, 0     ; prepend minus sign if needed
+    je .done
     dec rsi
-    mov byte [rsi], '-'
+    mov byte [rsi], '-'   ; add the sign, and increase count
     inc rcx
-.write:
-    mov rax, 1
-    mov rdi, 1
-    mov rdx, rcx
-    syscall
-    leave
+.done:
     ret
-
 
 
 ;; Print the given string.
@@ -1493,6 +1500,8 @@ FUNC fn_string
     jz .from_string
     cmp rbx, TAG_ID_CHAR
     jz .from_char
+    cmp rbx, TAG_ID_INTEGER
+    jz .from_int
     jmp type_error
 .from_string:
     mov rax, rdi   ; no change
@@ -1506,6 +1515,28 @@ FUNC fn_string
     mov byte [rsi], al       ; char
     mov byte [rsi + 1], 0x00 ; null
     mov rax, rsi
+    TAG_STRING_REG rax
+    ret
+.from_int:
+    mov rax, rdi
+    UNTAG_REG rax
+    call fn_printint_format
+    ; RSI has the start
+    ; RCX has the length
+    inc rcx
+    mov rdi, [heap_ptr]       ; allocate length
+    push rdi
+    add qword [heap_ptr], rcx
+    ; copy bytes
+.copy_loop:
+    mov al, [rsi]
+    mov [rdi], al
+    inc rsi
+    inc rdi
+    dec rcx
+    test rcx, rcx
+    jnz .copy_loop
+    pop rax
     TAG_STRING_REG rax
     ret
 
@@ -1570,6 +1601,13 @@ minusmask:
 align 8
 random_buffer:
     db `skx!`
+    db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+random_buffer_end:
+
 
 ;; zero section
 section .bss
