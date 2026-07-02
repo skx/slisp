@@ -168,23 +168,13 @@ func (c *Compiler) Compile() (string, error) {
 	return buf.String(), nil
 }
 
-// addFloat creates a unique label for our floats,
-// based on the SHA1-hash.  Interning them.
-func (c *Compiler) addFloat(f float64) string {
+// addThing creates a unique label for our floats,
+// and strings, based on the SHA1-hash.  Interning them.
+func (c *Compiler) addThing(f any) string {
 	hasher := sha1.New()
 	hasher.Write([]byte(fmt.Sprintf("%f", f)))
 	sha := hex.EncodeToString(hasher.Sum(nil))
 	id := fmt.Sprintf("float_%s", sha)
-	return id
-}
-
-// addString creates a unique label for our strings,
-// based on the SHA1-hash.  Interning them.
-func (c *Compiler) addString(str string) string {
-	hasher := sha1.New()
-	hasher.Write([]byte(str))
-	sha := hex.EncodeToString(hasher.Sum(nil))
-	id := fmt.Sprintf("str_%s", sha)
 	return id
 }
 
@@ -270,6 +260,8 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 	case *parser.Call:
 		if symbol, ok := n.Fn.(*parser.Symbol); ok {
 
+			c.emitln(fmt.Sprintf("; call to function %s", symbol.Name))
+
 			regs := []string{
 				"rdi",
 				"rsi",
@@ -297,6 +289,8 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			// lambda?
 			if offset, ok := ev.Lookup(symbol.Name); ok {
 
+				c.emitln(fmt.Sprintf("; %s is a lambda", symbol.Name))
+
 				c.emitln(fmt.Sprintf(
 					"    mov rax,[rbp-%d]",
 					offset,
@@ -311,10 +305,14 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				return nil
 			} else {
 				// defun
+				c.emitln(fmt.Sprintf("; %s is a function", symbol.Name))
+
 				c.emitln("    call " + c.asmName(symbol.Name))
 				return nil
 			}
 		}
+
+		c.emitln("; callable function, as a lambda")
 
 		regs := []string{
 			"rdi",
@@ -355,7 +353,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 	case *parser.Cond:
 
-		label := c.label("case_")
+		label := c.label("cond_")
 
 		// There are N test/bodies - compile the comparisons to jump to
 		// each body
@@ -410,7 +408,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 		// create a label, based on the hash of the content.
 		// This has the side-effect of interning.
-		lbl := c.addFloat(n.Value)
+		lbl := c.addThing(n.Value)
 
 		c.floats[lbl] = n.Value
 
@@ -553,7 +551,6 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			if err != nil {
 				return err
 			}
-
 		}
 
 	case *parser.Nil:
@@ -563,7 +560,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 	case *parser.String:
 		// create a label, based on the hash of the content.
 		// This has the side-effect of interning.
-		lbl := c.addString(n.Value)
+		lbl := c.addThing(n.Value)
 
 		// save the string, because we're gonna put it into the
 		// generated code, later.
