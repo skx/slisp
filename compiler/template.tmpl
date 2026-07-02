@@ -1220,6 +1220,48 @@ FUNC fn_not
 
 
 
+;; Get the Nth item from the list
+FUNC fn_nth
+    mov rbx,rdi                 ; type-check arg1: list
+    GET_TAG_BITS rbx
+    cmp rbx,TAG_ID_CONS
+    jne type_error
+
+    mov rbx,rsi                 ; type-check arg2: index
+    GET_TAG_BITS rbx
+    cmp rbx,TAG_ID_INTEGER
+    jne type_error
+
+    UNTAG_REG rsi
+
+.loop:
+    test rsi,rsi
+    jz .done
+
+    mov rbx,rdi                  ; nil then we're outside the bounds
+    GET_TAG_BITS rbx
+    cmp rbx,TAG_ID_NIL
+    je .fail
+
+    mov rbx,rdi                  ; still a list?  Good
+    GET_TAG_BITS rbx
+    cmp rbx,TAG_ID_CONS
+    jne type_error
+
+    UNTAG_REG rdi
+
+    mov rdi,[rdi+8]              ; point to the cdr, and loop again
+    dec rsi
+    jmp .loop
+.done:
+    UNTAG_REG rdi                ; untag the pointer
+    mov rax,[rdi]                ; get the item from the CDR
+    ret                          ; return it
+.fail:
+    jmp out_of_range
+
+
+
 ;; ord - convert a character to an integer.
 FUNC fn_ord
     mov rbx, rdi
@@ -1271,6 +1313,51 @@ FUNC fn_random
     mov rax, rdx
     TAG_INTEGER_REG rax
     ret
+
+
+
+;; Update the Nth list item, leaving everything else as-is.
+FUNC fn_setnth
+    mov rbx,rdi                ; arg1: list
+    GET_TAG_BITS rbx
+    cmp rbx,TAG_ID_CONS
+    jne type_error
+
+    mov rbx,rsi                ; arg2: index
+    GET_TAG_BITS rbx
+    cmp rbx,TAG_ID_INTEGER
+    jne type_error
+
+    ; cannot usefully type-check the third arg as that
+    ; could be anything.
+
+    UNTAG_REG rsi
+
+.loop:
+    test rsi,rsi
+    jz .done
+
+    mov rbx,rdi                ; nil then we're trying to update outside the bounds
+    GET_TAG_BITS rbx
+    cmp rbx,TAG_ID_NIL
+    je .fail
+
+    mov rbx,rdi                ; panic at the disco
+    GET_TAG_BITS rbx
+    cmp rbx,TAG_ID_CONS
+    jne type_error
+
+    UNTAG_REG rdi
+
+    mov rdi,[rdi+8]            ; cdr -> around the loop again.
+    dec rsi
+    jmp .loop
+.done:
+    UNTAG_REG rdi
+    mov [rdi], rdx             ; update car
+    ret
+.fail:
+    jmp out_of_range
 
 
 
@@ -1584,17 +1671,30 @@ FUNC fn_strlen
 
 
 
-section .text.type_error,"ax",@progbits
-
-type_error:
-    mov rdi, type_error_msg
+section .text.out_of_range,"ax",@progbits
+out_of_range:
+    mov rdi, out_of_range_msg            ; show the error
     TAG_STRING_REG rdi
     call fn_printstr
-    mov rdi, qword [rel last_function]
+    mov rdi, qword [rel last_function]   ; and the function-name
     TAG_STRING_REG rdi
     call fn_printstr
     call fn_newline
-    mov rdi, 1              ; exit-code
+    mov rdi, 1                           ; exit-code
+    jmp fn_exit
+
+
+section .text.type_error,"ax",@progbits
+
+type_error:
+    mov rdi, type_error_msg              ; show the error
+    TAG_STRING_REG rdi
+    call fn_printstr
+    mov rdi, qword [rel last_function]   ; and the function-name
+    TAG_STRING_REG rdi
+    call fn_printstr
+    call fn_newline
+    mov rdi, 1                           ; exit-code
     jmp fn_exit
 
 
@@ -1611,6 +1711,12 @@ align 8
 nil_str:
      db `<nil>`
      db 0x00
+
+;; error message for setNth
+align 8
+out_of_range_msg:
+        db `Out of bounds access.  Aborted inside `
+        db 00
 
 ;; error message for type-errors
 align 8

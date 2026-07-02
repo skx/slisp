@@ -225,12 +225,6 @@ Incrementing by the given step each time."
        (fn n)
        (repeat (- n 1) fn))))
 
-(defun nth (xs n)
-  "Return the Nth item from the specified list"
-  (if (= n 0)
-    (car xs)
-    (nth (cdr xs) (- n 1))))
-
 
 (defun map (fn xs)
   "Create a new list by calling the given function for every list element."

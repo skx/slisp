@@ -10,48 +10,58 @@
 ;; (which is the "hello world" program).
 ;;
 
-;;; Helpers
-
-;; Return a copy of the given list, with the Nth item set to the given value.
-(defun setNth (list n val)
-  (if (> n 0)
-      (cons (car list)
-            (setNth (cdr list) (- n 1) val))
-      (cons val (cdr list))))
-
 
 ;;; Brainfuck loop finding
 
-(defun findOpen (len program pos depth)
-  (let ((ch (nth program pos)))
-    (if (= ch #\])
-        (findOpen len program (- pos 1) (+ depth 1))
+(defun buildJumps (program)
+  (buildJumpsRec program 0 nil nil))
+
+
+(defun buildJumpsRec (program pos stack result)
+  (if (= pos (length program))
+      result
+
+      (let ((ch (nth program pos)))
         (if (= ch #\[)
-            (if (= depth 1)
-                pos
-                (findOpen len program (- pos 1) (- depth 1)))
-            (findOpen len program (- pos 1) depth)))))
+            ;; push position
+            (buildJumpsRec
+                program
+                (+ pos 1)
+                (cons pos stack)
+                result)
 
+            (if (= ch #\])
+                (let ((open (car stack)))
+                    (buildJumpsRec
+                        program
+                        (+ pos 1)
+                        (cdr stack)
+                        (cons (list open pos) result)))
 
-(defun findClose (len program pos depth)
-  (let ((ch (nth program pos)))
-    (if (= ch #\[)
-        (findClose len program (+ pos 1) (+ depth 1))
-        (if (= ch #\])
-            (if (= depth 1)
-                pos
-                (findClose len program (+ pos 1) (- depth 1)))
-            (findClose len program (+ pos 1) depth)))))
+                (buildJumpsRec
+                    program
+                    (+ pos 1)
+                    stack
+                    result))))))
 
-
+(defun findJump (table pos)
+    (if table
+        (let ((pair (car table)))
+            (if (= (car pair) pos)
+                (car (cdr pair))
+                (if (= (car (cdr pair)) pos)
+                    (car pair)
+                    (findJump (cdr table) pos))))
+        nil))
 
 ;;; Interpreter
 
 (defun run (program)
-  (let ((i 0)                     ; offset into program
-        (len (length program))    ; length of program
-        (ptr 0)                   ; PTR value
-        (cells (makeCells 1000))) ; cells.
+  (let ((i 0)                         ; offset into program
+        (len (length program))        ; length of program
+        (ptr 0)                       ; PTR value
+        (cells (makeCells 1000))      ; cells.
+        (jumps (buildJumps program))) ; jumps
 
     ; while we've not run off the end of the program
     (while (< i len)
@@ -65,16 +75,12 @@
 
           ;; +
           ((= ins #\+) (do
-                        (set! cells
-                              (setNth cells ptr
-                                      (% (+ (nth cells ptr) 1) 256)))
+                        (setnth cells ptr (% (+ (nth cells ptr) 1) 256))
                         (set! i (+ i 1))))
 
           ;; -
           ((= ins #\-) (do
-                        (set! cells
-                              (setNth cells ptr
-                                      (% (- (nth cells ptr) 1) 256)))
+                        (setnth cells ptr (% (- (nth cells ptr) 1) 256))
                         (set! i (+ i 1))))
 
           ;; >
@@ -87,17 +93,18 @@
                         (set! ptr (- ptr 1))
                         (set! i (+ i 1))))
 
+
           ;; [
           ((= ins #\[)
            (if (= (nth cells ptr) 0)
-               (set! i (+ (findClose len program (+ i 1) 1) 1))
+               (set! i (+ (findJump jumps i) 1))
                (set! i (+ i 1))))
 
           ;; ]
           ((= ins #\])
            (if (= (nth cells ptr) 0)
                (set! i (+ i 1))
-               (set! i (+ (findOpen len program (- i 1) 1) 1))))
+               (set! i (+ (findJump jumps i) 1))))
 
           ;; ,
           ((= ins #\.) (do
@@ -106,9 +113,7 @@
 
           ;; ,
           ((= ins #\,) (do
-                        (set! cells
-                              (setNth cells ptr
-                                      (% (getc) 256)))
+                        (setnth cells ptr (% (getc) 256))
                         (set! i (+ i 1))))
 
           ;; skip over unknown instructions
