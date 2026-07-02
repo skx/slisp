@@ -38,4 +38,20 @@
   ; Add a separator is nice.
   (println (join-by (list "1" "2" "3" "4" "5" "6") ","))
 
+  (let ((n (list 10 20 30 40 50)))
+    (print "List : ")
+    (println n)
+    (print "0 :")
+    (println (nth n 0))
+    (print "1 :")
+    (println (nth n 1))
+    (print "2 :")
+    (println (nth n 2))
+
+    (setnth n 0 "Steve")
+    (setnth n 1 "says")
+    (setnth n 2 "hello")
+    (print "List updated : ")
+    (println n))
+
 )
