@@ -131,6 +131,9 @@ Note that functions have their names mangled a little bit ("-" is converted to "
     * Join two strings together and return them.
   * `strcmp`
     * Compare the two given strings, like the C-function this returns zero on equality.
+  * `string`
+     * Convert characters, integers, and floats to strings.
+     * Everything else returns an empty string.
   * `strlen`
     * Return the length of the given string.
 
