@@ -43,4 +43,7 @@
   (print (string #\\n))
   (println (string 32))
   (println (string -16386))
+  (println (string (- 0 (/ 1.0 3.0))))
+  (println (string 2.5))
+  (println (string -1.75))
   )
