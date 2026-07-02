@@ -41,5 +41,6 @@
   (print (string #\l))
   (print (string #\o))
   (print (string #\\n))
-  ; (println (string 32))
+  (println (string 32))
+  (println (string -16386))
   )
