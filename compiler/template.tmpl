@@ -1164,6 +1164,37 @@ FUNC fn_implode
 
 
 
+;; Convert a numeric value to an integer
+FUNC fn_int
+    mov rax, rdi
+    GET_TAG_BITS rax
+    cmp rax, TAG_ID_INTEGER
+    jz .from_int
+    cmp rax, TAG_ID_FLOAT
+    jz .from_float
+    cmp rax, TAG_ID_CHAR
+    jz .from_char
+    jmp .return_zero
+.from_int:
+    mov rax, rdi
+    ret
+.from_float:
+    UNTAG_REG rdi         ; untag
+    movq xmm0, [rdi]      ; load
+    cvttsd2si rax, xmm0   ; truncate
+    TAG_INTEGER_REG rax   ; tag
+    ret
+.from_char:
+    UNTAG_REG rdi
+    mov rax, rdi
+    TAG_INTEGER_REG rax
+    ret
+.return_zero:
+    xor rax, rax
+    TAG_INTEGER_REG rax
+    ret
+
+
 ;; A nil becomes 1, anything else becomes nil.
 FUNC fn_not
     mov rax, rdi
