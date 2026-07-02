@@ -130,6 +130,9 @@ Note that functions have their names mangled a little bit ("-" is converted to "
     * The list is updated in-place.
   * `split`
     * Split a string by the given character, and return a list of "(before after)".  Return nil if the character isn't found.
+  * `split-all`
+    * Return a list of all parts of string, split by the character.
+    * e.g. `(split-all (getenv "PATH") #\:)` to find all directories on the PATH.
   * `strcat`
     * Join two strings together and return them.
   * `strcmp`
