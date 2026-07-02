@@ -1485,6 +1485,31 @@ FUNC fn_strcmp
 
 
 
+;; Convert a thing to a string
+FUNC fn_string
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jz .from_string
+    cmp rbx, TAG_ID_CHAR
+    jz .from_char
+    jmp type_error
+.from_string:
+    mov rax, rdi   ; no change
+    ret
+.from_char:
+    ; two bytes of memory
+    mov rsi, [heap_ptr]       ; allocate two bytes
+    add qword [heap_ptr],2
+    mov rax, rdi
+    UNTAG_REG rax
+    mov byte [rsi], al       ; char
+    mov byte [rsi + 1], 0x00 ; null
+    mov rax, rsi
+    TAG_STRING_REG rax
+    ret
+
+
 ;; Find the length of the given string.
 FUNC fn_strlen
     mov rbx, rdi
