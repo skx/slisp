@@ -552,149 +552,158 @@ fn_printfloat:
     UNTAG_REG rdi      ; RAX has pointer
     movq xmm0, [rdi]   ; get the value
 
-    sub     rsp,128
-    lea     rsi,[rsp]
-    xor     r8,r8                  ; output length
-
-    xorpd   xmm1,xmm1              ; handle sign
-    ucomisd xmm0,xmm1
-    jae     .positive
-    mov     byte [rsi],'-'
-    inc     rsi
-    inc     r8
-    movq    xmm1,[rel minusmask]
-    xorpd   xmm0,xmm1
-
-.positive:
-    cvttsd2si   rax,xmm0           ; truncate to int
-    mov     r9,rax                 ; save integer
-    movsd   xmm1,[rel million]
-    mulsd   xmm0,xmm1
-    cvttsd2si   rbx,xmm0
-    mov     rcx,1000000
-    imul    r9,rcx
-    sub     rbx,r9                 ; RBX=fraction
-
-    mov     rax,r9
-    mov     rcx,1000000
-    xor     rdx,rdx
-    div     rcx                    ; recover integer
-
-    test    rax,rax
-    jne     .int_nonzero
-
-    mov     byte [rsi],'0'
-    inc     rsi
-    inc     r8
-    jmp     .decimal
-
-.int_nonzero:
-    lea     r10,[rsp+120]
-    mov     rdi,r10
-
-.int_loop:
-    xor     rdx,rdx
-    mov     rcx,10
-    div     rcx
-    add     dl,'0'
-    dec     rdi
-    mov     [rdi],dl
-    test    rax,rax
-    jne     .int_loop
-
-.copy_int:
-    mov     al, [rdi]
-    mov     [rsi], al
-    inc     rdi
-    inc     rsi
-    inc     r8
-    cmp     rdi, r10
-    jb      .copy_int
-
-.decimal:
-    mov     byte [rsi],'.'
-    inc     rsi
-    inc     r8
-
-    mov     rcx,100000   ; six fractional digits
-.frac_loop:
-    mov     rax,rbx
-    xor     rdx,rdx
-    div     rcx
-    add     al,'0'
-    mov     [rsi],al
-    inc     rsi
-    inc     r8
-    mov     rbx,rdx
-    mov     rax,rcx
-    xor     rdx,rdx
-    mov     rdi,10
-    div     rdi
-    mov     rcx,rax
-    test    rcx,rcx
-    jne     .frac_loop
-
-    mov     eax,1                  ; SYS_write
-    mov     edi,1                  ; stdout
-    lea     rsi,[rsp]
-    mov     rdx,r8
+    ; format into the random buffer, and return it.
+    call fn_printfloat_format
+.write:
+    mov rax, 1
+    mov rdi, 1
+    mov rdx, rcx
     syscall
 
-    add     rsp,128
-
-    xor rax,rax
+    xor rax,rax           ; return nil
     TAG_NIL_REG rax
     ret
 
 
+;; convert the (untagged) float in xmm0 into a string.
+;;
+;; This reuses the "random_buffer", so you need to copy
+;; the value elsewhere if you want to keep it.
+;;
+;; On return RSI pointing to the formatted result,
+;; with RCX holding the length.
+fn_printfloat_format:
+    xor r8, r8                      ; sign flag
 
-;; Print an integer
+    xorpd xmm1, xmm1                ; Handle sign
+    ucomisd xmm0, xmm1
+    jae .positive
+
+    mov r8, 1
+    movq xmm1, [rel minusmask]
+    xorpd xmm0, xmm1
+
+.positive:
+    cvttsd2si r9, xmm0             ; Integer part -> R9
+
+    movsd xmm1, [rel million]      ; Fraction = trunc(x*1e6) - integer*1e6
+    mulsd xmm0, xmm1
+    cvttsd2si rbx, xmm0
+
+    mov rax, r9
+    imul rax, 1000000
+    sub rbx, rax                   ; RBX = fractional value
+
+    lea rsi, [random_buffer_end]
+    mov byte [rsi], 0
+    xor rcx, rcx
+
+    mov r10, 6                     ; Emit exactly six fractional digits
+.frac_loop:
+    xor rdx, rdx
+    mov rax, rbx
+    mov r11, 10
+    div r11
+
+    add dl, '0'
+    dec rsi
+    mov [rsi], dl
+
+    mov rbx, rax
+    inc rcx
+
+    dec r10
+    jnz .frac_loop
+
+    ; Decimal point
+    dec rsi
+    mov byte [rsi], '.'
+    inc rcx
+
+    ; Integer digits
+    mov rax, r9
+
+.int_loop:                      ; divide by ten for each digiti
+    xor rdx, rdx
+    mov r11, 10
+    div r11
+
+    add dl, '0'
+    dec rsi
+    mov [rsi], dl
+    inc rcx
+
+    test rax, rax
+    jnz .int_loop
+
+    test r8, r8                ; was this negative?
+    jz .done
+
+    dec rsi
+    mov byte [rsi], '-'
+    inc rcx
+.done:
+    ret
+
+
+
+;; Print an integer.
 fn_printint:
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_INTEGER
     jne type_error
-    push rbp
-    mov rbp, rsp
-    sub rsp, 64
     mov rax, rdi
     UNTAG_REG rax
 
+    ; format the integer into the
+    ; random buffer, and return it.
+    call fn_printint_format
+.write:
+    mov rax, 1
+    mov rdi, 1
+    mov rdx, rcx
+    syscall
+
+    xor rax,rax           ; return nil
+    TAG_NIL_REG rax
+    ret
+
+;; convert the (untagged) integer in RAX into a string.
+;;
+;; This reuses the "random_buffer", so you need to copy
+;; the value elsewhere if you want to keep it.
+;;
+;; On return RSI pointing to the formatted result,
+;; with RCX holding the length.
+fn_printint_format:
     mov r8, 0            ; remember sign
     test rax, rax
     jge .positive
     neg rax
     mov r8, 1
 .positive:
-    lea rsi, [rsp+63]
+    lea rsi, random_buffer_end   ; end of random buffer
     mov byte [rsi], 0
     xor rcx, rcx
-
 .convert:
     xor rdx, rdx
     mov rbx, 10
     div rbx
     add dl, '0'
-    dec rsi
+    dec rsi                       ; we move backward.
     mov [rsi], dl
     inc rcx
     test rax, rax
     jnz .convert
 
-    ; prepend minus sign if needed
-    cmp r8, 0
-    je .write
+    cmp r8, 0     ; prepend minus sign if needed
+    je .done
     dec rsi
-    mov byte [rsi], '-'
+    mov byte [rsi], '-'   ; add the sign, and increase count
     inc rcx
-.write:
-    mov rax, 1
-    mov rdi, 1
-    mov rdx, rcx
-    syscall
-    leave
+.done:
     ret
-
 
 
 ;; Print the given string.
@@ -1485,6 +1494,75 @@ FUNC fn_strcmp
 
 
 
+;; Convert a thing to a string
+FUNC fn_string
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jz .from_string
+    cmp rbx, TAG_ID_CHAR
+    jz .from_char
+    cmp rbx, TAG_ID_INTEGER
+    jz .from_int
+    cmp rbx, TAG_ID_FLOAT
+    jz .from_float
+    cmp rbx, TAG_ID_NIL
+    jz .from_nil
+    jmp .empty_string
+.from_nil:
+    lea rax, nil_str
+    TAG_STRING_REG rax
+    ret
+.empty_string:
+    lea rax, empty_str
+    TAG_STRING_REG rax
+    ret
+.from_string:
+    mov rax, rdi   ; no change
+    ret
+.from_char:
+    ; two bytes of memory
+    mov rsi, [heap_ptr]       ; allocate two bytes
+    add qword [heap_ptr],2
+    mov rax, rdi
+    UNTAG_REG rax
+    mov byte [rsi], al       ; char
+    mov byte [rsi + 1], 0x00 ; null
+    mov rax, rsi
+    TAG_STRING_REG rax
+    ret
+.from_int:
+    mov rax, rdi
+    UNTAG_REG rax
+    call fn_printint_format
+.copy_str_return:
+    ; RSI has the start
+    ; RCX has the length
+    inc rcx
+    mov rdi, [heap_ptr]       ; allocate length
+    push rdi
+    add qword [heap_ptr], rcx
+    ; copy bytes
+.copy_loop:
+    mov al, [rsi]
+    mov [rdi], al
+    inc rsi
+    inc rdi
+    dec rcx
+    test rcx, rcx
+    jnz .copy_loop
+    pop rax
+    TAG_STRING_REG rax
+    ret
+.from_float:
+    mov rax, rdi
+    UNTAG_REG rax
+    movq xmm0, [rax]
+    call fn_printfloat_format
+    jmp .copy_str_return       ; copy the resulting string into a new allocation
+
+
+
 ;; Find the length of the given string.
 FUNC fn_strlen
     mov rbx, rdi
@@ -1523,6 +1601,17 @@ type_error:
 
 section .data
 
+;; used by fn_string
+align 8
+empty_str:
+     db 0x00
+
+;; used by fn_string
+align 8
+nil_str:
+     db `<nil>`
+     db 0x00
+
 ;; error message for type-errors
 align 8
 type_error_msg:
@@ -1545,6 +1634,13 @@ minusmask:
 align 8
 random_buffer:
     db `skx!`
+    db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+random_buffer_end:
+
 
 ;; zero section
 section .bss

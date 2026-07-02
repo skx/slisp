@@ -31,4 +31,19 @@
   (showCmp "Steve" "Rteve")
 
   ; These should be identical
-  (showCmp "Hello" (implode (explode "Hello"))))
+  (showCmp "Hello" (implode (explode "Hello")))
+
+  ; string conversion
+  (print (string "Hello!\n"))
+  (print (string #\h))
+  (print (string #\e))
+  (print (string #\l))
+  (print (string #\l))
+  (print (string #\o))
+  (print (string #\\n))
+  (println (string 32))
+  (println (string -16386))
+  (println (string (- 0 (/ 1.0 3.0))))
+  (println (string 2.5))
+  (println (string -1.75))
+  )
