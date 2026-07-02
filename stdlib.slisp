@@ -255,6 +255,24 @@ Incrementing by the given step each time."
   "Reverse the contents of the specified list."
   (reverse-inner xs nil))
 
+(defun split-all (str char)
+  "Return a list of splitting the string by the given character.
+
+  Empty parts are ignored."
+  (if (or (nil? str) (= str ""))
+      nil
+      (filter (split-all-helper str char) (lambda (x) (> (length x) 0)))))
+
+(defun split-all-helper (str char)
+  "Recursive helper for splitting a list by character."
+  (let ((parts (split str char)))
+    (if (nil? parts)
+        (list str)
+        (cons (nth parts 0)
+              (split-all-helper (nth parts 1) char)))))
+
+
+
 
 ;;; system functions
 
