@@ -1224,7 +1224,7 @@ FUNC fn_not
 FUNC fn_nth
     mov rbx,rdi                 ; type-check arg1: list
     GET_TAG_BITS rbx
-    cmp rbx,TAG_ID_INTEGER
+    cmp rbx,TAG_ID_CONS
     jne type_error
 
     mov rbx,rsi                 ; type-check arg2: index
@@ -1320,7 +1320,7 @@ FUNC fn_random
 FUNC fn_setnth
     mov rbx,rdi                ; arg1: list
     GET_TAG_BITS rbx
-    cmp rbx,TAG_ID_INTEGER
+    cmp rbx,TAG_ID_CONS
     jne type_error
 
     mov rbx,rsi                ; arg2: index
