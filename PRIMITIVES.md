@@ -104,6 +104,9 @@ Note that functions have their names mangled a little bit ("-" is converted to "
     * Read a single character from STDIN, return NIL on failure.
   * `implode`
     * Convert the given list of characters to a string.
+  * `int`
+    * Convert the given float, or character, to an integer.
+    * Anything else becomes zero.
   * `newline`
     * Print a newline.
   * `not`

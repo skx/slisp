@@ -1,0 +1,7 @@
+(defun main ()
+  (println (int 3.2))
+  (println (int #\*))
+  (println (int 37))
+  (println (int "steve"))
+  (println (int nil))
+  )
