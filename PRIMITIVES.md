@@ -125,6 +125,9 @@ Note that functions have their names mangled a little bit ("-" is converted to "
     * Print the given string.
   * `random`
     * Return a random integer between zero and N.
+  * `setnth`
+    * Update the Nth item in the given list with the specified value.
+    * The list is updated in-place.
   * `split`
     * Split a string by the given character, and return a list of "(before after)".  Return nil if the character isn't found.
   * `strcat`
