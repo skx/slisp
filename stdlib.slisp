@@ -11,6 +11,10 @@
 ;; above then their value will always be as expected.
 ;;
 
+
+
+
+
 ;;; printing functions
 
 (defun print (x)
@@ -28,6 +32,7 @@
                   (putc #\))))
     (t           (printstr "unknown type"))))
 
+
 (defun print-cons (x)
   "Print the contents of the cons X, recursively."
   (print (car x))
@@ -41,11 +46,14 @@
            (printstr " . ")
            (print (cdr x))))))
 
-;; exactly like print, but with a newline on the end.
+
 (defun println (x)
   "Print everything as 'print' would, but append a newline afterwards."
   (print x)
   (newline))
+
+
+
 
 
 ;;; logical functions
@@ -59,6 +67,11 @@ NOTE: This is not a macro, so all arguments are evaluated."
     (= (length xs) (length res))))
 
 
+(defun null? (x)
+  "Is the given item nil?"
+  (nil? x))
+
+
 (defun or (xs)
   "Return true if any value in the specified list contains a true value.
 
@@ -66,35 +79,47 @@ NOTE: This is not a macro, so all arguments are evaluated."
   (let ((res (filter xs (lambda (x) x))))
     (> (length res) 0)))
 
+
+
+
+
 ;;; Maths functions
+
 
 (defun abs (n)
   "Return the absolute value of N, as a positive number"
   (if (< n 0) (- 0 n) n))
 
+
 (defun even? (n)
   "Return 1 if the number is even, nil otherwise."
   (= (% n 2 ) 0))
+
 
 (defun odd? (n)
   "Return 1 if the number is odd, nil otherwise."
   (= (% n 2 ) 1))
 
+
 (defun zero? (n)
   "Return 1 if the number is zero, nil otherwise."
   (= n 0))
+
 
 (defun one? (n)
   "Return 1 if the number is one, nil otherwise."
   (= n 1))
 
+
 (defun neg? (n)
   "Return 1 if the number is negative, nil otherwise."
   (< n 0))
 
+
 (defun pos? (n)
   "Return 1 if the number is positive, nil otherwise."
   (> n 0))
+
 
 (defun sum (xs)
   "sum all the numbers in the list"
@@ -102,6 +127,7 @@ NOTE: This is not a macro, so all arguments are evaluated."
       (+ (car xs)
          (sum (cdr xs)))
       0))
+
 
 (defun max (xs)
   "Return the maximum integer from the list of numbers supplied."
@@ -111,6 +137,7 @@ NOTE: This is not a macro, so all arguments are evaluated."
               (lambda (a b)
                 (if (< a b) b a))
               (car xs))))
+
 
 (defun min (xs)
   "Return the smallest integer from the list of numbers supplied."
@@ -123,6 +150,8 @@ NOTE: This is not a macro, so all arguments are evaluated."
 
 
 
+
+
 ;;; List-creation methods
 
 (defun range (start end step)
@@ -132,18 +161,24 @@ Incrementing by the given step each time."
         (cons start (range (+ start step) end step))
       nil))
 
+
 (defun seq (n)
   "Create a list of number ranging from 0-N, inclusive."
   (range 0 n 1))
+
 
 (defun nat (n)
   "Create a list of numbers ranging from 1-N, inclusive."
   (range 1 n 1))
 
+
 (defun repeated (n x)
   "Return a list of length n whose elements are all x."
   (if (pos? n)
     (cons x (repeated (- n 1) x))))
+
+
+
 
 
 ;;; list utility functions
@@ -154,6 +189,15 @@ Incrementing by the given step each time."
       item
       (cons (car xs) (append (cdr xs) item))))
 
+
+(defun drop (n xs)
+  "Drop the first N items from the given list, and return the rest."
+  (cond
+    ((< n 1) xs)
+    ((nil? xs) xs)
+    (t (drop (- n 1) (cdr xs)))))
+
+
 (defun filter (xs fn)
   "Return a list consisting of all members of the given list for which the given predicate returns non-nil."
   (if (nil? xs)
@@ -162,11 +206,36 @@ Incrementing by the given step each time."
           (cons (car xs) (filter (cdr xs) fn))
           (filter (cdr xs) fn))))
 
+
+(defun find (xs item)
+  "Return the offsets of any occurrence of the item in the given list, nil on failure."
+  (find-helper xs item 0))
+
+
+(defun find-helper (xs item index)
+  (if xs
+      (if (= (car xs) item)
+          (cons index
+                (find-helper (cdr xs) item (+ index 1)))
+          (find-helper (cdr xs) item (+ index 1)))
+      nil))
+
+
+(defun flatten (xs)
+  "Converts a list of nested lists to a single list, flattening it."
+  (if (nil? xs)
+      nil
+      (if (! (cons? (car xs)))
+          (cons (car xs) (flatten (cdr xs)))
+          (append (flatten (car xs)) (flatten (cdr xs))))))
+
+
 (defun join (xs)
   "Join an arbitrary list of strings together into a single string."
   (if xs
       (join-helper (cdr xs) (car xs))
       ""))
+
 
 (defun join-helper (xs acc)
   (if xs
@@ -175,11 +244,13 @@ Incrementing by the given step each time."
           (strcat acc (car xs)))
       acc))
 
+
 (defun join-by (xs sep)
   "Join string list-items by the given separator"
   (if xs
       (join-rest (cdr xs) (car xs) sep)
       ""))
+
 
 (defun join-rest (xs acc sep)
   (if xs
@@ -190,25 +261,6 @@ Incrementing by the given step each time."
           sep)
       acc))
 
-(defun find-helper (xs item index)
-  (if xs
-      (if (= (car xs) item)
-          (cons index
-                (find-helper (cdr xs) item (+ index 1)))
-          (find-helper (cdr xs) item (+ index 1)))
-      nil))
-
-(defun find (xs item)
-  "Return the offsets of any occurrence of the item in the given list, nil on failure."
-  (find-helper xs item 0))
-
-(defun flatten (xs)
-  "Converts a list of nested lists to a single list, flattening it."
-  (if (nil? xs)
-      nil
-      (if (! (cons? (car xs)))
-          (cons (car xs) (flatten (cdr xs)))
-          (append (flatten (car xs)) (flatten (cdr xs))))))
 
 (defun length (xs)
   "Return the length of the given list or string."
@@ -218,19 +270,13 @@ Incrementing by the given step each time."
           (+ 1 (length (cdr xs)))
           0)))
 
-(defun repeat (n fn)
-  "Execute the supplied body of code N times."
-  (if (> n 0)
-      (do
-       (fn n)
-       (repeat (- n 1) fn))))
-
 
 (defun map (fn xs)
   "Create a new list by calling the given function for every list element."
   (if (nil? xs)
       nil
       (cons (fn (car xs)) (map fn (cdr xs)))))
+
 
 (defun member? (xs item)
   "Return true if the specified item is found within the given list."
@@ -239,11 +285,21 @@ Incrementing by the given step each time."
     ( (= item (car xs)) 1)
     ( 1 (member? (cdr xs) item))))
 
+
 (defun reduce (xs fn acc)
   "This is our reduce function, which uses a list, a function, and the accumulator."
   (if (nil? xs)
       acc
       (reduce (cdr xs) fn (fn acc (car xs)))))
+
+
+(defun repeat (n fn)
+  "Execute the supplied body of code N times."
+  (if (> n 0)
+      (do
+       (fn n)
+       (repeat (- n 1) fn))))
+
 
 (defun reverse-inner (xs acc)
   "Helper to use an accumulator to reverse a list.  Used by 'reverse'"
@@ -251,9 +307,11 @@ Incrementing by the given step each time."
       acc
       (reverse-inner (cdr xs) (cons (car xs) acc))))
 
+
 (defun reverse (xs)
   "Reverse the contents of the specified list."
   (reverse-inner xs nil))
+
 
 (defun split-all (str char)
   "Return a list of splitting the string by the given character.
@@ -263,6 +321,7 @@ Incrementing by the given step each time."
       nil
       (filter (split-all-helper str char) (lambda (x) (> (length x) 0)))))
 
+
 (defun split-all-helper (str char)
   "Recursive helper for splitting a list by character."
   (let ((parts (split str char)))
@@ -270,6 +329,16 @@ Incrementing by the given step each time."
         (list str)
         (cons (nth parts 0)
               (split-all-helper (nth parts 1) char)))))
+
+
+(defun take (n xs)
+  "Take, and return, the first N items from the given list."
+  (cond
+    ((< n 1) nil)
+    ((nil? xs) nil)
+    (t (cons (car xs) (take (- n 1) (cdr xs))))))
+
+
 
 
 

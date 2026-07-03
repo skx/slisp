@@ -2,25 +2,6 @@
 ;; adapted from https://bernsteinbear.com/blog/lisp/16_stdlib/
 ;;
 
-;; helper to detect nil
-(defun null? (x)
-  (nil? x))
-
-(defun take (n xs)
-  "Take, and return, the first N items from the given list."
-  (cond
-    ((< n 1) nil)
-    ((nil? xs) nil)
-    (t (cons (car xs) (take (- n 1) (cdr xs))))))
-
-(defun drop (n xs)
-  "Drop the first N items from the given list, and return the rest."
-  (cond
-    ((< n 1) xs)
-    ((nil? xs) xs)
-    (t (drop (- n 1) (cdr xs)))))
-
-
 (defun merge (xs ys)
   "Merge the contents of the two lists, assuming they're both sorted"
   (if (null? xs)

@@ -23,13 +23,6 @@
 
 
 ;;; 1. macros
-;;
-;; We use the lower three bits of values to denote their type,
-;; char, cons, float, int, lambda, string, etc.
-;;
-;; These macros are to be used to tag a register with a given
-;; type, or get the type for processing and testing.
-;;
 
 ;;
 ;; If DEBUG is defined we'll return specific error-codes from
@@ -40,6 +33,14 @@
 ;;
 %define DEBUG 1
 %undef  DEBUG     ;; Comment out this line to enable debugging.
+
+;;
+;; We use the lower three bits of values to denote their type,
+;; char, cons, float, int, lambda, string, etc.
+;;
+;; These macros are to be used to tag a register with a given
+;; type, or get the type for processing and testing.
+;;
 
 ; tag a register as an integer
 %macro TAG_INTEGER_REG 1
@@ -141,12 +142,14 @@ TAG_ID_NIL     equ 0b111  ; 7
 
 
 
-
 ;;; 2. User-defined functions (defuns)
 {{ .Defuns }}
 
+
 ;;; 3. User-defined lambdas
 {{ .Lambdas }}
+
+
 
 ;;; 4. entry-point
 global _start
@@ -373,6 +376,8 @@ integer_divide:
    idiv rsi
    TAG_INTEGER_REG rax
    ret
+
+
 
 ;; *
 FUNC multiply
@@ -754,6 +759,7 @@ FUNC fn_cdr
     ret
 
 
+
 ;; chr - convert an integer to a character
 FUNC fn_chr
     mov rbx, rdi
@@ -862,6 +868,7 @@ FUNC fn_explode
     ret
 
 
+
 ;; Close a file handle
 ;;
 ;; As a special case closing a nil-filehandle is valid.
@@ -915,7 +922,7 @@ FUNC fn_fopen
 .fopen_append:
         mov rax, 2          ; SYS_open
         mov rsi, 1089       ; O_WRONLY|O_CREAT|O_APPEND
-        mov rdx, 0644
+        mov rdx, 0o644
         syscall
         jmp .fopen_done
 .fopen_read:
@@ -1767,9 +1774,12 @@ envp_ptr:
 heap:
     resb 1 * 1024 * 1024 * 1024  ; 1 Mb
 
+
+
 ;;; 6. string literals
 
 {{ .StringTable }}
+
 
 
 ;;; 7. floating-point literals
