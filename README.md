@@ -41,6 +41,7 @@ There are several examples beneath our [test/](test/) directory, including:
 * [fizzbuzz.lisp](test/fizzbuzz.lisp)
 * [sort2.lisp](test/sort2.lisp) - A flexible sorting demonstration.
 * [sort3.lisp](test/sort3.lisp) - A mergesort implementation.
+* [vararg.lisp](test/vararg.lisp) - Demonstration of a function accepting a variable number of arguments.
 
 [example.lisp](example.lisp) has other misc. snippets, and finally [brainfuck.lisp](brainfuck.lisp) contains a useful/working brainfuck interpreter.
 

@@ -113,8 +113,19 @@ Here's another simple function:
     (defun square (x)
        (* x x))
 
+A function may be defined with the sole/last argument having an `&`-prefix, which means this is a function which will accept a variable number of arguments.  When such functions are called any extra parameters are converted into a list and available in that way.  For example:
 
-There **must** be a function named `main`, as that is the entry-point to the lisp program.  This function can be defined either like so:
+    ;; Accept any number of arguments
+    (defun foo (&args)
+       (println args))
+
+    (foo)                  ; Prints: <nil>
+    (foo "Hello" "World")  ; Prints: ("Hello" "World")
+    (foo 1 2 3)            ; Prints: (1 2 3)
+
+You can see this demonstrated in the `print` function, in our [stdlib.lisp](stdlib.lisp) file.
+
+**NOTE**: There must be a function named `main`, as that is the entry-point to the compiled program.  This function can be defined either like so:
 
     (defun main() ... )
 
