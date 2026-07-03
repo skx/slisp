@@ -1,13 +1,14 @@
-;; basic idea as in sort.lisp
+;; Same basic idea as the code in sort1.lisp, but instead of
+;; hard-coding the comparison operation we pass a lambda.
 ;;
-;; But pass a lambda to do the comparison.
+;; That allows sorting strings via "strcmp", or sorting by
+;; reverse by inverting the comparison operation.
 ;;
 (defun insert-by (cmp x xs)
   (if xs
       (if (cmp x (car xs))
           (cons x xs)
-          (cons (car xs)
-                (insert-by cmp x (cdr xs))))
+          (cons (car xs) (insert-by cmp x (cdr xs))))
       (list x)))
 
 (defun sort-by (cmp xs)
