@@ -18,6 +18,20 @@ import (
 //go:embed template.tmpl
 var tmplTxt string
 
+// FunctionArgs records the functions that defuns accept.
+//
+// We need this because we need to discover how many arguments
+// each function expects - so we can abort if a function is
+// called with the wrong number of arguments - and also to know
+// if variable arguments are in-use.
+type FunctionArgs struct {
+	// How many arguments does this function expect?
+	Arguments int
+
+	// Is this a variadic function?
+	Variadic bool
+}
+
 // Compiler holds our state
 type Compiler struct {
 
@@ -40,6 +54,10 @@ type Compiler struct {
 
 	// lambdas holds the lambdas we've encountered.
 	lambdas []*parser.Lambda
+
+	// functions stores details about our defined functions, specifically
+	// whether each one is variadic.
+	functions map[string]*FunctionArgs
 }
 
 // New is our constructor
@@ -67,6 +85,19 @@ func (c *Compiler) Compile() (string, error) {
 
 	defuns := ""
 	main := false
+
+	//
+	// Process each known function, and record the number
+	// of arguments it requests, and whether the last argument
+	// should be treated as variadic.
+	//
+	c.functions = make(map[string]*FunctionArgs)
+	for _, fun := range defs {
+		c.functions[fun.Name] = &FunctionArgs{
+			Arguments: len(fun.Params),
+			Variadic:  fun.Variadic,
+		}
+	}
 
 	// Generate the user-defined functions to our internal buffer.
 	for _, d := range defs {
@@ -260,6 +291,15 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 	case *parser.Call:
 		if symbol, ok := n.Fn.(*parser.Symbol); ok {
 
+			// is this variadic?
+			v, ok := c.functions[symbol.Name]
+			if ok && v.Variadic {
+
+				// Variadic call.
+				err := c.emitVariadicCall(symbol.Name, v.Arguments, n.Args, ev)
+				return err
+			}
+
 			c.emitln(fmt.Sprintf("; call to function %s", symbol.Name))
 
 			regs := []string{
@@ -269,6 +309,13 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				"rcx",
 				"r8",
 				"r9",
+			}
+
+			// Mismatch in argument counts?
+			if ok {
+				if len(n.Args) != v.Arguments {
+					return fmt.Errorf("arity-error: function %s expects %d arguments, %d provided", symbol.Name, v.Arguments, len(n.Args))
+				}
 			}
 
 			for _, a := range n.Args {
@@ -653,6 +700,70 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 	default:
 		return fmt.Errorf("emitExpr: Unhandled node type:%T value:%V", n, n)
 	}
+	return nil
+}
+
+// emitVariadicCall compiles a call to a function which expects a variable number of arguments,
+// what this means is that any arguments which are present are converted into a list and passed
+// as a single argument.
+func (c *Compiler) emitVariadicCall(name string, expected int, args []parser.Expr, ev *env.Env) error {
+
+	regs := []string{
+		"rdi",
+		"rsi",
+		"rdx",
+		"rcx",
+		"r8",
+		"r9",
+	}
+
+	//
+	// Fixed arguments.
+	//
+	fixed := 0
+	if expected > 0 {
+		fixed = expected - 1
+	}
+
+	// evaluate fixed args
+	for i := 0; i < fixed; i++ {
+		if err := c.emitExpr(args[i], ev); err != nil {
+			return err
+		}
+		c.emitln("    push rax")
+	}
+
+	//
+	// Build a list for all the additional arguments.
+	//
+
+	c.emitln("    xor rax,rax")
+	c.emitln("    TAG_NIL_REG rax")
+
+	for i := len(args) - 1; i >= fixed; i-- {
+
+		c.emitln("    push rax")
+
+		if err := c.emitExpr(args[i], ev); err != nil {
+			return err
+		}
+
+		c.emitln("    mov rdi,rax")
+		c.emitln("    pop rsi")
+		c.emitln("    call fn_cons")
+	}
+
+	// Push resulting list.
+	c.emitln("    push rax")
+
+	//
+	// Pop registers.
+	//
+	for i := fixed; i >= 0; i-- {
+		c.emitln(fmt.Sprintf("    pop %s", regs[i]))
+	}
+
+	c.emitln("    call " + c.asmName(name))
 	return nil
 }
 

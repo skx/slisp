@@ -96,11 +96,30 @@ func (p *Parser) parseDefun() (*Defun, error) {
 	}
 
 	var params []string
+	variadic := false
 	for p.peek() != ")" && p.peek() != "" {
 		params = append(params, p.next())
 	}
 	if !p.expectNext(")") {
 		return nil, fmt.Errorf("expected ')' after defun arguments")
+	}
+
+	// Updated parameters with "&" removed.
+	tmp := []string{}
+
+	// If the last, and only the last, argument has a "&" prefix
+	// then it should be removed and the function noted as having
+	// variadic arguments.
+	for i, param := range params {
+		if strings.HasPrefix(param, "&") {
+			if i == len(params)-1 {
+				param = strings.TrimPrefix(param, "&")
+				variadic = true
+			} else {
+				return nil, fmt.Errorf("only the last parameter may have a &-prefix, saw it on %s: %s", name, param)
+			}
+		}
+		tmp = append(tmp, param)
 	}
 
 	// body goes here
@@ -138,9 +157,10 @@ func (p *Parser) parseDefun() (*Defun, error) {
 	}
 
 	return &Defun{
-		Name:   name,
-		Params: params,
-		Exprs:  body,
+		Name:     name,
+		Params:   tmp,
+		Exprs:    body,
+		Variadic: variadic,
 	}, nil
 }
 

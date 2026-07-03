@@ -24,6 +24,7 @@ func FuzzProject(f *testing.F) {
 
 		// defun
 		"expected defun",
+		"only the last parameter may have a &-prefix",
 
 		// variables
 		"unknown variable",
@@ -50,6 +51,13 @@ func FuzzProject(f *testing.F) {
 		"(defun main() (print (* 0 0)))",
 		"(defun main() (print (/ 0 0)))",
 		"(defun main() (print (% 0 0)))",
+
+		// params
+		"(defun foo( a b &c) a)     (defun main() (foo 1 2 3 4 ))",
+		"(defun foo( &a) a)         (defun main() (foo 1 2 3 4 ))",
+		"(defun foo(a b &c) (+ a b) (defun main() (foo 1))",
+		"(defun foo(a b &c) (+ a b) (defun main() (foo 1 2))",
+		"(defun foo(a b &c) (+ a b) (defun main() (foo 1 2 3))",
 
 		// type-checking
 		"(defun main() (print (cons? 0)))",

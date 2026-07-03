@@ -17,23 +17,35 @@
 
 ;;; printing functions
 
-(defun print (x)
-  "Print the given item intelligently."
-  (cond
-    ((char? x)   (putc x))
-    ((float? x)  (printfloat x))
-    ((int? x)    (printint x))
-    ((lambda? x) (printstr "<lambda>"))
-    ((nil? x)    (printstr "<nil>"))
-    ((str? x)    (printstr x))
-    ((cons? x)   (do
-                  (putc #\()
-                  (print-cons x)  ; List items, separated by spaces
-                  (putc #\))))
-    (t           (printstr "unknown type"))))
+;; print every item in a list.
+(defun print (&xs)
+  "Print everything we're given.
+
+This function accepts variadic arguments, and maps against a local lambda to
+do the right thing for each entry in the given list."
+  (map (lambda (x)
+         (cond
+           ((char? x)   (putc x))
+           ((float? x)  (printfloat x))
+           ((int? x)    (printint x))
+           ((lambda? x) (printstr "<lambda>"))
+           ((nil? x)    (printstr "<nil>"))
+           ((str? x)    (printstr x))
+           ((cons? x)   (do
+                         (putc #\()
+                         (print_cons x)  ; List items, separated by spaces
+                          (putc #\))))
+           (t           (printstr "unknown type")))) xs))
 
 
-(defun print-cons (x)
+(defun println (&xs)
+  "Print everything as 'print' would, but append a newline afterwards."
+  ; print everything
+  (map (lambda (x) (print x)) xs)
+  ; then a newline
+  (newline))
+
+(defun print_cons (x)
   "Print the contents of the cons X, recursively."
   (print (car x))
   (if (nil? (cdr x))
@@ -47,19 +59,13 @@
            (print (cdr x))))))
 
 
-(defun println (x)
-  "Print everything as 'print' would, but append a newline afterwards."
-  (print x)
-  (newline))
-
-
 
 
 
 ;;; logical functions
 
 
-(defun and (xs)
+(defun and (&xs)
   "Return true if every item in the specified list is true.
 
 NOTE: This is not a macro, so all arguments are evaluated."
@@ -72,7 +78,7 @@ NOTE: This is not a macro, so all arguments are evaluated."
   (nil? x))
 
 
-(defun or (xs)
+(defun or (&xs)
   "Return true if any value in the specified list contains a true value.
 
 NOTE: This is not a macro, so all arguments are evaluated."
