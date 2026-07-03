@@ -6,10 +6,7 @@
 (defun fibonaccis (xs)
   (if xs
       (do
-       (print "\tfibonacci ")
-       (print (car xs))
-       (print ": ")
-       (println (fibonacci (car xs)))
+       (println "\tfibonacci " (car xs) ": " (fibonacci (car xs)))
        (fibonaccis (cdr xs)))))
 
 ;;

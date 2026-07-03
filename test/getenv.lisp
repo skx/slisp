@@ -11,4 +11,7 @@
 
   ;; split on "*" - will not be found -> nil
   (println (split "foo=bar" #\:))
+
+  ;; split an imaginary path
+  (println (split-all "/bin:/sbin:/usr/bin:/usr/sbin:/home/skx/bin:/opt/go/bin:/opt/firefox:::/opt/homebrew/bin" #\:))
   )
