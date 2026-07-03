@@ -16,13 +16,9 @@
 (defun fact (n)
   (if (<= n 1) 1 (* n (fact (- n 1)))))
 
-;; print the factorial of every number in the given list
+;; print the factorial of every number in the given list, via map.
 (defun factorials (xs)
-  (if xs
-      (do
-       (println "\tfactorial " (car xs) ": " (fact (car xs)))
-        (factorials (cdr xs)))
-      ))
+  (map (lambda (n) (println "\tfactorial " n ": " (fact n))) xs))
 
 ;;
 ;; main is the entry-point to our compiled code.
@@ -52,28 +48,24 @@ This must always be defined, and is where execution starts from."
          (println "Hello, I am a working 'if' statement!"))
 
       (println "Some random maths now:")
-      (println (square y))
-      (println (double x))
+      (println "\t" (square y))
+      (println "\t" (double x))
 
       ;; now some factorials, and list operations.
       ;;
       ;; Define the list of numbers (1-10)
       (let ((n (list 1 2 3 4 5 6 7 8 9 10)))
 
-         (print "We have a list of numbers: ")
-         (println n)
+         (println "We have a list of numbers: " n)
 
-         (print "Reversed: ")
-         (println (reverse n))
+         (println "Reversed: " (reverse n))
 
          (println "Showing results of factorial for each entry in that list:")
          (factorials n)
 
-         (print "Summing those numbers: ")
-         (println (sum n))
+         (println "Summing those numbers: " (sum n))
 
-         (print "The length of the list of numbers we handled: " )
-         (println (length n))
+         (println "The length of the list of numbers we handled: " (length n))
 
          (print "Squaring every item of the list, using map:" )
          (println (map (lambda (x) (square x)) n))
@@ -90,11 +82,10 @@ This must always be defined, and is where execution starts from."
 
       ; create a cons cell, and print it :)
       (println "Creating some cons cells and printing them")
-      (println (cons (cons (cons 12 31) 392) nil))
-      (println (cons 1 (cons 2 (cons 3 nil))))
+      (println "\t" (cons (cons (cons 12 31) 392) nil))
+      (println "\t" (cons 1 (cons 2 (cons 3 nil))))
 
       ;; return value is the last thing compiled.
-      0
       ;; You can be more explicit with (exit 0)
       (exit 0)
       ))
