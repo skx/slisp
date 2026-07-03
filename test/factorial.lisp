@@ -6,10 +6,7 @@
 (defun factorials (xs)
   (if xs
       (do
-       (print "\tfactorial ")
-       (print (car xs))
-       (print ": ")
-       (println (fact (car xs)))
+       (println "\tfactorial " (car xs) ": " (fact (car xs)))
        (factorials (cdr xs)))))
 
 ;;
