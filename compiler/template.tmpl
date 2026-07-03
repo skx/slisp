@@ -737,25 +737,39 @@ fn_printstr:
 ;;; 5.4. fn_XXX - alphabetical order
 
 ;; Get the first item in the cons cell.
+;; Note: calling (car nil) will return nil.
 FUNC fn_car
     mov rbx, rdi
     GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_NIL
+    jz .nil
     cmp rbx, TAG_ID_CONS
     jne type_error
     UNTAG_REG rdi
     mov rax, [rdi]
     ret
+.nil:
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
 
 
 
 ;; Get the second item in the cons cell.
+;; Note: calling (cdr nil) will return nil.
 FUNC fn_cdr
     mov rbx, rdi
     GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_NIL
+    jz .nil
     cmp rbx, TAG_ID_CONS
     jne type_error
     UNTAG_REG rdi
     mov rax, [rdi + 8]
+    ret
+.nil:
+    xor rax, rax
+    TAG_NIL_REG rax
     ret
 
 
