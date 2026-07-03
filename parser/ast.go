@@ -13,7 +13,7 @@ type Char struct {
 }
 
 type Float struct {
-       Value float64
+	Value float64
 }
 
 type Int struct {
@@ -53,9 +53,18 @@ type Cond struct {
 }
 
 type Defun struct {
-	Name   string
+	// Name of the function being defined.
+	Name string
+
+	// The names of the parameter variables.
 	Params []string
-	Exprs  []Expr
+
+	// Is this function variadic?
+	// If so the last argument will get a list.
+	Variadic bool
+
+	// Exprs contains the expressions in the body of the function.
+	Exprs []Expr
 }
 
 type Do struct {
@@ -93,4 +102,3 @@ type While struct {
 	Cond  Expr
 	Exprs []Expr
 }
-
