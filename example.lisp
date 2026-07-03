@@ -4,23 +4,6 @@
 ;;
 
 
-;; print every item in a list.
-;;
-;; (print ..) is included in stdlib.slisp, and knows how to print
-;; integers, nil, strings, cons cells, etc.
-;;
-(defun print_list (xs)
-  (if xs
-      (do
-       (print (car xs))
-       (print_list (cdr xs)))))
-
-;; print every item in a list, then add a newline.
-(defun print_list_ln (xs)
-  (print_list xs)
-  (newline))
-
-
 ;; double the given argument
 (defun double (x)
   (* x 2))
@@ -37,7 +20,7 @@
 (defun factorials (xs)
   (if xs
       (do
-       (print_list_ln (list "\tfactorial " (car xs) ": " (fact (car xs))))
+       (println "\tfactorial " (car xs) ": " (fact (car xs)))
         (factorials (cdr xs)))
       ))
 
@@ -98,11 +81,11 @@ This must always be defined, and is where execution starts from."
          (print "List time is over now.\n\n"))
 
 
-      (println "Expect 10 from this (named) lambda:")
+      (print "Expect 10 from this (named) lambda: ")
       (let ((x (lambda (a b) (+ a b))))
         (println (x 3 7)))
 
-      (println "Expect 10 from this (immediate) lambda:")
+      (print "Expect 10 from this (immediate) lambda: ")
       (println ( (lambda (a) (+ 3 a)) 7))
 
       ; create a cons cell, and print it :)
@@ -113,4 +96,5 @@ This must always be defined, and is where execution starts from."
       ;; return value is the last thing compiled.
       0
       ;; You can be more explicit with (exit 0)
+      (exit 0)
       ))
