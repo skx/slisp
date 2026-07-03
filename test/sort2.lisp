@@ -29,7 +29,7 @@
     (println input))
 
   ;; Sort words
-  (let ((input (list "The" "Quick" "Brown" "Fox" "Jumped" "Over" "The" "Cake")))
+  (let ((input (split-all "The Quick Brown Fox Jumped Over The Cake" #\ )))
     (print "Before: ")
     (println input)
     (set! input (sort-by (lambda (a b) (> 0 (strcmp a b))) input))
