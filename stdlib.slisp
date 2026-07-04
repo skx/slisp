@@ -81,6 +81,13 @@ do the right thing for each entry in the given list."
         (if (= 1 (car res))
             t))))
 
+(defun which (binary)
+  "Return the complete path to the file, on the system $PATH, if possible"
+  (let ((path (split-all (getenv "PATH") #\:))
+        (res (filter path (lambda (dir) (exists? (join (list dir "/" binary)))))))
+    (if res
+        (join (list (car res) "/" binary)))))
+
 
 
 
