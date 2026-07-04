@@ -242,6 +242,23 @@ strp:
     jmp is_type
 
 
+;; numeric?
+numericp:
+    mov rax, rdi
+    GET_TAG_BITS rax
+    call is_numeric
+    cmp rax, 0
+    jnz .true
+.nil:
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+.true:
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+
+
 ;; Internal helper
 is_numeric:
     cmp rax,TAG_ID_INTEGER
