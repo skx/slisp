@@ -36,7 +36,12 @@ func (l *Lexer) Tokenize() ([]string, error) {
 
 	flush := func() {
 		if cur.Len() > 0 {
-			out = append(out, cur.String())
+			val := cur.String()
+			if strings.HasPrefix(val, ":") {
+				val = val[1:]
+				val = "\"" + val + "\""
+			}
+			out = append(out, val)
 			cur.Reset()
 		}
 	}
