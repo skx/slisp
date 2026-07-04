@@ -148,6 +148,8 @@ Note that functions have their names mangled a little bit ("-" is converted to "
      * Everything else returns an empty string.
   * `strlen`
     * Return the length of the given string.
+  * `unlink`
+    * Delete the named file.
 
 
 
@@ -224,6 +226,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return a list of numbers from 0 to N.
 * `sum`
   * Sum the values in the given list.
+* `which`
+  * Find the complete path to the given binary, searching each directory on the $PATH.
 * `zero?`
   * Return true if the number is zero.
 
