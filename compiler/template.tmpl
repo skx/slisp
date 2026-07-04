@@ -37,6 +37,7 @@ SYS_close       equ 3
 SYS_stat        equ 4
 SYS_lseek       equ 8
 SYS_exit        equ 60
+SYS_unlink      equ 87
 SYS_getdents64  equ 217
 SYS_getrandom   equ 318
 
@@ -1983,6 +1984,27 @@ FUNC fn_strlen
 .found_end:
     TAG_INTEGER_REG rax
     ret
+
+
+;; Delete the given file.
+FUNC fn_unlink
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    mov rax, SYS_unlink
+    syscall
+    test rax,rax
+    js .failure
+    TAG_INTEGER_REG rax
+    ret
+.failure:
+    xor rax,rax
+    TAG_NIL_REG rax
+    ret
+
 
 
 

@@ -64,7 +64,7 @@ It should be noted that we prepend a standard library of functions to all user p
 * File I/O operations:
   * `fopen`, `fclose`, `fread`, and `fwrite`.
 * Filesystem primitive:
-  * `entries`, `stat`, `dir?`, `exists?`, and `file?`.
+  * `dir?`, `entries`, `exists?`, `file?`, `stat`, `unlink` and `which`.
 * Comparison operations:
   * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
 * Special forms
