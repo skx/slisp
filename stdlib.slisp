@@ -40,9 +40,9 @@ do the right thing for each entry in the given list."
 
 (defun println (&xs)
   "Print everything as 'print' would, but append a newline afterwards."
-  ; print everything
+                                        ; print everything
   (map (lambda (x) (print x)) xs)
-  ; then a newline
+                                        ; then a newline
   (newline))
 
 (defun print_cons (x)
@@ -138,6 +138,18 @@ NOTE: This is not a macro, so all arguments are evaluated."
 ;;; Maths functions
 
 
+;; when looking at online lisp I see "=" "equal" "eq" and "eq?" being used
+;; to ease portability define aliases for these.
+
+(defun equal (a b)
+  (= a b))
+
+(defun eq (a b)
+  (= a b))
+
+(defun eq? (a b)
+  (= a b))
+
 (defun abs (n)
   "Return the absolute value of N, as a positive number"
   (if (< n 0) (- 0 n) n))
@@ -204,13 +216,34 @@ NOTE: This is not a macro, so all arguments are evaluated."
 
 
 
+;;; List-access methods
+
+
+;; I hate these functions and almost never use them.
+;;
+;; But they are a kinda standard.
+
+(defun caar (x)
+  (car (car x)))
+
+(defun cadr (x)
+  (car (cdr x)))
+
+(defun cdar (x)
+  (cdr (car x)))
+
+(defun cddr (x)
+  (cdr (cdr x)))
+
 ;;; List-creation methods
+
+
 
 (defun range (start end step)
   "Create a list of numbers between the start and end bounds, inclusive.
 Incrementing by the given step each time."
-    (if (<= start end)
-        (cons start (range (+ start step) end step))
+  (if (<= start end)
+      (cons start (range (+ start step) end step))
       nil))
 
 
@@ -227,7 +260,7 @@ Incrementing by the given step each time."
 (defun repeated (n x)
   "Return a list of length n whose elements are all x."
   (if (pos? n)
-    (cons x (repeated (- n 1) x))))
+      (cons x (repeated (- n 1) x))))
 
 
 
@@ -292,8 +325,8 @@ Incrementing by the given step each time."
 (defun join-helper (xs acc)
   (if xs
       (join-helper
-          (cdr xs)
-          (strcat acc (car xs)))
+       (cdr xs)
+       (strcat acc (car xs)))
       acc))
 
 
@@ -307,10 +340,10 @@ Incrementing by the given step each time."
 (defun join-rest (xs acc sep)
   (if xs
       (join-rest
-          (cdr xs)
-          (strcat (strcat acc sep)
-                  (car xs))
-          sep)
+       (cdr xs)
+       (strcat (strcat acc sep)
+               (car xs))
+       sep)
       acc))
 
 
