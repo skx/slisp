@@ -111,6 +111,8 @@ Note that functions have their names mangled a little bit ("-" is converted to "
   * `int`
     * Convert the given float, or character, to an integer.
     * Anything else becomes zero.
+  * `mkdir`
+    * Create the named directory.  **NOTE**: Mode is fixed at 0755, and parent directories must exist.
   * `newline`
     * Print a newline.
   * `not`
@@ -129,6 +131,8 @@ Note that functions have their names mangled a little bit ("-" is converted to "
     * Print the given string.
   * `random`
     * Return a random integer between zero and N.
+  * `rmdir`
+    * Remove the named directory.
   * `setnth`
     * Update the Nth item in the given list with the specified value.
     * The list is updated in-place.
