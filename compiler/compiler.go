@@ -300,8 +300,6 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				return err
 			}
 
-			c.emitln(fmt.Sprintf("; call to function %s", symbol.Name))
-
 			regs := []string{
 				"rdi",
 				"rsi",
@@ -334,9 +332,13 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			}
 
 			// lambda?
+			// This covers the case where  a lambda is stored in the
+			// environment/symbol table, bound to a variable, such as
+			//
+			//       (let ((x (lambda (a b) (+ a b))))
+			//         (println (x 3 7)))
+			//
 			if offset, ok := ev.Lookup(symbol.Name); ok {
-
-				c.emitln(fmt.Sprintf("; %s is a lambda", symbol.Name))
 
 				c.emitln(fmt.Sprintf(
 					"    mov rax,[rbp-%d]",
@@ -352,15 +354,16 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				return nil
 			} else {
 				// defun
-				c.emitln(fmt.Sprintf("; %s is a function", symbol.Name))
-
 				c.emitln("    call " + c.asmName(symbol.Name))
 				return nil
 			}
 		}
 
-		c.emitln("; callable function, as a lambda")
-
+		//
+		// This covers an (anonymous) inline lambda which isn't
+		// stored in our symbol/environment table such as:
+		//  (println ( (lambda (a) (/ 100 a)) 10))
+		//
 		regs := []string{
 			"rdi",
 			"rsi",
