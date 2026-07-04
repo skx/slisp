@@ -1,0 +1,8 @@
+(defun main ()
+  (println (numeric? 3))
+  (println (numeric? 3.0))
+  (println (numeric? #\a))
+  (println (numeric? (lambda (x) x)))
+  (println (numeric? nil))
+  (println (numeric? (list 3 4 )))
+  (println (numeric? "string")))
