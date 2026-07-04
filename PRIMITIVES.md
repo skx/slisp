@@ -70,6 +70,7 @@ Note that functions have their names mangled a little bit ("-" is converted to "
 
 * Type checking functions:
   * `char?`, `cons?`, `float?`, `int?`, `lambda?`, `nil?`, and `str?`.
+  * The `numeric?` primitive will return true for ints, floats, and characters.
 * mathematical operations  `*`, `+`, `-`, and `/`.
   * These work against integers, floating point numbers, or mixed operands.
 * (Integer) comparison operations
