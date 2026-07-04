@@ -61,8 +61,10 @@ It should be noted that we prepend a standard library of functions to all user p
 * A rough and ready bump-allocator used for heap-allocated cons-cells.
 * Mathematical operations `+`, `-`, `*`, and `/`.
   * These work against integers, floating point numbers, or combination of the two.
-* File I/O operations
+* File I/O operations:
   * `fopen`, `fclose`, `fread`, and `fwrite`.
+* Filesystem primitive:
+  * `entries`.
 * Comparison operations:
   * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
 * Special forms

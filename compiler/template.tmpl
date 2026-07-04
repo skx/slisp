@@ -6,8 +6,9 @@
 ;;    ld -o example example.o
 ;;
 
-;; contents
+;; Contents of this file:
 ;;
+;; 0. definitions
 ;; 1. macros
 ;; 2. User-defined functions (defuns)
 ;; 3. User-defined lambdas
@@ -20,6 +21,30 @@
 ;; 5.4 fn_XXX
 ;; 6. string literals
 ;; 7. floating-point literals
+
+
+
+
+;;; 0. definitions
+
+;; syscalls - searchable list online here
+;;  https://filippo.io/linux-syscall-table/
+
+SYS_read        equ 0
+SYS_write       equ 1
+SYS_open        equ 2
+SYS_close       equ 3
+SYS_lseek       equ 8
+SYS_exit        equ 60
+SYS_getdents64  equ 217
+SYS_getrandom   equ 318
+
+
+;; (entries)
+O_RDONLY        equ 0
+O_DIRECTORY     equ 0200000o
+
+
 
 
 ;;; 1. macros
@@ -180,7 +205,7 @@ _start:
     call fn_main
     mov rdi, rax               ; exit code is the last expression
     UNTAG_REG rdi
-    mov rax, 60
+    mov rax, SYS_exit
     syscall
 
 
@@ -601,7 +626,7 @@ section .text.printing,"ax",@progbits
 
 ;; print a newline.
 fn_newline:
-    mov rax, 1              ; SYS_write
+    mov rax, SYS_write
     mov rdi, 1              ; stdout
     mov rsi, random_buffer  ; point to the buffer
     mov byte [rsi], 10      ; add a newline character there
@@ -624,7 +649,7 @@ fn_printfloat:
     ; format into the random buffer, and return it.
     call fn_printfloat_format
 .write:
-    mov rax, 1
+    mov rax, SYS_write
     mov rdi, 1
     mov rdx, rcx
     syscall
@@ -729,7 +754,7 @@ fn_printint:
     ; random buffer, and return it.
     call fn_printint_format
 .write:
-    mov rax, 1
+    mov rax, SYS_write
     mov rdi, 1
     mov rdx, rcx
     syscall
@@ -791,8 +816,8 @@ fn_printstr:
     jmp .printstr_len_loop
 .printstr_found_len:
     pop rsi
-    mov rax, 1      ; write
-    mov rdi, 1      ; stdout
+    mov rax, SYS_write
+    mov rdi, 1                ; stdout
     syscall
     ret
 
@@ -865,6 +890,103 @@ FUNC fn_cons
 
 
 
+;; Return a list of directory-entries beneath the given prefix.
+;; Return nil on failure.
+FUNC fn_entries
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+
+    mov eax, SYS_open                     ; Open the directory for processing.
+    mov esi, O_RDONLY | O_DIRECTORY
+    xor edx, edx
+    syscall
+    test rax, rax
+    js .failure
+
+    mov r12, rax                           ; directory fd
+
+    xor r13, r13                           ; End of the list will have NIL in it.
+    TAG_NIL_REG r13
+
+.read_directory:
+    mov eax, SYS_getdents64                ; Read the entries
+    mov rdi, r12
+    mov rsi, dir_buffer
+    mov edx, dir_buffer_end - dir_buffer
+    syscall
+    test rax, rax
+    js .close_failure
+    test rax, rax
+    jz .done_reading
+
+    mov r14, dir_buffer                    ; Process each entry in a loop
+    lea r15, [dir_buffer + rax]
+.next_entry:
+    cmp r14, r15
+    jae .read_directory
+
+
+    movzx ebx, word [r14+16]               ; Save record length
+    lea r8, [r14+19]                       ; Get the filename
+
+    xor r9, r9                             ; Get the length of the filename in r9
+.length_loop:
+    cmp byte [r8+r9], 0
+    je .length_done
+    inc r9
+    jmp .length_loop
+
+.length_done:
+    mov r10, r9                             ; Allocate length+1 (rounded)
+    inc r10
+    add r10, 7
+    and r10, -8
+    mov r11, [heap_ptr]
+    add [heap_ptr], r10
+
+    mov rdi, r11                            ; Copy string into newly allocated memory in R11
+    mov rsi, r8
+.copy:
+    mov al, [rsi]
+    mov [rdi], al
+    inc rsi
+    inc rdi
+    test al, al
+    jne .copy
+
+    mov rdi, r11                            ; The entry is a string
+    TAG_STRING_REG rdi
+
+    mov rsi, r13                            ; Add to our list
+    call fn_cons
+
+    mov r13, rax                            ; Save the updated list head
+
+    add r14, rbx                            ; Process the next entry
+    jmp .next_entry
+
+.done_reading:
+    mov eax, SYS_close                      ; Close the directory
+    mov rdi, r12
+    syscall
+    mov rax, r13                            ; Return the list
+    ret
+.close_failure:
+    mov eax, SYS_close
+    mov rdi, r12
+    syscall
+.failure:
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+
+
+
+
 ;; Return a list of all environmental variables
 FUNC fn_environment
     mov rbx, [envp_ptr]
@@ -903,7 +1025,7 @@ FUNC fn_environment
 ;; terminate execution with the given exit-code
 FUNC fn_exit
     UNTAG_REG rdi
-    mov rax, 60     ; sys_exit
+    mov rax, SYS_exit
     syscall
     ret
 
@@ -960,7 +1082,7 @@ FUNC fn_fclose
     jne type_error
 
     UNTAG_REG rdi
-    mov rax, 3            ; SYS_close
+    mov rax, SYS_close
     syscall
     xor rax, rax          ; return nil
 .fclose_return_nil:
@@ -998,19 +1120,19 @@ FUNC fn_fopen
     ret
 
 .fopen_append:
-        mov rax, 2          ; SYS_open
+        mov rax, SYS_open
         mov rsi, 1089       ; O_WRONLY|O_CREAT|O_APPEND
         mov rdx, 0o644
         syscall
         jmp .fopen_done
 .fopen_read:
-        mov rax, 2          ; SYS_open
+        mov rax, SYS_open
         mov rsi, 0          ; O_RDONLY
         xor rdx, rdx
         syscall
         jmp .fopen_done
 .fopen_write:
-        mov rax, 2          ; SYS_open
+        mov rax, SYS_open
         mov rsi, 577        ; O_WRONLY|O_CREAT|O_TRUNC
         mov rdx, 0o644
         syscall
@@ -1041,7 +1163,7 @@ FUNC fn_fread
         UNTAG_REG rdi
         mov [random_buffer], rdi   ; save file handle
 
-        mov rax, 8                 ; SYS_lseek
+        mov rax, SYS_lseek
         xor rsi, rsi               ; offset = 0
         mov rdx, 2                 ; SEEK_END
         syscall
@@ -1085,7 +1207,7 @@ FUNC fn_fread
         mov rdx, rbx
         sub rdx, r13                ; remaining bytes
 
-        xor rax, rax                ; SYS_read
+        mov rax, SYS_read
         syscall
 
         test rax, rax               ; failed to read
@@ -1166,7 +1288,7 @@ FUNC fn_fwrite
         UNTAG_REG rdi
         UNTAG_REG rdx
 
-        mov rax, 1             ; SYS_write
+        mov rax, SYS_write
         syscall
         TAG_INTEGER_REG rax
         ret
@@ -1180,7 +1302,7 @@ FUNC fn_fwrite
 
 ;; Read an ASCII character from STDIN, return NIL on failure.
 FUNC fn_getc
-     mov     rax, 0        ; SYS_read
+     mov     rax, SYS_read
      mov     rdi, 0        ; STDIN
      mov rsi, random_buffer
      mov     rdx, 1        ; 1 byte
@@ -1365,7 +1487,7 @@ FUNC fn_putc
     mov rax, rdi
     UNTAG_REG rax
     mov [random_buffer],  al  ; store character
-    mov rax, 1                ; SYS_write
+    mov rax, SYS_write
     mov rdi, 1                ; STDOUT
     mov rsi, random_buffer
     mov rdx, 1              ; 1 byte
@@ -1384,7 +1506,7 @@ FUNC fn_random
     UNTAG_REG rdi
     push rdi                        ; push the limit
 
-    mov rax, 318               ; syscall: getrandom
+    mov rax, SYS_getrandom
     lea rdi, [ random_buffer]  ; random value location
     mov rsi, 4                 ; number of bytes
     xor rdx, rdx               ; flags = 0
@@ -1559,7 +1681,6 @@ FUNC fn_split
     mov rax, rbx
     TAG_CONS_REG rax
     ret
-
 
 
 ;; join the two given strings and return a new one.
@@ -1847,6 +1968,11 @@ heap_ptr:
 ;; start of the environmental variable array
 envp_ptr:
     resq 1
+
+;; buffer for reading directory entries
+dir_buffer:
+    resb 1024 * 1024
+dir_buffer_end:
 
 ;; heap storage
 heap:
