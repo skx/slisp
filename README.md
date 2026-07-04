@@ -1,10 +1,8 @@
 # slisp
 
-This repository contains `slisp` a compiler which will read lisp programs as input, and generate standalone assembly representations for Linux/AMD64.
+This repository contains `slisp` (either named for "Steve's Lisp Compiler", or "Simple Lisp Compiler"), which is a compiler reading Lisp programs as input, generating standalone assembly representations for Linux/AMD64 as output.
 
-> The project is either named for "Simple Lisp" or "Steve's lisp", take your pick.
-
-Lisp is traditionally interactive, and provides a REPL, but having a compiled version is still useful, and still allows most common lisp-programs to execute.
+Lisp is traditionally interactive, and provides a REPL, which this project is not.  That said it's still a great way to execute programs, and a good project for learning (either using a compiled lisp, or implementing one).
 
 Quick links:
 
