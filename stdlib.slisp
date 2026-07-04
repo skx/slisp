@@ -63,6 +63,14 @@ do the right thing for each entry in the given list."
 
 ;;; filesystem primitives
 
+
+(defun dir? (path)
+  "Is the given path a directory?"
+  (let ((res (stat path)))
+    (if res
+        (if (= 1 (car res))
+            t))))
+
 (defun exists? (path)
   "Does the named path exist?"
   (cons? (stat path)))
@@ -74,12 +82,21 @@ do the right thing for each entry in the given list."
         (if (= 0 (car res))
             t))))
 
-(defun dir? (path)
-  "Is the given path a directory?"
-  (let ((res (stat path)))
-    (if res
-        (if (= 1 (car res))
-            t))))
+(defun mkdirs (path)
+  "Make the given directory, creating parent directories as necessary"
+  (mkdirs-helper (split-all path #\/) nil))
+
+(defun mkdirs-helper (parts current)
+  (if (nil? parts)
+      t
+      (let ((next (if (nil? current)
+                      (car parts)
+                      (strcat (strcat current "/")
+                              (car parts)))))
+        ;; make the next part if this part already exist.
+        (if (not (dir? next))
+            (mkdir next))
+        (mkdirs-helper (cdr parts) next))))
 
 (defun which (binary)
   "Return the complete path to the file, on the system $PATH, if possible"
