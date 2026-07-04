@@ -203,7 +203,7 @@ func (c *Compiler) Compile() (string, error) {
 // and strings, based on the SHA1-hash.  Interning them.
 func (c *Compiler) addThing(f any) string {
 	hasher := sha1.New()
-	hasher.Write([]byte(fmt.Sprintf("%f", f)))
+	hasher.Write(fmt.Appendf(nil, "%f", f))
 	sha := hex.EncodeToString(hasher.Sum(nil))
 	id := fmt.Sprintf("float_%s", sha)
 	return id

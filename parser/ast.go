@@ -4,7 +4,7 @@ package parser
 // AST
 //
 
-type Expr interface{}
+type Expr any
 
 // Types
 
