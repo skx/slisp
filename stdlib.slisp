@@ -61,6 +61,28 @@ do the right thing for each entry in the given list."
 
 
 
+;;; filesystem primitives
+
+(defun exists? (path)
+  "Does the named path exist?"
+  (cons? (stat path)))
+
+(defun file? (path)
+  "Is the given path a file?"
+  (let ((res (stat path)))
+    (if res
+        (if (= 0 (car res))
+            t))))
+
+(defun dir? (path)
+  "Is the given path a directory?"
+  (let ((res (stat path)))
+    (if res
+        (if (= 1 (car res))
+            t))))
+
+
+
 
 ;;; logical functions
 

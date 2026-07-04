@@ -84,6 +84,9 @@ Note that functions have their names mangled a little bit ("-" is converted to "
     * Return the ASCII character corresponding to the given integer.
   * `cons`
     * Add the element to the start of the given (potentially empty) list.
+  * `entries`
+    * Return the names of all files in the given directory.
+    * See [test/entries.lisp](test/entries.lisp) for an example
   * `environment`
     * Return a list of all environmental variables.
   * `exit`
@@ -134,6 +137,8 @@ Note that functions have their names mangled a little bit ("-" is converted to "
   * `split-all`
     * Return a list of all parts of string, split by the character.
     * e.g. `(split-all (getenv "PATH") #\:)` to find all directories on the PATH.
+  * `stat`
+    * Returns file information as a list (TYPE SIZE MODE), or nil on failure.
   * `strcat`
     * Join two strings together and return them.
   * `strcmp`
@@ -158,8 +163,14 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Test if every item in a list is true.
 * `append`
   * Append the given value to the specified list.  If the list is empty just return the specified item.
+* `dir?`
+  * Does the given path exist as a directory?
 * `even?`
   * Return 1 if the given number is even, nil otherwise.
+* `exists?`
+  * Does the given filename exist?
+* `file?`
+  * Does the given path exist as a file?
 * `filter`
   * Return a list consisting of all members of the input list for which the given predicate returns non-nil.
 * `find`
