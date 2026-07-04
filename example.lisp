@@ -78,7 +78,7 @@ This must always be defined, and is where execution starts from."
         (println (x 3 7)))
 
       (print "Expect 10 from this (immediate) lambda: ")
-      (println ( (lambda (a) (+ 3 a)) 7))
+      (println ( (lambda (a) (/ 100 a)) 10))
 
       ; create a cons cell, and print it :)
       (println "Creating some cons cells and printing them")
