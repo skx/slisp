@@ -34,6 +34,7 @@ SYS_read        equ 0
 SYS_write       equ 1
 SYS_open        equ 2
 SYS_close       equ 3
+SYS_stat        equ 4
 SYS_lseek       equ 8
 SYS_exit        equ 60
 SYS_getdents64  equ 217
@@ -43,6 +44,16 @@ SYS_getrandom   equ 318
 ;; (entries)
 O_RDONLY        equ 0
 O_DIRECTORY     equ 0200000o
+
+;; (stat)
+S_IFMT          equ 0170000o
+S_IFSOCK        equ 0140000o
+S_IFLNK         equ 0120000o
+S_IFREG         equ 0100000o
+S_IFBLK         equ 0060000o
+S_IFDIR         equ 0040000o
+S_IFCHR         equ 0020000o
+S_IFIFO         equ 0010000o
 
 
 
@@ -1680,6 +1691,104 @@ FUNC fn_split
     mov [rbx+8], rax
     mov rax, rbx
     TAG_CONS_REG rax
+    ret
+
+
+
+;;
+;; stat(path)
+;;
+;; Returns:
+;;
+;;    (type size mode)
+;;
+;; type:
+;;    0 = regular file
+;;    1 = directory
+;;    2 = symlink
+;;    3 = character device
+;;    4 = block device
+;;    5 = fifo
+;;    6 = socket
+;;
+;; Returns NIL on failure.
+;;
+
+FUNC fn_stat
+    mov rbx,rdi                      ; type-check arg1: string
+    GET_TAG_BITS rbx
+    cmp rbx,TAG_ID_STRING
+    jne type_error
+    UNTAG_REG rdi
+
+    sub rsp, 160                     ; Reserve space for struct stat.
+
+    mov eax,SYS_stat
+    mov rsi,rsp                      ; stack buffer
+    syscall
+    test rax,rax
+    js .failure
+
+    movzx eax,word [rsp+24]          ; Get the mode
+    mov ecx,eax                      ; save it
+
+    and eax,S_IFMT
+    xor edx,edx                      ; default = regular file
+
+    cmp eax,S_IFREG                  ; compare against other explicitly known types
+    je .type_done
+    mov edx,1
+    cmp eax,S_IFDIR
+    je .type_done
+    mov edx,2
+    cmp eax,S_IFLNK
+    je .type_done
+    mov edx,3
+    cmp eax,S_IFCHR
+    je .type_done
+    mov edx,4
+    cmp eax,S_IFBLK
+    je .type_done
+    mov edx,5
+    cmp eax,S_IFIFO
+    je .type_done
+    mov edx,6
+    cmp eax,S_IFSOCK
+    je .type_done
+
+    xor edx,edx                        ; unknown -> regular file
+
+.type_done:
+    xor r13,r13                ; create nil for end of list
+    TAG_NIL_REG r13
+
+    mov eax,ecx                ; add mode
+    and eax,0777o
+    TAG_INTEGER_REG rax
+    mov rdi,rax
+    mov rsi,r13
+    call fn_cons
+    mov r13,rax
+
+    mov rax,[rsp+48]           ; add size
+    TAG_INTEGER_REG rax
+    mov rdi,rax
+    mov rsi,r13
+    call fn_cons
+    mov r13,rax
+
+    mov eax,edx                ; add type
+    TAG_INTEGER_REG rax
+    mov rdi,rax
+    mov rsi,r13
+    call fn_cons
+    add rsp, 160               ; restore stack
+    ret
+
+.failure:
+    add rsp, 160               ; restore stack
+    xor rax,rax
+    TAG_NIL_REG rax
     ret
 
 
