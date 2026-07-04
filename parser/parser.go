@@ -111,9 +111,9 @@ func (p *Parser) parseDefun() (*Defun, error) {
 	// then it should be removed and the function noted as having
 	// variadic arguments.
 	for i, param := range params {
-		if strings.HasPrefix(param, "&") {
+		if after, ok := strings.CutPrefix(param, "&"); ok {
 			if i == len(params)-1 {
-				param = strings.TrimPrefix(param, "&")
+				param = after
 				variadic = true
 			} else {
 				return nil, fmt.Errorf("only the last parameter may have a &-prefix, saw it on %s: %s", name, param)
@@ -192,8 +192,8 @@ func (p *Parser) parseExpr() (Expr, error) {
 	p.next()
 
 	// char
-	if strings.HasPrefix(t, "#\\") {
-		x := strings.TrimPrefix(t, "#\\")
+	if after, ok := strings.CutPrefix(t, "#\\"); ok {
+		x := after
 		c := x[0]
 		if c == '\\' && len(x) > 1 {
 			switch x[1] {
