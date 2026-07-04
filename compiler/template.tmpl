@@ -37,6 +37,8 @@ SYS_close       equ 3
 SYS_stat        equ 4
 SYS_lseek       equ 8
 SYS_exit        equ 60
+SYS_mkdir       equ 83
+SYS_rmdir       equ 84
 SYS_unlink      equ 87
 SYS_getdents64  equ 217
 SYS_getrandom   equ 318
@@ -1423,6 +1425,27 @@ FUNC fn_int
     ret
 
 
+;; Make a directory, mode is fixed
+FUNC fn_mkdir
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    mov rax, SYS_mkdir
+    mov rsi, 0o755        ; mode in octal
+    syscall
+    test rax,rax
+    js .failure
+    TAG_INTEGER_REG rax
+    ret
+.failure:
+    xor rax,rax
+    TAG_NIL_REG rax
+    ret
+
+
 ;; A nil becomes 1, anything else becomes nil.
 FUNC fn_not
     mov rax, rdi
@@ -1533,6 +1556,26 @@ FUNC fn_random
     TAG_INTEGER_REG rax
     ret
 
+
+
+;; Remove a directory, mode is fixed
+FUNC fn_rmdir
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    mov rax, SYS_rmdir
+    syscall
+    test rax,rax
+    js .failure
+    TAG_INTEGER_REG rax
+    ret
+.failure:
+    xor rax,rax
+    TAG_NIL_REG rax
+    ret
 
 
 ;; Update the Nth list item, leaving everything else as-is.

@@ -1,0 +1,6 @@
+(defun main ()
+  (mkdir "foo")
+  (println "Does foo/ exist:" (dir? "foo"))
+  (rmdir "foo")
+  (println "Does foo/ exist:" (dir? "foo"))
+  )
