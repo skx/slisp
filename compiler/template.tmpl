@@ -242,7 +242,19 @@ strp:
     jmp is_type
 
 
-
+;; Internal helper
+is_numeric:
+    cmp rax,TAG_ID_INTEGER
+    je .yes
+    cmp rax,TAG_ID_FLOAT
+    je .yes
+    cmp rax,TAG_ID_CHAR
+    je .yes
+    xor eax,eax
+    ret
+.yes:
+    mov eax,1
+    ret
 
 
 
@@ -282,6 +294,8 @@ load_both_floats:
    jz .arg_one_float
    cmp rcx, TAG_ID_INTEGER
    jz .arg_one_int
+   cmp rcx, TAG_ID_CHAR
+   je .arg_one_int
    jmp type_error
 
 .arg_one_int:
@@ -298,6 +312,8 @@ load_both_floats:
    cmp rcx, TAG_ID_FLOAT
    jz .arg_two_float
    cmp rcx, TAG_ID_INTEGER
+   jz .arg_two_int
+   cmp rcx, TAG_ID_CHAR
    jz .arg_two_int
    jmp type_error
 
@@ -425,27 +441,58 @@ modulus_integer:
 
 ;; =
 FUNC equals
-    mov rax, rdi
-    mov rbx, rsi
-    GET_TAG_BITS rbx     ; type of arg
-    GET_TAG_BITS rax     ; type of arg
-    cmp rax, rbx
-    jnz .nil         ; different types?  Then not equal
+    mov r8, rdi
+    mov r9, rsi
 
-    ; If one of the types is a string then we know both are.
-    ; RSI/RDI will still have their original values so we can
-    ; call strcmp.  If the value is 0 we know they are equal
-    cmp rax, TAG_ID_STRING
-    jnz .not_strings
-    call fn_strcmp
-    UNTAG_REG rax
+    GET_TAG_BITS r8
+    GET_TAG_BITS r9
+
+    cmp r8, r9               ; Two diferent types, assume INT/CHAR/FLOAT
+    jne .different_types
+
+    cmp r8, TAG_ID_CHAR      ; Two characters - compare
+    je .compare_chars
+    cmp r8, TAG_ID_FLOAT     ; Two floats - compare
+    je .compare_floats
+    cmp r8, TAG_ID_INTEGER   ; Two integers - compare
+    je .compare_ints
+    cmp r8, TAG_ID_STRING    ; Two strings - compare
+    je .compare_strings
+
+    jmp .compare_bits        ; Just compare directly e.g. "= nil 3"
+
+.compare_bits:               ; Same type and same value?
+    cmp rdi, rsi
+    je .equal
+    jmp .nil
+
+;; Lump them all together into "convert A B to floats and compare"
+.compare_ints:
+.compare_floats:
+.compare_chars:
+.different_types:            ; Compare different (numeric) types
+    mov rax,r8               ; Numeric?
+    call is_numeric
+    test al,al
+    jz .nil
+
+    mov rax,r9               ; Numeric?
+    call is_numeric
+    test al,al
+    jz .nil
+
+    call load_both_floats    ; Compare numerically
+    ucomisd xmm0,xmm1
+    je .equal
+    jmp .nil
+
+.compare_strings:
+    call fn_strcmp           ; RSI / RDI are untouhced
+    UNTAG_REG rax            ; delegate to strcmp
     cmp rax, 0
     jz .equal
     jmp .nil
 
-.not_strings:
-    cmp rdi, rsi     ; same types, so compare the values directly
-    jnz .nil
 .equal:
     mov rax, 1
     TAG_INTEGER_REG rax
