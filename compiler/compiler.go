@@ -270,6 +270,8 @@ func (c *Compiler) asmName(name string) string {
 		return "lambdap"
 	case "nil?":
 		return "nilp"
+	case "numeric?":
+		return "numericp"
 	case "str?":
 		return "strp"
 	}
