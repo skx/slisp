@@ -112,7 +112,7 @@ Note that functions have their names mangled a little bit ("-" is converted to "
     * Convert the given float, or character, to an integer.
     * Anything else becomes zero.
   * `mkdir`
-    * Create the named directory.  **NOTE**: Mode is fixed at 0755, and parent directories must exist.
+    * Create the named directory.  **NOTE**: Mode is fixed at 0755, and parent directories must exist unless you use `mkdirs`.
   * `newline`
     * Print a newline.
   * `not`
@@ -200,6 +200,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Tests if the given item is present in the list specified.
 * `min`
   * Return the lowest integer in the list of numbers provided.
+* `mkdirs`
+  * Create the given directory, creating any parents as required.  (e.g. "`(mkdirs "foo/bar/baz")`".)
 * `nat`
   * Return the list of natural numbers 1 to N.
 * `neg?`
