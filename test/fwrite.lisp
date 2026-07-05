@@ -15,9 +15,14 @@
     result))
 
 (defun main ()
+  ; write
   (print "Writing to a file: ")
   (println (write "test.txt" "Hello, world!"))
 
+  ; read-back to confirm it worked.
   (println "Reading our freshly created/written file.")
   (print (read "test.txt"))
-  (newline))
+  (newline)
+
+  ; cleanup
+  (unlink "test.txt"))
