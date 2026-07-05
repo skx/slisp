@@ -7,15 +7,6 @@ PROGRAMS := $(basename $(wildcard *.lisp))
 slisp: main.go
 	go build .
 
-
-# Example should run after being built
-example: example.lisp slisp
-	@echo "compiling $@"
-	@./slisp $< > $@.asm
-	@nasm -f elf64 $@.asm
-	@ld -o $@ $@.o
-	@./example
-
 # clean everything
 clean:
 	rm -f slisp $(PROGRAMS) *.asm *.o
@@ -28,7 +19,6 @@ clean:
 # present when experimenting.
 #
 all: $(PROGRAMS)
-
 
 
 # Optionally remove unused sections and strip the binaries.
@@ -48,4 +38,5 @@ endif
 
 # Run functional tests
 test:
-	cd test && make test
+	cd examples/ && make test
+	cd test/     && make test
