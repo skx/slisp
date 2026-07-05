@@ -15,6 +15,8 @@ Quick links:
 
 ## Example
 
+This is a minimal, standalone, example of what a program might look like:
+
 ```lisp
     ;; factorial.  woo.
     (defun fact (n)
@@ -32,18 +34,18 @@ Quick links:
       0)
 ```
 
-There are several examples beneath our [test/](test/) directory, including:
+You can find bigger examples beneath [examples/](examples/), and our [test/](test/) directory contains a large number of programs which are used for testing purposes (the are compiled and executed, and their output compared to known-good results stored alongside them).
 
-* [factorial.lisp](test/factorial.lisp)
-* [fibonacci.lisp](test/fibonacci.lisp)
-* [fizzbuzz.lisp](test/fizzbuzz.lisp)
-* [sort2.lisp](test/sort2.lisp) - A flexible sorting demonstration.
-* [sort3.lisp](test/sort3.lisp) - A mergesort implementation.
-* [vararg.lisp](test/vararg.lisp) - Demonstration of a function accepting a variable number of arguments.
-
-[example.lisp](example.lisp) has other misc. snippets, and finally [brainfuck.lisp](brainfuck.lisp) contains a useful/working brainfuck interpreter.
-
-> There are a couple of "*.bf" files present in this repository, which are brainfuck programs for the interpreter.
+* Notable examples
+  * [examples/brainfuck.lisp](examples/brainfuck.lisp) contains a useful/working brainfuck interpreter.
+  * [examples/example.lisp](examples/example.lisp) has other misc. snippets.
+* Notable tests:
+  * [test/factorial.lisp](test/factorial.lisp)
+  * [test/fibonacci.lisp](test/fibonacci.lisp)
+  * [test/fizzbuzz.lisp](test/fizzbuzz.lisp)
+  * [test/sort2.lisp](test/sort2.lisp) - A flexible sorting demonstration.
+  * [test/sort3.lisp](test/sort3.lisp) - A mergesort implementation.
+  * [test/vararg.lisp](test/vararg.lisp) - Demonstration of a function accepting a variable number of arguments.
 
 It should be noted that we prepend a standard library of functions to all user programs unless `-stdlib=false` is added to the command line.  That library itself is a useful reference/demonstration of functionality:
 
@@ -114,12 +116,6 @@ That will create "example.asm", and "example.o", before creating "example".  If 
 Finally you may execute your compiled program:
 
     ./example
-
-**ProTip** Any `*.lisp` file in the current directory will be compiled if you run:
-
-    make clean all
-
-This avoids the need to manually redirect, asssemble, or link.  It will also run the [example.lisp](example.lisp) file - though just "make clean example" will do that too, for neatness.
 
 
 
