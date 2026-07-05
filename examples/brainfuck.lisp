@@ -75,12 +75,12 @@
 
           ;; +
           ((= ins #\+) (do
-                        (setnth cells ptr (% (+ (nth cells ptr) 1) 256))
+                        (nth! cells ptr (% (+ (nth cells ptr) 1) 256))
                         (set! i (+ i 1))))
 
           ;; -
           ((= ins #\-) (do
-                        (setnth cells ptr (% (- (nth cells ptr) 1) 256))
+                        (nth! cells ptr (% (- (nth cells ptr) 1) 256))
                         (set! i (+ i 1))))
 
           ;; >
@@ -113,7 +113,7 @@
 
           ;; ,
           ((= ins #\,) (do
-                        (setnth cells ptr (% (getc) 256))
+                        (nth! cells ptr (% (getc) 256))
                         (set! i (+ i 1))))
 
           ;; skip over unknown instructions

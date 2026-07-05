@@ -10,7 +10,8 @@ slisp: main.go
 # clean everything
 clean:
 	rm -f slisp $(PROGRAMS) *.asm *.o
-	cd test && make clean
+	cd test     && make clean
+	cd examples && make clean
 
 
 #

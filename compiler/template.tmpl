@@ -1580,7 +1580,7 @@ FUNC fn_rmdir
 
 
 ;; Update the Nth list item, leaving everything else as-is.
-FUNC fn_setnth
+FUNC fn_nthBANG
     mov rbx,rdi                ; arg1: list
     GET_TAG_BITS rbx
     cmp rbx,TAG_ID_CONS

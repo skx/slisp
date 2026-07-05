@@ -129,6 +129,9 @@ Note that functions have their names mangled a little bit ("-" is converted to "
     * If the value is `nil` return 1, otherwise return `nil`.
   * `nth`
     * Return the Nth item from the given list.
+  * `nth!`
+    * Update the Nth item in the given list with the specified value.
+    * The list is updated in-place.
   * `ord`
     * Return the ASCII code of the specified character.
   * `putc`
@@ -143,9 +146,6 @@ Note that functions have their names mangled a little bit ("-" is converted to "
     * Return a random integer between zero and N.
   * `rmdir`
     * Remove the named directory.
-  * `setnth`
-    * Update the Nth item in the given list with the specified value.
-    * The list is updated in-place.
   * `split`
     * Split a string by the given character, and return a list of "(before after)".  Return nil if the character isn't found.
   * `split-all`
