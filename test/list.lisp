@@ -1,3 +1,5 @@
+(defvar by-five (lambda (x) (* x 5)))
+
 (defun main ()
   (let ((lst (list 3 4 5 (list 5 2 1) (list 3 12 99))))
     (print "Original list: ")
@@ -26,7 +28,7 @@
     (println me)
   )
 
-  (repeat 5 (lambda (n) (print "I was called by repeat: ") (println n)))
+  (repeat 5 (lambda (n) (println "I was called by repeat: " n)))
 
   (println (join (list "This"
                        " is "
@@ -53,5 +55,9 @@
     (nth! n 2 "hello")
     (print "List updated : ")
     (println n))
+
+  ; Lambda in global variable
+  (let ((x (list 1 2 3 4 5)))
+    (println (map by-five x)))
 
 )
