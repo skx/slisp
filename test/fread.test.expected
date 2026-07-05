@@ -3,7 +3,11 @@ Reading a missing file: <nil>
 Reading our own source code.
 (defun read (file)
   "Read and return the contents of the named file,
- return NIL on failure to open, or read."
+returning NIL on failure.
+
+   The fread, fwrite, and fclose functions each allow
+a NIL file-handle to be specified to allow this simple
+pattern of using a (let ..) scope to handle the I/O."
   (let ((handle (fopen file "r"))  ; open
         (data   (fread handle))    ; read
         (res    (fclose handle)))  ; close
