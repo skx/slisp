@@ -6,7 +6,7 @@
 ;; Attempting to change this will generate an error at compile-time.
 (defconst bar "i am unchanging")
 
-(defun foo ()
+(defun local ()
   "Test scoping by having a local variable with the same name as a global.
 
 Spoiler: Local variable always comes first."
@@ -31,7 +31,7 @@ Spoiler: Local variable always comes first."
   (println "updated global variable is now:" foo)
 
   ;; Call a local function
-  (foo)
+  (local)
 
   (println "Global variable untouched:" foo)
 
