@@ -29,12 +29,10 @@ func New(src string) *Parser {
 }
 
 // Parse processes the input which was given in our constructor, and returns
-// all the top-level defuns found.
-//
-// We don't allow top-level expressions in our language.
-func (p *Parser) Parse() ([]*Defun, error) {
+// all the top-level things we've found.
+func (p *Parser) Parse() ([]TopLevel, error) {
 
-	var defs []*Defun
+	var defs []TopLevel
 
 	// Tokenize the input
 	var err error
@@ -45,7 +43,7 @@ func (p *Parser) Parse() ([]*Defun, error) {
 
 	// Now parse the input
 	for p.pos < len(p.tokens) {
-		defun, err := p.parseDefun()
+		defun, err := p.parseTopLevel()
 		if err != nil {
 			return defs, err
 		}
@@ -76,19 +74,62 @@ func (p *Parser) expectNext(s string) bool {
 	return p.next() == s
 }
 
-// parseDefun parses a single function definition, containing an arbitrary number
-// of expressions within the body.
-func (p *Parser) parseDefun() (*Defun, error) {
+// Parse parses the given input into a series of top-level expressions.
+//
+// top-level expressions are those that implement the "TopLevel" interface, and
+// currently that means either "defconst", "defun" or "defvar".
+func (p *Parser) parseTopLevel() (TopLevel, error) {
 
+	// Everything starts with "("
 	if !p.expectNext("(") {
-		return nil, fmt.Errorf("expected '(' before opening defun")
+		return nil, fmt.Errorf("expected '(' before opening top-level expression")
 	}
 
 	tok := p.next()
-	if tok != "defun" {
-		return nil, fmt.Errorf("expected defun, but got %v", tok)
+
+	switch tok {
+	case "defconst":
+		return p.parseGlobal(tok)
+	case "defun":
+		return p.parseDefun()
+	case "defvar":
+		return p.parseGlobal(tok)
 	}
 
+	return nil, fmt.Errorf("illegal top-level statement (%s ..", tok)
+}
+
+// parseGlobal parses a global variable declaration, via either "defconst" or
+// "defvar".
+func (p *Parser) parseGlobal(tok string) (TopLevel, error) {
+	name := p.next()
+
+	// get the expression
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	if !p.expectNext(")") {
+		return nil, fmt.Errorf("expected ')' after variable definition")
+	}
+
+	// defvar is not constant.
+	// defconst .. is.
+	constant := tok == "defconst"
+
+	return Global{
+		Const: constant,
+		Name:  name,
+		Value: expr,
+	}, nil
+}
+
+// parseDefun parses a single function definition, containing an arbitrary number
+// of expressions within the body.
+func (p *Parser) parseDefun() (TopLevel, error) {
+
+	// Get the name
 	name := p.next()
 
 	if !p.expectNext("(") {
@@ -156,7 +197,7 @@ func (p *Parser) parseDefun() (*Defun, error) {
 		return nil, fmt.Errorf("expected ')' after defun body")
 	}
 
-	return &Defun{
+	return Defun{
 		Name:     name,
 		Params:   tmp,
 		Exprs:    body,
