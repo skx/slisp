@@ -460,11 +460,27 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				c.emitln("call rax")
 
 				return nil
-			} else {
-				// defun
-				c.emitln("    call " + c.asmName(symbol.Name))
+			}
+
+			// Similar story here - a lambda that is stored in a global
+			// variable instead of a local one
+			if _, ok := c.globals[symbol.Name]; ok {
+
+				// get the address
+				c.emitln(fmt.Sprintf("    mov rax,[%s]  ; %s", c.addThing("global", symbol.Name), symbol.Name))
+
+				// call lambda
+				c.emitln("UNTAG_REG rax")
+				c.emitln("mov r15, rax")
+				c.emitln("mov rax, [r15]")
+				c.emitln("call rax")
+
 				return nil
 			}
+
+			// OK then we assume it's a function
+			c.emitln("    call " + c.asmName(symbol.Name))
+			return nil
 		}
 
 		//
