@@ -39,10 +39,9 @@ You can find bigger examples beneath [examples/](examples/), and our [test/](tes
   * [examples/globals.lisp](examples/globals.lisp) - Explicit demonstration of scopes, showing that local variables always take precedence over global ones.
 
 * Notable tests:
-  * [test/factorial.lisp](test/factorial.lisp)
-  * [test/fibonacci.lisp](test/fibonacci.lisp)
-  * [test/fizzbuzz.lisp](test/fizzbuzz.lisp)
-  * [test/sort2.lisp](test/sort2.lisp) - A flexible sorting demonstration.
+  * [test/entries.lisp](test/entries.lisp) - Read all the files in a directory, filter them, sort them, and print their names.
+  * Standard programs: [test/factorial.lisp](test/factorial.lisp), [test/fibonacci.lisp](test/fibonacci.lisp), [test/fizzbuzz.lisp](test/fizzbuzz.lisp).
+  * File I/O: [test/fread.lisp](test/fread.lisp) and [test/fwrite.lisp](test/fwrite.lisp).
   * [test/sort3.lisp](test/sort3.lisp) - A mergesort implementation.
   * [test/vararg.lisp](test/vararg.lisp) - Demonstration of a function accepting a variable number of arguments.
 
