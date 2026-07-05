@@ -92,6 +92,8 @@ Anti-features:
   * It wouldn't be impossible to add them, but without `quote`, `quasiquote`, etc, it's a lot of work.
 * No `quote`
   * Only really useful if you can call `eval` and as a compiler?  That's not going to happen easily.
+* We don't have "symbols" exposed to the language, but if you prefix a variable with "`:`" it will become visually distinct, and this is useful when working with alists, or plists.
+  * Internally that is actually translated to a stringified version of the variable name (So `(print :name)` becomes `(print "name")` - that might seem weird but it works for alist/plist usage, etc.)
 
 
 
