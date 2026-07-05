@@ -15,6 +15,8 @@ Note that you might need to consult the source code to more details.  This docum
 
 The only notable special symbols are `nil`, which is synonymous with false and the empty list, and `t` which is a true value.
 
+We don't have symbols as a specific type, but anything prefixed with a ":" will be silently converted into a string, with the colon removed.  This is designed for visual clarity in code relating to alists, or plists.
+
 * Comments are begun with ";" and continue until the end of the line.
   * There are no block comments.
 * We support integers and floating point numbers for mathematical operations.
@@ -32,6 +34,8 @@ The only notable special symbols are `nil`, which is synonymous with false and t
   * `(print #\*)`
 * Lists are written using parenthesis to group them:
   * `(print (list 1 2 3))`
+* The only real native data structures we support is a list.
+  * But alists and plists are implemented in our standard library, and are documented below.
 
 
 
@@ -41,9 +45,15 @@ Special forms are things that are built into the compiler core, and handled spec
 
 * `cond`
   * An efficient switch implementation.
+* `defconst`
+  * Define a top-level, global, variable which is immutable.
+  * `defconst`, `defvar`, and `defvar` are the only things that may appear at the top-level of user-scripts.
 * `defun`
-  * Define a function.
-  * We only allow functions at the top-level, and the function named `main` is both mandatory, and our entry-point.
+  * Define a function - The function named `main` is both mandatory, and the entry-point to user-scripts.
+  * `defconst`, `defvar`, and `defvar` are the only things that may appear at the top-level of user-scripts.
+* `defvar`
+  * Define a top-level, global, variable.
+  * `defconst`, `defvar`, and `defvar` are the only things that may appear at the top-level of user-scripts.
 * `do`
   * Execute each statement in the list.
 * `if`

@@ -135,6 +135,22 @@ Or like this, if you wish to receive the command-line arguments, supplied as a l
 
 
 
+## Global Variables
+
+A global variable may be defined via `defvar`, much like our other bindings there are only two arguments:
+
+    ; Create a global variable
+    (defvar version 0.5)
+
+A global variable may be declared as constant, which will cause errors when attempts are made to modify it, for this use `defconst`:
+
+    ; Create a global variable which may not be modified
+    (defconst pi 3.14159)
+
+We only allow "`defconst`", "`defun`" and "`defvar`" to appear at the top-level of scripts.
+
+
+
 ## Lambdas
 
 Lambdas are functions which can be passed around, and we implement closures to allow counters and adders to be created, etc.
