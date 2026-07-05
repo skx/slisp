@@ -1,0 +1,29 @@
+Hello World! I am a compiled lisp, and I received command line arguments:
+(./example.test)
+Hello, I am a working 'if' statement!
+Some random maths now:
+	144
+	52
+We have a list of numbers: (1 2 3 4 5 6 7 8 9 10)
+Reversed: (10 9 8 7 6 5 4 3 2 1)
+Showing results of factorial for each entry in that list:
+	factorial 1: 1
+	factorial 2: 2
+	factorial 3: 6
+	factorial 4: 24
+	factorial 5: 120
+	factorial 6: 720
+	factorial 7: 5040
+	factorial 8: 40320
+	factorial 9: 362880
+	factorial 10: 3628800
+Summing those numbers: 55
+The length of the list of numbers we handled: 10
+Squaring every item of the list, using map:(1 4 9 16 25 36 49 64 81 100)
+List time is over now.
+
+Expect 10 from this (named) lambda: 10
+Expect 10 from this (immediate) lambda: 10
+Creating some cons cells and printing them
+	(((12 . 31) . 392))
+	(1 2 3)
