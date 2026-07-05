@@ -18,19 +18,16 @@ Quick links:
 This is a minimal, standalone, example of what a program might look like:
 
 ```lisp
-    ;; factorial.  woo.
     (defun fact (n)
+      "Calculate, and return, the value of N!"
       (if (<= n 1) 1 (* n (fact (- n 1)))))
 
     ;; entry-point
     (defun main (args)
-      (println "Showing some factorials:")
-      (println (fact 4))
-      (println (fact 5))
-      (println (fact 9))
-      (println (fact 10))
+      "Command line arguments are available in the list ARGS."
+      (println "factorial demonstration, 10!:" (fact 10))
 
-      ;; exit code - use "(exit 3)" if you prefer
+      ;; exit code - use "(exit 0)" if you prefer
       0)
 ```
 
@@ -39,6 +36,8 @@ You can find bigger examples beneath [examples/](examples/), and our [test/](tes
 * Notable examples
   * [examples/brainfuck.lisp](examples/brainfuck.lisp) contains a useful/working brainfuck interpreter.
   * [examples/example.lisp](examples/example.lisp) has other misc. snippets.
+  * [examples/globals.lisp](examples/globals.lisp) - Explicit demonstration of scopes, showing that local variables always take precedence over global ones.
+
 * Notable tests:
   * [test/factorial.lisp](test/factorial.lisp)
   * [test/fibonacci.lisp](test/fibonacci.lisp)
