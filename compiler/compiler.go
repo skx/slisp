@@ -378,8 +378,12 @@ func (c *Compiler) asmName(name string) string {
 		return "strp"
 	}
 
-	// allow "-" by rewriting it to _.
+	// Rewrite some names to avoid errors from nasm.
+	// e.g. creating function "foo:bar" would try to
+	// define a label "foo:bar:" and that would be rejected.
 	name = strings.ReplaceAll(name, "-", "_")
+	name = strings.ReplaceAll(name, ":", "_")
+	name = strings.ReplaceAll(name, "!", "BANG")
 
 	// other functions just get "fn_" prefix
 	if strings.HasPrefix(name, "fn_") {

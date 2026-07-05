@@ -48,9 +48,9 @@
     (print "2 :")
     (println (nth n 2))
 
-    (setnth n 0 "Steve")
-    (setnth n 1 "says")
-    (setnth n 2 "hello")
+    (nth! n 0 "Steve")
+    (nth! n 1 "says")
+    (nth! n 2 "hello")
     (print "List updated : ")
     (println n))
 
