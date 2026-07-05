@@ -453,7 +453,13 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 					offset,
 				))
 
-				// call lambda
+				// check if it is a lambda
+				c.emitln("mov rbx,rax")
+				c.emitln("GET_TAG_BITS rbx")
+				c.emitln("cmp rbx, TAG_ID_LAMBDA")
+				c.emitln("jne type_error")
+
+				// call the lambda
 				c.emitln("UNTAG_REG rax")
 				c.emitln("mov r15, rax")
 				c.emitln("mov rax, [r15]")
@@ -469,7 +475,13 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				// get the address
 				c.emitln(fmt.Sprintf("    mov rax,[%s]  ; %s", c.addThing("global", symbol.Name), symbol.Name))
 
-				// call lambda
+				// check if it is a lambda
+				c.emitln("mov rbx,rax")
+				c.emitln("GET_TAG_BITS rbx")
+				c.emitln("cmp rbx, TAG_ID_LAMBDA")
+				c.emitln("jne type_error")
+
+				// call the lambda
 				c.emitln("UNTAG_REG rax")
 				c.emitln("mov r15, rax")
 				c.emitln("mov rax, [r15]")
@@ -519,7 +531,13 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			return err
 		}
 
-		// call lambda
+		// check if it is a lambda
+		c.emitln("mov rbx,rax")
+		c.emitln("GET_TAG_BITS rbx")
+		c.emitln("cmp rbx, TAG_ID_LAMBDA")
+		c.emitln("jne type_error")
+
+		// call the lambda
 		c.emitln("UNTAG_REG rax")
 		c.emitln("mov r15, rax")
 		c.emitln("mov rax, [r15]")
