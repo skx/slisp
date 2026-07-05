@@ -58,6 +58,9 @@ type Compiler struct {
 	// functions stores details about our defined functions, specifically
 	// whether each one is variadic.
 	functions map[string]*FunctionArgs
+
+	// globals stores details of top-level global variables
+	globals map[string]parser.Global
 }
 
 // New is our constructor
@@ -92,23 +95,68 @@ func (c *Compiler) Compile() (string, error) {
 	// should be treated as variadic.
 	//
 	c.functions = make(map[string]*FunctionArgs)
+	c.globals = make(map[string]parser.Global)
 	for _, fun := range defs {
-		c.functions[fun.Name] = &FunctionArgs{
-			Arguments: len(fun.Params),
-			Variadic:  fun.Variadic,
+
+		// Record global variables.
+		g, ok1 := fun.(parser.Global)
+		if ok1 {
+			c.globals[g.Name] = g
+		}
+
+		// Record data about defined functions
+		d, ok2 := fun.(parser.Defun)
+		if ok2 {
+			c.functions[d.Name] = &FunctionArgs{
+				Arguments: len(d.Params),
+				Variadic:  d.Variadic,
+			}
 		}
 	}
 
+	e := env.New(nil)
+
+	initGlobals := ""
+
+	// Generate the values of the global variables.
+	for _, tl := range defs {
+
+		// Is this a global variable?
+		g, ok1 := tl.(parser.Global)
+		if ok1 {
+			err := c.emitExpr(g.Value, e)
+			if err != nil {
+				return "", err
+			}
+
+			// This variable has been set now.
+			x := c.globals[g.Name]
+			x.Init = true
+			c.globals[g.Name] = x
+
+			c.emitln(fmt.Sprintf("    mov [%s], rax ; %s", c.addThing("global", g.Name), g.Name))
+		}
+	}
+
+	// Get them, and clear the buffer.
+	initGlobals = c.text.String()
+	c.text.Reset()
+
 	// Generate the user-defined functions to our internal buffer.
-	for _, d := range defs {
-		if d.Name == "main" {
-			main = true
+	for _, tl := range defs {
+
+		// We only care about defuns
+		d, ok2 := tl.(parser.Defun)
+		if ok2 {
+			if d.Name == "main" {
+				main = true
+			}
+			err = c.emitCallable(d)
+			if err != nil {
+				return "", err
+			}
+			c.emitln("")
 		}
-		err = c.emitCallable(d)
-		if err != nil {
-			return "", err
-		}
-		c.emitln("")
 	}
 
 	if !main {
@@ -167,6 +215,12 @@ func (c *Compiler) Compile() (string, error) {
 		// Lambdas has all the lambda expressions we've seen.
 		Lambdas string
 
+		// InitGlobals is the thing that loads global variables
+		InitGlobals string
+
+		// Globals has global variables
+		Globals []string
+
 		// StringTable contains the strings we've seen.
 		StringTable string
 
@@ -174,9 +228,16 @@ func (c *Compiler) Compile() (string, error) {
 		FloatTable string
 	}
 
+	globals := []string{}
+	for nm := range c.globals {
+		globals = append(globals, c.addThing("global", nm))
+	}
+
 	// Create an instance to populate the template with
 	x := &Generated{
 		Defuns:      defuns,
+		Globals:     globals,
+		InitGlobals: initGlobals,
 		Lambdas:     lambdas,
 		StringTable: stringTable,
 		FloatTable:  floatTable,
@@ -201,11 +262,11 @@ func (c *Compiler) Compile() (string, error) {
 
 // addThing creates a unique label for our floats,
 // and strings, based on the SHA1-hash.  Interning them.
-func (c *Compiler) addThing(f any) string {
+func (c *Compiler) addThing(prefix string, f any) string {
 	hasher := sha1.New()
 	hasher.Write(fmt.Appendf(nil, "%f", f))
 	sha := hex.EncodeToString(hasher.Sum(nil))
-	id := fmt.Sprintf("float_%s", sha)
+	id := fmt.Sprintf("%s_%s", prefix, sha)
 	return id
 }
 
@@ -460,7 +521,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 		// create a label, based on the hash of the content.
 		// This has the side-effect of interning.
-		lbl := c.addThing(n.Value)
+		lbl := c.addThing("float", n.Value)
 
 		c.floats[lbl] = n.Value
 
@@ -612,7 +673,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 	case *parser.String:
 		// create a label, based on the hash of the content.
 		// This has the side-effect of interning.
-		lbl := c.addThing(n.Value)
+		lbl := c.addThing("string", n.Value)
 
 		// save the string, because we're gonna put it into the
 		// generated code, later.
@@ -645,6 +706,16 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			))
 			return nil
 		}
+
+		if global, ok := c.globals[n.Name]; ok {
+			if global.Const && global.Init {
+				return fmt.Errorf("attempt to modify the global constant variable %s", global.Name)
+			}
+
+			c.emitln(fmt.Sprintf("    mov [%s], rax  ; %s", c.addThing("global", global.Name), global.Name))
+			return nil
+		}
+
 		return fmt.Errorf("unknown variable: %s", n.Name)
 
 	case *parser.Symbol:
@@ -663,6 +734,12 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			))
 			return nil
 		}
+
+		if global, ok := c.globals[n.Name]; ok {
+			c.emitln(fmt.Sprintf("    mov rax,[%s]  ; %s", c.addThing("global", global.Name), global.Name))
+			return nil
+		}
+
 		return fmt.Errorf("unknown variable: %s", n.Name)
 
 	case *parser.While:
@@ -793,8 +870,8 @@ func (c *Compiler) emitCallable(obj any) error {
 	var d *parser.Defun
 
 	switch c := obj.(type) {
-	case *parser.Defun:
-		d = c
+	case parser.Defun:
+		d = &c
 	case *parser.Lambda:
 		d = &c.Defun
 	default:
