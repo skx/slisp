@@ -22,4 +22,6 @@
     (println "\t\tupdated name:" (alist-get a :name))
 
     ;; And show the whole list.
-    (println "\tFinal list:" a)))
+    (println "\tFinal list:" a)
+    (println "\tKeys: " (alist-keys a))
+    (println "\tVals: " (alist-values a))))

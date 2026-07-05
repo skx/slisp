@@ -181,10 +181,14 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Create a new alist.
 * `alist-get`
   * Get an item from an alist.
+* `alist-keys`
+  * Return all known keys from the given alist.
 * `alist-remove`
   * Remove an item, by key, from an alist.
 * `alist-set`
   * Add the given key/value to an alist.
+* `alist-values`
+  * Return all known values from the given alist.
 * `and`
   * Test if every item in a list is true.
 * `append`
@@ -236,10 +240,14 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Create a new property-list
 * `plist-get`
   * Get an item from a property-list.
+* `plist-keys`
+  * Return all known keys from the given plist.
 * `plist-remove`
   * Remove an item, by key, from a property-list.
 * `plist-set`
   * Set a given key/value in a property-list.
+* `plist-values`
+  * Return all known values from the given plist.
 * `pos?`
   * Return true if the number is positive.
 * `print`

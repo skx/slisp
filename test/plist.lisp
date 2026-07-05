@@ -23,4 +23,6 @@
     (println "\tUpdated Age:" (plist-get p :age))
 
     ;; show the raw list
-    (println "Final list: " p)))
+    (println "Final list: " p)
+    (println "\tKeys: " (plist-keys p))
+    (println "\tVals: " (plist-values p))))

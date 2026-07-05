@@ -9,3 +9,5 @@ We now have the following alist: ((name John) (age 42) (city Paris))
 	updating name .. twice ..
 		updated name:bob
 	Final list:((name bob) (age 42))
+	Keys: (name age)
+	Vals: (bob 42)
