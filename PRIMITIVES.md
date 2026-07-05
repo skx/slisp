@@ -37,6 +37,8 @@ We don't have symbols as a specific type, but anything prefixed with a ":" will 
 * The only real native data structures we support is a list.
   * But alists and plists are implemented in our standard library, and are documented below.
 
+We don't have "symbols" exposed to the language, but if you prefix a variable with "`:`" it will become visually distinct, and this is useful when working with alists, or plists.  Internally that is actually translated to a stringified version of the variable name (So `(print :name)` becomes `(print "name")` - that might seem weird but it works for alist/plist usage, etc.)
+
 
 
 ## Special Forms
@@ -175,6 +177,14 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
 
 * `abs`
   * Return the absolute value of the given integer.  (e.g. 3 -> 3, and -3 -> 3).
+* `alist-new`
+  * Create a new alist.
+* `alist-get`
+  * Get an item from an alist.
+* `alist-remove`
+  * Remove an item, by key, from an alist.
+* `alist-set`
+  * Add the given key/value to an alist.
 * `and`
   * Test if every item in a list is true.
 * `append`
@@ -222,6 +232,14 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return true if the number is one.
 * `or`
   * Is any value in the given list non-nil?
+* `plist-new`
+  * Create a new property-list
+* `plist-get`
+  * Get an item from a property-list.
+* `plist-remove`
+  * Remove an item, by key, from a property-list.
+* `plist-set`
+  * Set a given key/value in a property-list.
 * `pos?`
   * Return true if the number is positive.
 * `print`
