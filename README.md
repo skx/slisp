@@ -15,35 +15,35 @@ Quick links:
 
 ## Example
 
+This is a minimal, standalone, example of what a program might look like:
+
 ```lisp
-    ;; factorial.  woo.
     (defun fact (n)
+      "Calculate, and return, the value of N!"
       (if (<= n 1) 1 (* n (fact (- n 1)))))
 
     ;; entry-point
     (defun main (args)
-      (println "Showing some factorials:")
-      (println (fact 4))
-      (println (fact 5))
-      (println (fact 9))
-      (println (fact 10))
+      "Command line arguments are available in the list ARGS."
+      (println "factorial demonstration, 10!:" (fact 10))
 
-      ;; exit code - use "(exit 3)" if you prefer
+      ;; exit code - use "(exit 0)" if you prefer
       0)
 ```
 
-There are several examples beneath our [test/](test/) directory, including:
+You can find bigger examples beneath [examples/](examples/), and our [test/](test/) directory contains a large number of programs which are used for testing purposes (the are compiled and executed, and their output compared to known-good results stored alongside them).
 
-* [factorial.lisp](test/factorial.lisp)
-* [fibonacci.lisp](test/fibonacci.lisp)
-* [fizzbuzz.lisp](test/fizzbuzz.lisp)
-* [sort2.lisp](test/sort2.lisp) - A flexible sorting demonstration.
-* [sort3.lisp](test/sort3.lisp) - A mergesort implementation.
-* [vararg.lisp](test/vararg.lisp) - Demonstration of a function accepting a variable number of arguments.
+* Notable examples
+  * [examples/brainfuck.lisp](examples/brainfuck.lisp) contains a useful/working brainfuck interpreter.
+  * [examples/example.lisp](examples/example.lisp) has other misc. snippets.
+  * [examples/globals.lisp](examples/globals.lisp) - Explicit demonstration of scopes, showing that local variables always take precedence over global ones.
 
-[example.lisp](example.lisp) has other misc. snippets, and finally [brainfuck.lisp](brainfuck.lisp) contains a useful/working brainfuck interpreter.
-
-> There are a couple of "*.bf" files present in this repository, which are brainfuck programs for the interpreter.
+* Notable tests:
+  * [test/entries.lisp](test/entries.lisp) - Read all the files in a directory, filter them, sort them, and print their names.
+  * Standard programs: [test/factorial.lisp](test/factorial.lisp), [test/fibonacci.lisp](test/fibonacci.lisp), [test/fizzbuzz.lisp](test/fizzbuzz.lisp).
+  * File I/O: [test/fread.lisp](test/fread.lisp) and [test/fwrite.lisp](test/fwrite.lisp).
+  * [test/sort3.lisp](test/sort3.lisp) - A mergesort implementation.
+  * [test/vararg.lisp](test/vararg.lisp) - Demonstration of a function accepting a variable number of arguments.
 
 It should be noted that we prepend a standard library of functions to all user programs unless `-stdlib=false` is added to the command line.  That library itself is a useful reference/demonstration of functionality:
 
@@ -67,9 +67,14 @@ It should be noted that we prepend a standard library of functions to all user p
   * `dir?`, `entries`, `exists?`, `file?`, `mkdir`, `mkdirs`, `rmdir`, `stat`, `unlink` and `which`.
 * Comparison operations:
   * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
-* Special forms
+* Special forms:
   * `(cond ..)`
   * `(defun ..)`
+    * `defconst`, `defun`, and `defvar` are the only things that may appear at the top-level of user-scripts.
+  * `(defconst ..)`
+    * `defconst`, `defun`, and `defvar` are the only things that may appear at the top-level of user-scripts.
+  * `(defvar ..)`
+    * `defconst`, `defun`, and `defvar` are the only things that may appear at the top-level of user-scripts.
   * `(do ..)`
   * `(if ..)`
   * `(lambda ..)`
@@ -109,12 +114,6 @@ That will create "example.asm", and "example.o", before creating "example".  If 
 Finally you may execute your compiled program:
 
     ./example
-
-**ProTip** Any `*.lisp` file in the current directory will be compiled if you run:
-
-    make clean all
-
-This avoids the need to manually redirect, asssemble, or link.  It will also run the [example.lisp](example.lisp) file - though just "make clean example" will do that too, for neatness.
 
 
 

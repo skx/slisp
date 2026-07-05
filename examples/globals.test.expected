@@ -1,0 +1,7 @@
+global variable is:Before
+updated global variable is now:Changed
+	I'm inside (foo)
+		local variable:local
+		updated local variable:bar
+Global variable untouched:Changed
+The global constant 'bar' is fine:i am unchanging
