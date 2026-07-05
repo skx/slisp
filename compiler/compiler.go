@@ -66,7 +66,15 @@ type Compiler struct {
 // New is our constructor
 func New(src string) *Compiler {
 
-	return &Compiler{source: src}
+	// return a new object, with the source and
+	// all internal maps created.
+	return &Compiler{
+		source:    src,
+		strings:   map[string]string{},
+		floats:    map[string]float64{},
+		functions: make(map[string]*FunctionArgs),
+		globals:   make(map[string]parser.Global),
+	}
 }
 
 // Compile creates and returns the assembly language source for the given
@@ -82,11 +90,6 @@ func (c *Compiler) Compile() (string, error) {
 		return "", fmt.Errorf("error parsing program %s", err)
 	}
 
-	// Ensure our tables are pristine
-	c.strings = map[string]string{}
-	c.floats = map[string]float64{}
-
-	defuns := ""
 	main := false
 
 	//
@@ -94,8 +97,6 @@ func (c *Compiler) Compile() (string, error) {
 	// of arguments it requests, and whether the last argument
 	// should be treated as variadic.
 	//
-	c.functions = make(map[string]*FunctionArgs)
-	c.globals = make(map[string]parser.Global)
 	for _, fun := range defs {
 
 		// Record global variables.
@@ -114,9 +115,24 @@ func (c *Compiler) Compile() (string, error) {
 		}
 	}
 
-	e := env.New(nil)
+	//
+	// This whole function is messy, but in brief
+	// we assemble stuff into an internal buffer "g.text"
+	// and at various points we need to read the contents
+	// of that assembly as a string and then reset the
+	// buffer.
+	//
+	// This inline function does that.
+	//
+	getCompiled := func() string {
+		txt := c.text.String()
+		c.text.Reset()
+		return txt
+	}
 
-	initGlobals := ""
+	// Create a new environment for the global defun/defvar
+	// statements - they can't really use it, but it is required.
+	e := env.New(nil)
 
 	// Generate the values of the global variables.
 	for _, tl := range defs {
@@ -138,11 +154,18 @@ func (c *Compiler) Compile() (string, error) {
 		}
 	}
 
-	// Get them, and clear the buffer.
-	initGlobals = c.text.String()
-	c.text.Reset()
+	//
+	// Compiled code to setup the initial value of
+	// each known defvar/defconst.
+	//
+	// To be inserted into our rendered template shortly.
+	//
+	initGlobals := getCompiled()
 
-	// Generate the user-defined functions to our internal buffer.
+	//
+	// Now generate the assembly for each known user-defined
+	// function to our internal buffer.
+	//
 	for _, tl := range defs {
 
 		// We only care about defuns
@@ -163,12 +186,14 @@ func (c *Compiler) Compile() (string, error) {
 		return "", fmt.Errorf("There is no entry-point defined; we need a defun named 'main'")
 	}
 
-	// Get them, and clear the buffer.
-	defuns = c.text.String()
-	c.text.Reset()
+	//
+	// Get the compiled functions
+	//
+	defuns := getCompiled()
 
-	// Now user-defined lambdas
-	lambdas := ""
+	//
+	// Compile each known lambda function.
+	//
 	for _, l := range c.lambdas {
 		err = c.emitCallable(l)
 		if err != nil {
@@ -177,11 +202,15 @@ func (c *Compiler) Compile() (string, error) {
 
 		c.emitln("")
 	}
-	lambdas = c.text.String()
-	c.text.Reset()
 
-	// Then the string-table for user-defined strings
-	stringTable := ""
+	//
+	// Get their compiled bodies
+	//
+	lambdas := getCompiled()
+
+	//
+	// Build up a data-section for our string tables
+	//
 	c.emitln("section .data")
 	for id, str := range c.strings {
 		c.emitln("align 8")
@@ -192,22 +221,35 @@ func (c *Compiler) Compile() (string, error) {
 
 		c.emitln(fmt.Sprintf("     db `%s`, 0", str))
 	}
-	stringTable = c.text.String()
-	c.text.Reset()
 
-	// Then the literal user-defined floats
-	floatTable := ""
+	// Now as a simple string
+	stringTable := getCompiled()
+
+	//
+	// Build up a data-section for our user-defined float
+	// literals
+	//
 	c.emitln("section .data")
 	for id, str := range c.floats {
 		c.emitln("align 8")
 		c.emitln(id + ":")
 		c.emitln(fmt.Sprintf("     dq %f", str))
 	}
-	floatTable = c.text.String()
-	c.text.Reset()
+	floatTable := getCompiled()
 
+	//
+	// We also need to define a variable to hold the pointer
+	// for each global-variable value.
+	//
+	globals := []string{}
+	for nm := range c.globals {
+		globals = append(globals, c.addThing("global", nm))
+	}
+
+	//
 	// Define a simple structure we can pass to the text/template
-	// file we render for our output
+	// file we render for our output.
+	//
 	type Generated struct {
 		// The defintions of defun's we've seen.
 		Defuns string
@@ -228,12 +270,11 @@ func (c *Compiler) Compile() (string, error) {
 		FloatTable string
 	}
 
-	globals := []string{}
-	for nm := range c.globals {
-		globals = append(globals, c.addThing("global", nm))
-	}
-
-	// Create an instance to populate the template with
+	//
+	// Create an instance of that internal structure, which we
+	// can then pass to the template processor to fill out into
+	// the template appropriately.
+	//
 	x := &Generated{
 		Defuns:      defuns,
 		Globals:     globals,
