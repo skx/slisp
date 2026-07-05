@@ -67,9 +67,14 @@ It should be noted that we prepend a standard library of functions to all user p
   * `dir?`, `entries`, `exists?`, `file?`, `mkdir`, `mkdirs`, `rmdir`, `stat`, `unlink` and `which`.
 * Comparison operations:
   * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
-* Special forms
+* Special forms:
   * `(cond ..)`
   * `(defun ..)`
+    * `defconst`, `defun`, and `defvar` are the only things that may appear at the top-level of user-scripts.
+  * `(defconst ..)`
+    * `defconst`, `defun`, and `defvar` are the only things that may appear at the top-level of user-scripts.
+  * `(defvar ..)`
+    * `defconst`, `defun`, and `defvar` are the only things that may appear at the top-level of user-scripts.
   * `(do ..)`
   * `(if ..)`
   * `(lambda ..)`
