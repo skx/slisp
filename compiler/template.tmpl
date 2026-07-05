@@ -216,6 +216,7 @@ _start:
     jmp .loop
 .done:
     mov rdi, rsi               ; first SysV argument
+    {{ .InitGlobals }}
     call fn_main
     mov rdi, rax               ; exit code is the last expression
     UNTAG_REG rdi
@@ -2163,3 +2164,11 @@ heap:
 ;;; 7. floating-point literals
 
 {{ .FloatTable }}
+
+;;; 8. global variables
+section .data
+{{ range .Globals }}
+align 8
+{{ . }}:
+        dq 0x0000
+{{end}}
