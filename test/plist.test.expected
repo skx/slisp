@@ -6,3 +6,5 @@ After setting name/age:
 	missing-key, with default:cake
 	Updated Age:29
 Final list: (name Steve age 29)
+	Keys: (name age)
+	Vals: (Steve 29)

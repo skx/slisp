@@ -458,6 +458,15 @@ Return nil if it wasn't present, or the given default value."
     (t
      (alist-get (cdr alist) key (car default)))))
 
+(defun alist-keys (alist)
+  "Return a list of all stored keys."
+  (cond
+    ((null? alist)
+     nil)
+    (t
+     (cons (car (car alist))
+           (alist-keys (cdr alist))))))
+
 (defun alist-remove (alist key)
   "Given an alist remove the entry for the given key, if it was present.
 
@@ -478,6 +487,16 @@ This removes any pre-existing value with that key first."
   (cons
    (list key value)
    (alist-remove alist key)))
+
+(defun alist-values (alist)
+  "Return a list of all stored values."
+  (cond
+    ((null? alist)
+     nil)
+    (t
+     (cons (car (cdr (car alist)))
+           (alist-values (cdr alist))))))
+
 
 
 
@@ -507,6 +526,14 @@ Return nil if it wasn't present, or the given default value."
     (t
      (plist-get (cdr (cdr plist)) key (car default)))))
 
+(defun plist-keys (plist)
+  "Return a list of all stored keys."
+  (cond
+    ((null? plist)
+     nil)
+    (t
+     (cons (car plist)
+           (plist-keys (cdr (cdr plist)))))))
 
 (defun plist-remove (plist key)
   "Given a plist remove any entry for the given key, if present.
@@ -529,3 +556,12 @@ This removes any pre-existing value with that key first."
   (append
    (plist-remove plist key)
    (list key value)))
+
+(defun plist-values (plist)
+  "Return a list of all stored values."
+  (cond
+    ((null? plist)
+     nil)
+    (t
+     (cons (car (cdr plist))
+           (plist-values (cdr (cdr plist)))))))
