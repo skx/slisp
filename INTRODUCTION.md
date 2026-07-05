@@ -201,8 +201,9 @@ Here's how you might use the functions:
        (set! a (alist-set :hair   "Red"))
 
        ;; Do stuff
-
        (println "Person name " (alist-get a :name)))
+
+See [test/alist.lisp](test/alist.lisp) for an example of use.
 
 
 ### Property Lists (plist)
@@ -225,6 +226,8 @@ Here's how you might use the functions:
        ;; Do stuff
 
        (println "Person name " (plist-get p :name)))
+
+See [test/plist.lisp](test/plist.lisp) for an example of use.
 
 
 
