@@ -200,6 +200,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Does the given path exist as a directory?
 * `even?`
   * Return 1 if the given number is even, nil otherwise.
+* `every`
+  * Does every list item return non-nil when the given function is called?
 * `exists?`
   * Does the given filename exist?
 * `file?`
@@ -271,6 +273,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Reverse the contents of the specified list.
 * `seq`
   * Return a list of numbers from 0 to N.
+* `some`
+  * Return the first non-nil result of calling the given function against each item of the specified list.
 * `strstr`
   * Find a string within another.
 * `substr`
