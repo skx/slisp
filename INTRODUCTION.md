@@ -149,7 +149,7 @@ A global variable may be declared as constant, which will cause errors when atte
     ; Create a global variable which may not be modified
     (defconst pi 3.14159)
 
-We only allow "`defconst`", "`defun`" and "`defvar`" to appear at the top-level of scripts.
+We only allow "`defconst`", "`defun`", "`defvar`" and `require` to appear at the top-level of scripts.
 
 
 

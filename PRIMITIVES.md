@@ -49,13 +49,13 @@ Special forms are things that are built into the compiler core, and handled spec
   * An efficient switch implementation.
 * `defconst`
   * Define a top-level, global, variable which is immutable.
-  * `defconst`, `defvar`, and `defvar` are the only things that may appear at the top-level of user-scripts.
+  * `defconst`, `defvar`, `defvar`, and `require` are the only things that may appear at the top-level of user-scripts.
 * `defun`
   * Define a function - The function named `main` is both mandatory, and the entry-point to user-scripts.
-  * `defconst`, `defvar`, and `defvar` are the only things that may appear at the top-level of user-scripts.
+  * `defconst`, `defvar`, `defvar`, and `require` are the only things that may appear at the top-level of user-scripts.
 * `defvar`
   * Define a top-level, global, variable.
-  * `defconst`, `defvar`, and `defvar` are the only things that may appear at the top-level of user-scripts.
+  * `defconst`, `defvar`, `defvar`, and `require` are the only things that may appear at the top-level of user-scripts.
 * `do`
   * Execute each statement in the list.
 * `if`
@@ -66,6 +66,8 @@ Special forms are things that are built into the compiler core, and handled spec
   * Create a new scope, with locally bound variables.
 * `list`
   * Create a list.
+* `require`
+  * Load a new package, inline.
 * `set!`
   * Set the value of a variable.
 * `while`
