@@ -271,6 +271,10 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Reverse the contents of the specified list.
 * `seq`
   * Return a list of numbers from 0 to N.
+* `strstr`
+  * Find a string within another.
+* `substr`
+  * Return a substring from a given string.
 * `sum`
   * Sum the values in the given list.
 * `upper`
