@@ -24,6 +24,7 @@
 ;; 10. alist functions.
 ;; 11. plist functions.
 ;; 12. Conversion functions.
+;; 13. Utility functions
 ;;
 ;; I tried to order the functions alphabetically, where it made sense.
 
@@ -646,3 +647,35 @@ This removes any pre-existing value with that key first."
               (chr (- n 32))
               ch)))
       (explode str))))
+
+
+;;; Utility functions
+;;
+;; Some other functions that don't have a natural home
+
+(defun strstr (haystack needle)
+  "Find the given substring within the inital string, returns the offset if found, nil otherwise."
+  (let ((h (explode haystack))
+        (n (explode needle)))
+    (strstr-helper h n 0)))
+
+(defun strstr-helper (h n offset)
+  (cond
+    ((nil? h) nil)
+    ((str-prefix? h n) offset)
+    (t (strstr-helper (cdr h) n (+ offset 1)))))
+
+(defun str-prefix? (a b)
+  (cond
+    ((nil? b) t)
+    ((nil? a) nil)
+    ((= (car a) (car b))
+        (str-prefix? (cdr a) (cdr b)))
+    (t nil)))
+
+(defun substr (str start end)
+  "Return a substring of the given string"
+  (implode
+    (take (- end start)
+          (drop start
+                (explode str)))))
