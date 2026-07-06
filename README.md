@@ -37,6 +37,7 @@ You can find bigger examples beneath [examples/](examples/), and our [test/](tes
   * [examples/brainfuck.lisp](examples/brainfuck.lisp) contains a useful/working brainfuck interpreter.
   * [examples/example.lisp](examples/example.lisp) has other misc. snippets.
   * [examples/globals.lisp](examples/globals.lisp) - Explicit demonstration of scopes, showing that local variables always take precedence over global ones.
+  * [examples/nqueens.lisp](examples/nqueens.lisp) is a solver for the N Queens problem, defaults to solving the 8x8 grid but you may specify different sizes via a CLI argument.
 
 * Notable tests:
   * [test/entries.lisp](test/entries.lisp) - Read all the files in a directory, filter them, sort them, and print their names.
