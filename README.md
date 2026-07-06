@@ -31,7 +31,7 @@ This is a minimal, standalone, example of what a program might look like:
       0)
 ```
 
-You can find bigger examples beneath [examples/](examples/), and our [test/](test/) directory contains a large number of programs which are used for testing purposes (the are compiled and executed, and their output compared to known-good results stored alongside them).
+You can find bigger examples beneath [examples/](examples/), and our [test/](test/) directory contains a large number of programs which are used for testing purposes (they are compiled and executed, and their output compared to known-good results stored alongside them).
 
 * Notable examples
   * [examples/brainfuck.lisp](examples/brainfuck.lisp) contains a useful/working brainfuck interpreter.

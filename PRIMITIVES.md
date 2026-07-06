@@ -128,12 +128,11 @@ Note that functions have their names mangled a little bit ("-" is converted to "
   * `newline`
     * Print a newline.
   * `not`
-    * If the value is `nil` return 1, otherwise return `nil`.
+    * If the supplied value is `nil` return 1, otherwise return `nil`.
   * `nth`
     * Return the Nth item from the given list.
   * `nth!`
-    * Update the Nth item in the given list with the specified value.
-    * The list is updated in-place.
+    * Update the Nth item in the given list with the specified value, in-place.
   * `ord`
     * Return the ASCII code of the specified character.
   * `putc`
@@ -193,6 +192,10 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Test if every item in a list is true.
 * `append`
   * Append the given value to the specified list.  If the list is empty just return the specified item.
+* `atoi`
+  * Convert a string such as `"123"` to an integer.
+* `atof`
+  * Convert a string such as `"123.25"` to a float.
 * `dir?`
   * Does the given path exist as a directory?
 * `even?`
@@ -216,12 +219,14 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Join all (string) items of a list into a single string, with the given separator.
 * `length`
   * Return the length of the specified list, or string.
+* `lower`
+  * Return the given string, converted to lower-case.
 * `map`
   * Create a new list by calling the given function over every element of the supplied list.
 * `max`
   * Return the highest integer in the list of numbers provided.
 * `member?`
-  * Tests if the given item is present in the list specified.
+  * Tests if the given item is present in the specified list.
 * `min`
   * Return the lowest integer in the list of numbers provided.
 * `mkdirs`
@@ -268,6 +273,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return a list of numbers from 0 to N.
 * `sum`
   * Sum the values in the given list.
+* `upper`
+  * Return the given string, converted to upper-case.
 * `which`
   * Find the complete path to the given binary, searching each directory on the $PATH.
 * `zero?`
