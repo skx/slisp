@@ -23,6 +23,7 @@
 ;;  9. System functions.
 ;; 10. alist functions.
 ;; 11. plist functions.
+;; 12. Conversion functions.
 ;;
 ;; I tried to order the functions alphabetically, where it made sense.
 
@@ -565,3 +566,83 @@ This removes any pre-existing value with that key first."
     (t
      (cons (car (cdr plist))
            (plist-values (cdr (cdr plist)))))))
+
+
+;;; 12. Conversion functions.
+;;
+;; Conversion routines - so far just string -> number
+;;
+
+(defun atof (str)
+  "Convert the given string to a floating point number."
+  (let ((chars (explode str)))
+    (cond
+      ((= (ord (car chars)) (ord #\-))
+       (- 0 (atof-unsigned (implode (cdr chars)))))
+
+      ((= (ord (car chars)) (ord #\+))
+       (atof-unsigned (implode (cdr chars))))
+
+      (t
+       (atof-unsigned str)))))
+
+(defun atof-frac (chars value scale)
+  (if (nil? chars)
+      (/ value (+ scale 0.0))
+      (atof-frac
+        (cdr chars)
+        (+ (* value 10)
+           (- (ord (car chars))
+              (ord #\0)))
+        (* scale 10))))
+
+(defun atof-unsigned (str)
+  (let ((parts (split str #\.)))
+    (if (nil? parts)
+
+        ;; No decimal point.
+        (atoi str)
+
+        ;; Decimal point.
+        (+ (atoi (car parts))
+           (atof-frac (explode (cadr parts)) 0 1)))))
+
+(defun atoi (str)
+  "Convert the given string to an integer.   Positive and negative numbers work, but floats do not."
+  (let ((chars (explode str)))
+    (if (= (car chars) #\-)
+        (- 0 (atoi-helper (cdr chars) 0))
+        (atoi-helper chars 0))))
+
+(defun atoi-helper (chars value)
+  (if (nil? chars)
+      value
+      (atoi-helper
+        (cdr chars)
+        (+ (* value 10)
+           (- (ord (car chars))
+              (ord #\0))))))
+
+(defun lower (str)
+  "Convert the given string to lower-case"
+  (implode
+    (map
+      (lambda (ch)
+        (let ((n (ord ch)))
+          (if (and (>= n (ord #\A))
+                   (<= n (ord #\Z)))
+              (chr (+ n 32))
+              ch)))
+      (explode str))))
+
+(defun upper (str)
+  "Convert the given string to upper-case"
+  (implode
+    (map
+      (lambda (ch)
+        (let ((n (ord ch)))
+          (if (and (>= n (ord #\a))
+                   (<= n (ord #\z)))
+              (chr (- n 32))
+              ch)))
+      (explode str))))
