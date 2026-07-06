@@ -94,9 +94,24 @@ func (p *Parser) parseTopLevel() (TopLevel, error) {
 		return p.parseDefun()
 	case "defvar":
 		return p.parseGlobal(tok)
+	case "require":
+		return p.parseRequire()
 	}
 
 	return nil, fmt.Errorf("illegal top-level statement (%s ..)", tok)
+}
+
+// parseRequire parses a (require :foo) statement.
+func (p *Parser) parseRequire() (TopLevel, error) {
+	name := p.next()
+
+	if !p.expectNext(")") {
+		return nil, fmt.Errorf("expected ')' after require")
+	}
+
+	return Require{
+		Feature: name,
+	}, nil
 }
 
 // parseGlobal parses a global variable declaration, via either "defconst" or

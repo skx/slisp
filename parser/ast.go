@@ -129,6 +129,13 @@ type Let struct {
 	Body     []Expr
 }
 
+type Require struct {
+	Feature string
+}
+
+// Type is the implementation of the TopLevel interface
+func (r Require) Type() string { return "require" }
+
 type Set struct {
 	Name string
 	Expr Expr
