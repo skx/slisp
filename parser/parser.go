@@ -96,7 +96,7 @@ func (p *Parser) parseTopLevel() (TopLevel, error) {
 		return p.parseGlobal(tok)
 	}
 
-	return nil, fmt.Errorf("illegal top-level statement (%s ..", tok)
+	return nil, fmt.Errorf("illegal top-level statement (%s ..)", tok)
 }
 
 // parseGlobal parses a global variable declaration, via either "defconst" or

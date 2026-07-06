@@ -504,7 +504,7 @@ FUNC equals
     GET_TAG_BITS r8
     GET_TAG_BITS r9
 
-    cmp r8, r9               ; Two diferent types, assume INT/CHAR/FLOAT
+    cmp r8, r9               ; Two different types, assume INT/CHAR/FLOAT
     jne .different_types
 
     cmp r8, TAG_ID_CHAR      ; Two characters - compare
@@ -1625,7 +1625,7 @@ FUNC fn_nthBANG
 .done:
     UNTAG_REG rdi
     mov [rdi], rdx             ; update car
-    mov rax, rdx               ; return value is the thign we set
+    mov rax, rdx               ; return value is the thing we set
     ret
 .fail:
     jmp out_of_range
