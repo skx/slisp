@@ -72,8 +72,8 @@ func New(src string) *Compiler {
 		source:    src,
 		strings:   map[string]string{},
 		floats:    map[string]float64{},
-		functions: make(map[string]*FunctionArgs),
-		globals:   make(map[string]parser.Global),
+		functions: map[string]*FunctionArgs{},
+		globals:   map[string]parser.Global{},
 	}
 }
 
@@ -140,7 +140,7 @@ func (c *Compiler) Compile() (string, error) {
 		// Is this a global variable?
 		g, ok1 := tl.(parser.Global)
 		if ok1 {
-			err := c.emitExpr(g.Value, e)
+			err = c.emitExpr(g.Value, e)
 			if err != nil {
 				return "", err
 			}
@@ -183,7 +183,7 @@ func (c *Compiler) Compile() (string, error) {
 	}
 
 	if !main {
-		return "", fmt.Errorf("There is no entry-point defined; we need a defun named 'main'")
+		return "", fmt.Errorf("there is no entry-point defined; we need a defun named 'main'")
 	}
 
 	//
