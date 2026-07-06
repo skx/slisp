@@ -668,7 +668,7 @@ This removes any pre-existing value with that key first."
 ;; Some other functions that don't have a natural home
 
 (defun strstr (haystack needle)
-  "Find the given substring within the inital string, returns the offset if found, nil otherwise."
+  "Find the given substring within the initial string, returns the offset if found, nil otherwise."
   (let ((h (explode haystack))
         (n (explode needle)))
     (strstr-helper h n 0)))
