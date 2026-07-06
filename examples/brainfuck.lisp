@@ -14,45 +14,38 @@
 ;;; Brainfuck loop finding
 
 (defun buildJumps (program)
-  (buildJumpsRec program 0 nil nil))
+    (let ((table (makeCells (length program))))
+        (buildJumpsRec program 0 nil table)
+        table))
 
-
-(defun buildJumpsRec (program pos stack result)
-  (if (= pos (length program))
-      result
-
-      (let ((ch (nth program pos)))
-        (if (= ch #\[)
-            ;; push position
-            (buildJumpsRec
-                program
-                (+ pos 1)
-                (cons pos stack)
-                result)
-
-            (if (= ch #\])
-                (let ((open (car stack)))
+(defun buildJumpsRec (program pos stack table)
+    (if (= pos (length program))
+        table
+        (let ((ch (nth program pos)))
+            (cond
+                ((= ch #\[)
                     (buildJumpsRec
                         program
                         (+ pos 1)
-                        (cdr stack)
-                        (cons (list open pos) result)))
+                        (cons pos stack)
+                        table))
+                ((= ch #\])
+                    (let ((open (car stack)))
 
-                (buildJumpsRec
-                    program
-                    (+ pos 1)
-                    stack
-                    result))))))
-
-(defun findJump (table pos)
-    (if table
-        (let ((pair (car table)))
-            (if (= (car pair) pos)
-                (car (cdr pair))
-                (if (= (car (cdr pair)) pos)
-                    (car pair)
-                    (findJump (cdr table) pos))))
-        nil))
+                        ;; store both directions
+                        (nth! table open pos)
+                        (nth! table pos open)
+                        (buildJumpsRec
+                            program
+                            (+ pos 1)
+                            (cdr stack)
+                            table)))
+                (t
+                    (buildJumpsRec
+                        program
+                        (+ pos 1)
+                        stack
+                        table))))))
 
 ;;; Interpreter
 
@@ -75,12 +68,14 @@
 
           ;; +
           ((= ins #\+) (do
-                        (nth! cells ptr (% (+ (nth cells ptr) 1) 256))
+                        (let ((v (nth cells ptr)))
+                          (nth! cells ptr (% (+ v 1) 256)))
                         (set! i (+ i 1))))
 
           ;; -
           ((= ins #\-) (do
-                        (nth! cells ptr (% (- (nth cells ptr) 1) 256))
+                        (let ((v (nth cells ptr)))
+                          (nth! cells ptr (% (- v 1) 256)))
                         (set! i (+ i 1))))
 
           ;; >
@@ -93,18 +88,17 @@
                         (set! ptr (- ptr 1))
                         (set! i (+ i 1))))
 
-
           ;; [
           ((= ins #\[)
            (if (= (nth cells ptr) 0)
-               (set! i (+ (findJump jumps i) 1))
+               (set! i (+ (nth jumps i) 1))
                (set! i (+ i 1))))
 
           ;; ]
           ((= ins #\])
            (if (= (nth cells ptr) 0)
                (set! i (+ i 1))
-               (set! i (+ (findJump jumps i) 1))))
+               (set! i (+ (nth jumps i) 1))))
 
           ;; ,
           ((= ins #\.) (do
