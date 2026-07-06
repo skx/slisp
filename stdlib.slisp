@@ -1,4 +1,4 @@
-;;; stdlib.lisp - Lisp standard library, prepended to user programs.
+;;; stdlib.lisp - Lisp standard library, pre-pended to user programs.
 ;;
 ;; We're consistent with argument usage so:
 ;;
@@ -11,13 +11,62 @@
 ;; above then their value will always be as expected.
 ;;
 
+;;; Contents
+
+;;  1. Compatibility
+;;  2. Printing
+;;  3. Filesystem Functions
+;;  5. Logical Functions
+;;  6. Maths functions
+;;  7. List Creation
+;;  8. List Utility Functions
+;;  9. System functions.
+;; 10. alist functions.
+;; 11. plist functions.
+;;
+;; I tried to order the functions alphabetically, where it made sense.
 
 
 
 
-;;; printing functions
+;;; 1. Compatibility
 
-;; print every item in a list.
+;; Functions here are added for compatibility with other lisp dialects,
+;; to allow easy copying/pasting of code.
+
+(defun caar (x)
+  (car (car x)))
+
+(defun cadr (x)
+  (car (cdr x)))
+
+(defun cdar (x)
+  (cdr (car x)))
+
+(defun cddr (x)
+  (cdr (cdr x)))
+
+(defun eq (a b)
+  (= a b))
+
+(defun eq? (a b)
+  (= a b))
+
+(defun equal (a b)
+  (= a b))
+
+(defun null? (x)
+  "Is the given item nil?"
+  (nil? x))
+
+
+
+
+;;; 2. Printing
+;;
+;; Note that our `print' function accepts a variable number of arguments
+;; and will print each one in turn.
+
 (defun print (&xs)
   "Print everything we're given.
 
@@ -37,32 +86,32 @@ do the right thing for each entry in the given list."
                           (putc #\))))
            (t           (printstr "unknown type")))) xs))
 
-
 (defun println (&xs)
-  "Print everything as 'print' would, but append a newline afterwards."
-                                        ; print everything
+  "Print everything as `print' would.  Then print a newline."
   (map (lambda (x) (print x)) xs)
-                                        ; then a newline
   (newline))
 
-(defun print_cons (x)
-  "Print the contents of the cons X, recursively."
-  (print (car x))
-  (if (nil? (cdr x))
+(defun print_cons (xs)
+  "Print the contents of the list X, recursively."
+  (print (car xs))
+  (if (nil? (cdr xs))
       nil
-      (if (cons? (cdr x))
+      (if (cons? (cdr xs))
           (do
            (putc 32)
-           (print-cons (cdr x)))
+           (print-cons (cdr xs)))
           (do
            (printstr " . ")
-           (print (cdr x))))))
+           (print (cdr xs))))))
 
 
 
 
-;;; filesystem primitives
-
+;;; 3. Filesystem Functions
+;;
+;; These are functions which work with files, directories, and
+;; their names/paths.
+;;
 
 (defun dir? (path)
   "Is the given path a directory?"
@@ -108,8 +157,9 @@ do the right thing for each entry in the given list."
 
 
 
-;;; logical functions
-
+;;; 5. Logical Functions
+;;
+;; Some trivial logical functions which might be useful.
 
 (defun and (&xs)
   "Return true if every item in the specified list is true.
@@ -117,12 +167,6 @@ do the right thing for each entry in the given list."
 NOTE: This is not a macro, so all arguments are evaluated."
   (let ((res (filter xs (lambda (x) x))))
     (= (length xs) (length res))))
-
-
-(defun null? (x)
-  "Is the given item nil?"
-  (nil? x))
-
 
 (defun or (&xs)
   "Return true if any value in the specified list contains a true value.
@@ -135,63 +179,18 @@ NOTE: This is not a macro, so all arguments are evaluated."
 
 
 
-;;; Maths functions
-
-
-;; when looking at online lisp I see "=" "equal" "eq" and "eq?" being used
-;; to ease portability define aliases for these.
-
-(defun equal (a b)
-  (= a b))
-
-(defun eq (a b)
-  (= a b))
-
-(defun eq? (a b)
-  (= a b))
+;;; 6. Maths functions
+;;
+;; These are mostly about testing for specific values, or
+;; processing items of lists
 
 (defun abs (n)
   "Return the absolute value of N, as a positive number"
   (if (< n 0) (- 0 n) n))
 
-
 (defun even? (n)
   "Return 1 if the number is even, nil otherwise."
   (= (% n 2 ) 0))
-
-
-(defun odd? (n)
-  "Return 1 if the number is odd, nil otherwise."
-  (= (% n 2 ) 1))
-
-
-(defun zero? (n)
-  "Return 1 if the number is zero, nil otherwise."
-  (= n 0))
-
-
-(defun one? (n)
-  "Return 1 if the number is one, nil otherwise."
-  (= n 1))
-
-
-(defun neg? (n)
-  "Return 1 if the number is negative, nil otherwise."
-  (< n 0))
-
-
-(defun pos? (n)
-  "Return 1 if the number is positive, nil otherwise."
-  (> n 0))
-
-
-(defun sum (xs)
-  "sum all the numbers in the list"
-  (if xs
-      (+ (car xs)
-         (sum (cdr xs)))
-      0))
-
 
 (defun max (xs)
   "Return the maximum integer from the list of numbers supplied."
@@ -202,7 +201,6 @@ NOTE: This is not a macro, so all arguments are evaluated."
                 (if (< a b) b a))
               (car xs))))
 
-
 (defun min (xs)
   "Return the smallest integer from the list of numbers supplied."
   (if (nil? xs)
@@ -212,32 +210,44 @@ NOTE: This is not a macro, so all arguments are evaluated."
                 (if (< a b) a b))
               (car xs))))
 
+(defun neg? (n)
+  "Return 1 if the number is negative, nil otherwise."
+  (< n 0))
+
+(defun odd? (n)
+  "Return 1 if the number is odd, nil otherwise."
+  (= (% n 2 ) 1))
+
+(defun one? (n)
+  "Return 1 if the number is one, nil otherwise."
+  (= n 1))
+
+(defun pos? (n)
+  "Return 1 if the number is positive, nil otherwise."
+  (> n 0))
+
+(defun sum (xs)
+  "sum all the numbers in the list"
+  (if xs
+      (+ (car xs)
+         (sum (cdr xs)))
+      0))
+
+(defun zero? (n)
+  "Return 1 if the number is zero, nil otherwise."
+  (= n 0))
 
 
 
 
-;;; List-access methods
-
-
-;; I hate these functions and almost never use them.
+;;; 7. List Creation
 ;;
-;; But they are a kinda standard.
+;; These are functions which are designed to create lists,
+;; with ascending values for example.
 
-(defun caar (x)
-  (car (car x)))
-
-(defun cadr (x)
-  (car (cdr x)))
-
-(defun cdar (x)
-  (cdr (car x)))
-
-(defun cddr (x)
-  (cdr (cdr x)))
-
-;;; List-creation methods
-
-
+(defun nat (n)
+  "Create a list of numbers ranging from 1-N, inclusive."
+  (range 1 n 1))
 
 (defun range (start end step)
   "Create a list of numbers between the start and end bounds, inclusive.
@@ -246,27 +256,22 @@ Incrementing by the given step each time."
       (cons start (range (+ start step) end step))
       nil))
 
+(defun repeated (n x)
+  "Return a list of length n whose elements are all x."
+  (if (pos? n)
+      (cons x (repeated (- n 1) x))))
 
 (defun seq (n)
   "Create a list of number ranging from 0-N, inclusive."
   (range 0 n 1))
 
 
-(defun nat (n)
-  "Create a list of numbers ranging from 1-N, inclusive."
-  (range 1 n 1))
 
-
-(defun repeated (n x)
-  "Return a list of length n whose elements are all x."
-  (if (pos? n)
-      (cons x (repeated (- n 1) x))))
-
-
-
-
-
-;;; list utility functions
+;;; 8. List Utility Functions
+;;
+;; These functions are mostly the implementations of standard
+;; functions a user would expect, such as map/filter/find/member
+;;
 
 (defun append (xs item)
   "Append the given value to the specified list.  If the list is empty just return the specified item."
@@ -274,14 +279,12 @@ Incrementing by the given step each time."
       item
       (cons (car xs) (append (cdr xs) item))))
 
-
 (defun drop (n xs)
   "Drop the first N items from the given list, and return the rest."
   (cond
     ((< n 1) xs)
     ((nil? xs) xs)
     (t (drop (- n 1) (cdr xs)))))
-
 
 (defun filter (xs fn)
   "Return a list consisting of all members of the given list for which the given predicate returns non-nil."
@@ -291,11 +294,9 @@ Incrementing by the given step each time."
           (cons (car xs) (filter (cdr xs) fn))
           (filter (cdr xs) fn))))
 
-
 (defun find (xs item)
   "Return the offsets of any occurrence of the item in the given list, nil on failure."
   (find-helper xs item 0))
-
 
 (defun find-helper (xs item index)
   (if xs
@@ -305,7 +306,6 @@ Incrementing by the given step each time."
           (find-helper (cdr xs) item (+ index 1)))
       nil))
 
-
 (defun flatten (xs)
   "Converts a list of nested lists to a single list, flattening it."
   (if (nil? xs)
@@ -314,13 +314,11 @@ Incrementing by the given step each time."
           (cons (car xs) (flatten (cdr xs)))
           (append (flatten (car xs)) (flatten (cdr xs))))))
 
-
 (defun join (xs)
   "Join an arbitrary list of strings together into a single string."
   (if xs
       (join-helper (cdr xs) (car xs))
       ""))
-
 
 (defun join-helper (xs acc)
   (if xs
@@ -329,13 +327,11 @@ Incrementing by the given step each time."
        (strcat acc (car xs)))
       acc))
 
-
 (defun join-by (xs sep)
   "Join string list-items by the given separator"
   (if xs
       (join-rest (cdr xs) (car xs) sep)
       ""))
-
 
 (defun join-rest (xs acc sep)
   (if xs
@@ -346,7 +342,6 @@ Incrementing by the given step each time."
        sep)
       acc))
 
-
 (defun length (xs)
   "Return the length of the given list or string."
   (if (str? xs)
@@ -355,13 +350,11 @@ Incrementing by the given step each time."
           (+ 1 (length (cdr xs)))
           0)))
 
-
 (defun map (fn xs)
   "Create a new list by calling the given function for every list element."
   (if (nil? xs)
       nil
       (cons (fn (car xs)) (map fn (cdr xs)))))
-
 
 (defun member? (xs item)
   "Return true if the specified item is found within the given list."
@@ -370,13 +363,11 @@ Incrementing by the given step each time."
     ( (= item (car xs)) 1)
     ( 1 (member? (cdr xs) item))))
 
-
 (defun reduce (xs fn acc)
   "This is our reduce function, which uses a list, a function, and the accumulator."
   (if (nil? xs)
       acc
       (reduce (cdr xs) fn (fn acc (car xs)))))
-
 
 (defun repeat (n fn)
   "Execute the supplied body of code N times."
@@ -385,18 +376,15 @@ Incrementing by the given step each time."
        (fn n)
        (repeat (- n 1) fn))))
 
+(defun reverse (xs)
+  "Reverse the contents of the specified list."
+  (reverse-inner xs nil))
 
 (defun reverse-inner (xs acc)
   "Helper to use an accumulator to reverse a list.  Used by 'reverse'"
   (if (nil? xs)
       acc
       (reverse-inner (cdr xs) (cons (car xs) acc))))
-
-
-(defun reverse (xs)
-  "Reverse the contents of the specified list."
-  (reverse-inner xs nil))
-
 
 (defun split-all (str char)
   "Return a list of splitting the string by the given character.
@@ -406,7 +394,6 @@ Incrementing by the given step each time."
       nil
       (filter (split-all-helper str char) (lambda (x) (> (length x) 0)))))
 
-
 (defun split-all-helper (str char)
   "Recursive helper for splitting a list by character."
   (let ((parts (split str char)))
@@ -414,7 +401,6 @@ Incrementing by the given step each time."
         (list str)
         (cons (nth parts 0)
               (split-all-helper (nth parts 1) char)))))
-
 
 (defun take (n xs)
   "Take, and return, the first N items from the given list."
@@ -427,8 +413,10 @@ Incrementing by the given step each time."
 
 
 
-
-;;; system functions
+;;; 9. System functions.
+;;
+;; These are functions which are designed to interface with the
+;; system environment more than just with File I/O
 
 (defun getenv (name)
   (getenv-loop name (environment)))
@@ -442,3 +430,138 @@ Incrementing by the given step each time."
                 (getenv-loop name (cdr xs)))
             (getenv-loop name (cdr xs))))
       nil))
+
+
+
+;;; 10. alist functions.
+;;
+;; An association list is a way of implementing a "hash-like" structure
+;; using only a list of lists.  For example to store details about a person
+;; you might have this alist:
+;;
+;;  ( (name "Steve") (age 42) (email "steve@example.com") )
+;;
+
+(defun alist-new()
+  "Create a new associated list / hash"
+  (list))
+
+(defun alist-get (alist key &default)
+  "Given an alist get the value of the specified key.
+
+Return nil if it wasn't present, or the given default value."
+  (cond
+    ((null? alist)
+     (car default))
+    ((= (car (car alist)) key)
+     (car (cdr (car alist))))
+    (t
+     (alist-get (cdr alist) key (car default)))))
+
+(defun alist-keys (alist)
+  "Return a list of all stored keys."
+  (cond
+    ((null? alist)
+     nil)
+    (t
+     (cons (car (car alist))
+           (alist-keys (cdr alist))))))
+
+(defun alist-remove (alist key)
+  "Given an alist remove the entry for the given key, if it was present.
+
+Returns the updated list."
+  (cond
+    ((null? alist)
+     nil)
+    ((= (car (car alist)) key)
+     (alist-remove (cdr alist) key))
+    (t
+     (cons (car alist)
+           (alist-remove (cdr alist) key)))))
+
+(defun alist-set (alist key value)
+  "Add the given key/value pair to the specified alist.
+
+This removes any pre-existing value with that key first."
+  (cons
+   (list key value)
+   (alist-remove alist key)))
+
+(defun alist-values (alist)
+  "Return a list of all stored values."
+  (cond
+    ((null? alist)
+     nil)
+    (t
+     (cons (car (cdr (car alist)))
+           (alist-values (cdr alist))))))
+
+
+
+
+;;; 11. plist functions.
+;;
+;; A property list (plist for short) is a list of paired elements
+;; stored in a regular list.
+;;
+;; The example of storing details of a person in the alist-section
+;; above would become this;
+;;
+;;  ( name "Steve" age 42 email "steve@example.com" )
+;;
+
+(defun plist-new()
+  (list))
+
+(defun plist-get (plist key &default)
+  "Given a plist get the value of the specified key.
+
+Return nil if it wasn't present, or the given default value."
+  (cond
+    ((null? plist)
+     (car default))
+    ((= (car plist) key)
+     (car (cdr plist)))
+    (t
+     (plist-get (cdr (cdr plist)) key (car default)))))
+
+(defun plist-keys (plist)
+  "Return a list of all stored keys."
+  (cond
+    ((null? plist)
+     nil)
+    (t
+     (cons (car plist)
+           (plist-keys (cdr (cdr plist)))))))
+
+(defun plist-remove (plist key)
+  "Given a plist remove any entry for the given key, if present.
+
+Returns the updated list."
+  (cond
+    ((null? plist)
+     nil)
+    ((= (car plist) key)
+     (plist-remove (cdr (cdr plist)) key))
+    (t
+     (cons (car plist)
+           (cons (car (cdr plist))
+                 (plist-remove (cdr (cdr plist)) key))))))
+
+(defun plist-set (plist key value)
+  "Add the given key/value pair to the specified plist.
+
+This removes any pre-existing value with that key first."
+  (append
+   (plist-remove plist key)
+   (list key value)))
+
+(defun plist-values (plist)
+  "Return a list of all stored values."
+  (cond
+    ((null? plist)
+     nil)
+    (t
+     (cons (car (cdr plist))
+           (plist-values (cdr (cdr plist)))))))

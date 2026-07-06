@@ -1,0 +1,10 @@
+Starting with empty list, and adding values.
+After setting name/age:
+	Name:Steve
+	Age:19
+	missing-key:<nil>
+	missing-key, with default:cake
+	Updated Age:29
+Final list: (name Steve age 29)
+	Keys: (name age)
+	Vals: (Steve 29)
