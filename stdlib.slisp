@@ -673,9 +673,9 @@ This removes any pre-existing value with that key first."
         (str-prefix? (cdr a) (cdr b)))
     (t nil)))
 
-(defun substr (str start end)
-  "Return a substring of the given string"
-  (implode
-    (take (- end start)
-          (drop start
-                (explode str)))))
+(defun substr (str start &len)
+   "Return a substring of the given string"
+  (let ((chars (drop start (explode str))))
+    (if len
+        (implode (take (car len) chars))
+        (implode chars))))
