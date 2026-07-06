@@ -15,3 +15,5 @@ This directory is designed to contain bigger, or more interesting examples, than
 * [example.lisp](example.lisp) - Our first example.
 * [globals.lisp](globals.lisp) - Explicit demonstration of scopes
   * Shows that local variables always take precedence over global ones.
+* [nqueens.lisp](nqueens.lisp) - Solver for [The N-queens problem](https://en.wikipedia.org/wiki/Eight_queens_puzzle)
+  * Defaults to solving 8x8, but you can give another size as CLI argument.
