@@ -44,8 +44,8 @@ func compile(name string, txt string) {
 	// write the assembly
 	err := os.WriteFile(nm+".asm", []byte(txt), 0644)
 	if err != nil {
-		fmt.Printf("failed to write assembly to %s: %s\n", nm+".asm", err)
-		return
+		fmt.Fprintf(os.Stderr, "failed to write assembly to %s: %s\n", nm+".asm", err)
+		os.Exit(1)
 	}
 
 	// nasm
@@ -57,8 +57,8 @@ func compile(name string, txt string) {
 
 	err = c.Run()
 	if err != nil {
-		fmt.Printf("error running assembler %v: %s\n", assembleCmd, err)
-		return
+		fmt.Fprintf(os.Stderr, "error running assembler %v: %s\n", assembleCmd, err)
+		os.Exit(1)
 	}
 
 	// link
@@ -70,10 +70,9 @@ func compile(name string, txt string) {
 
 	err = c.Run()
 	if err != nil {
-		fmt.Printf("error running linker %v: %s\n", linkCmd, err)
-		return
+		fmt.Fprintf(os.Stderr, "error running linker %v: %s\n", linkCmd, err)
+		os.Exit(1)
 	}
-
 }
 
 // main is our entry-point
@@ -106,8 +105,8 @@ func main() {
 
 	txt, err := generate(prg)
 	if err != nil {
-		fmt.Printf("error processing: %s\n", err)
-		return
+		fmt.Fprintf(os.Stderr, "error processing: %s\n", err)
+		os.Exit(1)
 	}
 
 	if *c || *compileFlag {
