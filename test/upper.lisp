@@ -1,0 +1,8 @@
+(defun main()
+  (println (upper "steve"))
+  (println (upper "Steve"))
+  (println (upper "STEVE"))
+  (println (upper ""))
+  (println (upper "1234567890"))
+  (println (upper "ste390323ve"))
+  )
