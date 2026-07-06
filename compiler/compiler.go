@@ -8,6 +8,8 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -44,6 +46,9 @@ type Compiler struct {
 	// labelID is used to give unique labels to if/lambda/etc.
 	labelID int
 
+	// loaded contains packages we've already loaded
+	loaded map[string]bool
+
 	// strings holds the strings we've encountered, indexed
 	// by their SHA1 sum as ID.  This is how we intern.
 	strings map[string]string
@@ -70,11 +75,101 @@ func New(src string) *Compiler {
 	// all internal maps created.
 	return &Compiler{
 		source:    src,
-		strings:   map[string]string{},
 		floats:    map[string]float64{},
 		functions: map[string]*FunctionArgs{},
 		globals:   map[string]parser.Global{},
+		loaded:    map[string]bool{},
+		strings:   map[string]string{},
 	}
+}
+
+// findPackage tries to find the location from which to
+// load .lisp files via "(require foo)"
+func (c *Compiler) findPackage(file string) (string, error) {
+
+	// Present in the CWD?
+	if _, err := os.Stat(file); err == nil {
+		return file, nil
+	}
+
+	// Otherwise search the path
+	if path := os.Getenv("LISP_PATH"); path != "" {
+
+		for _, dir := range strings.Split(path, ":") {
+
+			if dir == "" {
+				dir = "."
+			}
+			candidate := filepath.Join(dir, file)
+
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("unable to locate package %q", file)
+}
+
+func (c *Compiler) expandRequires(defs []parser.TopLevel) ([]parser.TopLevel, error) {
+
+	var out []parser.TopLevel
+
+	for _, expr := range defs {
+
+		r, ok := expr.(parser.Require)
+		if !ok {
+			out = append(out, expr)
+			continue
+		}
+
+		name := r.Feature
+
+		// Already loaded?
+		if c.loaded[name] {
+			continue
+		}
+		c.loaded[name] = true
+
+		// If there is no suffix then add ".lisp"
+		file := name
+		if filepath.Ext(file) == "" {
+			file += ".lisp"
+		}
+
+		path, err := c.findPackage(file)
+		if err != nil {
+			return nil, err
+		}
+
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+
+		p := parser.New(string(src))
+
+		pkg, err := p.Parse()
+		if err != nil {
+			return nil, err
+		}
+
+		// Expand any nested requires.
+		pkg, err = c.expandRequires(pkg)
+		if err != nil {
+			return nil, err
+		}
+
+		// Ignore package declarations.
+		for _, x := range pkg {
+			if _, ok := x.(parser.Require); ok {
+				continue
+			}
+			out = append(out, x)
+		}
+	}
+
+	return out, nil
 }
 
 // Compile creates and returns the assembly language source for the given
@@ -90,6 +185,10 @@ func (c *Compiler) Compile() (string, error) {
 		return "", fmt.Errorf("error parsing program %s", err)
 	}
 
+	defs, err = c.expandRequires(defs)
+	if err != nil {
+		return "", err
+	}
 	main := false
 
 	//
