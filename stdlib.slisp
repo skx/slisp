@@ -288,6 +288,11 @@ Incrementing by the given step each time."
     ((nil? xs) xs)
     (t (drop (- n 1) (cdr xs)))))
 
+(defun every (xs fn)
+  "Does every list item return non-nil when the given function is called?"
+  (let ((res (filter xs fn)))
+    (= (length res) (length xs))))
+
 (defun filter (xs fn)
   "Return a list consisting of all members of the given list for which the given predicate returns non-nil."
   (if (nil? xs)
@@ -387,6 +392,15 @@ Incrementing by the given step each time."
   (if (nil? xs)
       acc
       (reverse-inner (cdr xs) (cons (car xs) acc))))
+
+(defun some (xs fn)
+  "Return the first non-nil result of calling the given function on the list."
+  (if (nil? xs)
+      nil
+      (let ((res (fn (car xs))))
+        (if res
+            res
+            (some (cdr xs) fn)))))
 
 (defun split-all (str char)
   "Return a list of splitting the string by the given character.
@@ -591,11 +605,11 @@ This removes any pre-existing value with that key first."
   (if (nil? chars)
       (/ value (+ scale 0.0))
       (atof-frac
-        (cdr chars)
-        (+ (* value 10)
-           (- (ord (car chars))
-              (ord #\0)))
-        (* scale 10))))
+       (cdr chars)
+       (+ (* value 10)
+          (- (ord (car chars))
+             (ord #\0)))
+       (* scale 10))))
 
 (defun atof-unsigned (str)
   (let ((parts (split str #\.)))
@@ -619,34 +633,34 @@ This removes any pre-existing value with that key first."
   (if (nil? chars)
       value
       (atoi-helper
-        (cdr chars)
-        (+ (* value 10)
-           (- (ord (car chars))
-              (ord #\0))))))
+       (cdr chars)
+       (+ (* value 10)
+          (- (ord (car chars))
+             (ord #\0))))))
 
 (defun lower (str)
   "Convert the given string to lower-case"
   (implode
-    (map
-      (lambda (ch)
-        (let ((n (ord ch)))
-          (if (and (>= n (ord #\A))
-                   (<= n (ord #\Z)))
-              (chr (+ n 32))
-              ch)))
-      (explode str))))
+   (map
+    (lambda (ch)
+      (let ((n (ord ch)))
+        (if (and (>= n (ord #\A))
+                 (<= n (ord #\Z)))
+            (chr (+ n 32))
+            ch)))
+    (explode str))))
 
 (defun upper (str)
   "Convert the given string to upper-case"
   (implode
-    (map
-      (lambda (ch)
-        (let ((n (ord ch)))
-          (if (and (>= n (ord #\a))
-                   (<= n (ord #\z)))
-              (chr (- n 32))
-              ch)))
-      (explode str))))
+   (map
+    (lambda (ch)
+      (let ((n (ord ch)))
+        (if (and (>= n (ord #\a))
+                 (<= n (ord #\z)))
+            (chr (- n 32))
+            ch)))
+    (explode str))))
 
 
 ;;; Utility functions
@@ -670,11 +684,11 @@ This removes any pre-existing value with that key first."
     ((nil? b) t)
     ((nil? a) nil)
     ((= (car a) (car b))
-        (str-prefix? (cdr a) (cdr b)))
+     (str-prefix? (cdr a) (cdr b)))
     (t nil)))
 
 (defun substr (str start &len)
-   "Return a substring of the given string"
+  "Return a substring of the given string"
   (let ((chars (drop start (explode str))))
     (if len
         (implode (take (car len) chars))
