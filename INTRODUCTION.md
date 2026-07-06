@@ -25,6 +25,8 @@ integers, strings, characters, lambdas, and functions.
 * Lists are written using parenthesis to group them:
   * `(print (list 1 2 3))`
 
+We don't have "symbols" exposed to the language, but if you prefix a variable with "`:`" it will become visually distinct, and this is useful when working with alists, or plists.  Internally that is actually translated to a stringified version of the variable name (So `(print :name)` becomes `(print "name")` - that might seem weird but it works for alist/plist usage, etc.)
+
 
 
 ## Bindings
@@ -179,6 +181,53 @@ But using the `list` function allows that to be done more neatly:
     (list 1 2 3)
 
 (For the common case of creating lists of numbers see the `nat`, `seq` and `range` functions in our [PRIMITIVES.md](PRIMITIVES.md) list.)
+
+
+### Association Lists (alist)
+
+We only have lists as our main data-type, but using a list we can create something that is hash-like in behavior.  An association list is one way of implementing that, it is a list of individual key-value lists, which can be used to store data.
+
+> This is hash-like because keys are unique, if you set the value of a key `:name` twice the second update removes the previous value.
+
+Imagine you wanted to store details about a person you might use something like this to represent their details:
+
+    ( (name "Bob") (age 42) (location Europe) )
+
+Here's how you might use the functions:
+
+    (let ((a (alist-new)))
+       (set! a (alist-set :name   "Steve"))
+       (set! a (alist-set :enmail "steve@example.com"))
+       (set! a (alist-set :hair   "Red"))
+
+       ;; Do stuff
+       (println "Person name " (alist-get a :name)))
+
+See [test/alist.lisp](test/alist.lisp) for an example of use.
+
+
+### Property Lists (plist)
+
+A property-list, or plist, is a similar way of using a list to store details in a hash-like manner.
+
+> Because if you set the key ":foo" you remove any previous value.
+
+Compared to an alist the list is flat, so an example might look like this:
+
+     ( name "Bob" age 42 location "Europe" )
+
+Here's how you might use the functions:
+
+    (let ((p (plist-new)))
+       (set! p (plist-set :name   "Steve"))
+       (set! p (plist-set :enmail "steve@example.com"))
+       (set! p (plist-set :hair   "Red"))
+
+       ;; Do stuff
+
+       (println "Person name " (plist-get p :name)))
+
+See [test/plist.lisp](test/plist.lisp) for an example of use.
 
 
 

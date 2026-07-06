@@ -1,0 +1,13 @@
+We now have the following alist: ((name John) (age 42) (city Paris))
+	name:John
+	age:42
+	city:Paris
+	missing-key:<nil>
+	missing-key with default:cake
+	removing city ..
+		city is now:<nil>
+	updating name .. twice ..
+		updated name:bob
+	Final list:((name bob) (age 42))
+	Keys: (name age)
+	Vals: (bob 42)
