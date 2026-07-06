@@ -1,0 +1,8 @@
+(defun main()
+  (println (lower "steve"))
+  (println (lower "Steve"))
+  (println (lower "STEVE"))
+  (println (lower ""))
+  (println (lower "1234567890"))
+  (println (lower "ST32VE32"))
+  )

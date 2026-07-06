@@ -1,0 +1,8 @@
+(defun main()
+  (println (atof "3"))
+  (println (atof "3.25"))
+  (println (atof "12.34"))
+  (println (atof "-3"))
+  (println (atof "-3.15"))
+  (println (atof "-3.75"))
+  )
