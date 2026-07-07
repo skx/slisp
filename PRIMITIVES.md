@@ -62,6 +62,8 @@ Special forms are things that are built into the compiler core, and handled spec
   * Create a new scope, with locally bound variables.
 * `list`
   * Create a list.
+* `package`
+  * Define a new package.
 * `require`
   * Load a new package, inline.
 * `set!`
