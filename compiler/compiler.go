@@ -544,14 +544,6 @@ func (c *Compiler) asmName(name string) string {
 		return "gt_equals"
 
 	// maths
-	case "+":
-		return "plus"
-	case "-":
-		return "minus"
-	case "*":
-		return "multiply"
-	case "/":
-		return "divide"
 	case "%":
 		return "modulus"
 
@@ -577,9 +569,16 @@ func (c *Compiler) asmName(name string) string {
 	// Rewrite some names to avoid errors from nasm.
 	// e.g. creating function "foo:bar" would try to
 	// define a label "foo:bar:" and that would be rejected.
-	specials := []string{":", "-", "!"}
-	for _, str := range specials {
-		name = strings.ReplaceAll(name, str, "_")
+	specials := make(map[string]string)
+	specials[":"] = "COLON"
+	specials["-"] = "MINUS"
+	specials["+"] = "PLUS"
+	specials["*"] = "STAR"
+	specials["!"] = "BANG"
+	specials["/"] = "DIVIDE"
+
+	for key, val := range specials {
+		name = strings.ReplaceAll(name, key, val)
 	}
 
 	// other functions just get "fn_" prefix

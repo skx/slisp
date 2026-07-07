@@ -101,7 +101,7 @@ do the right thing for each entry in the given list."
       (if (cons? (cdr xs))
           (do
            (putc 32)
-           (print-cons (cdr xs)))
+           (print_cons (cdr xs)))
           (do
            (printstr " . ")
            (print (cdr xs))))))
@@ -186,6 +186,35 @@ NOTE: This is not a macro, so all arguments are evaluated."
 ;; These are mostly about testing for specific values, or
 ;; processing items of lists
 
+
+;; Define the usual maths
+(defun + (a b)
+  (plus a b))
+
+(defun - (a b)
+  (minus a b))
+
+(defun * (a b)
+  (multiply a b))
+
+(defun / (a b)
+  (divide a b))
+
+(package maths
+  (defun + (&xs)
+    "sum all the numbers in the list"
+    (reduce xs (lambda (a b) (plus a b)) 0))
+
+  (defun - (first &rest)
+    (reduce rest (lambda (a b) (minus a b)) first))
+
+  (defun * (first &rest)
+    (reduce rest (lambda (a b) (multiply a b)) first))
+
+  (defun / (first &rest)
+    (reduce rest (lambda (a b) (divide a b)) first))
+)
+
 (defun abs (n)
   "Return the absolute value of N, as a positive number"
   (if (< n 0) (- 0 n) n))
@@ -228,6 +257,7 @@ NOTE: This is not a macro, so all arguments are evaluated."
   "Return 1 if the number is positive, nil otherwise."
   (> n 0))
 
+;; Sum all the numbers in the given list
 (defun sum (xs)
   "sum all the numbers in the list"
   (if xs
@@ -238,7 +268,6 @@ NOTE: This is not a macro, so all arguments are evaluated."
 (defun zero? (n)
   "Return 1 if the number is zero, nil otherwise."
   (= n 0))
-
 
 
 

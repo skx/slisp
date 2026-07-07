@@ -383,7 +383,7 @@ load_both_floats:
 
 
 ;; +
-FUNC plus
+FUNC fn_plus
    call are_both_integers
    jz plus_integer
 
@@ -406,7 +406,7 @@ plus_integer:
 
 
 ;; -
-FUNC minus
+FUNC fn_minus
    call are_both_integers
    jz integer_minus
 
@@ -429,7 +429,7 @@ integer_minus:
 
 
 ;; /
-FUNC divide
+FUNC fn_divide
    call are_both_integers
    jz integer_divide
 
@@ -453,7 +453,7 @@ integer_divide:
 
 
 ;; *
-FUNC multiply
+FUNC fn_multiply
    call are_both_integers
    jz integer_multiply
 
@@ -1587,7 +1587,7 @@ FUNC fn_rmdir
 
 
 ;; Update the Nth list item, leaving everything else as-is.
-FUNC fn_nth_
+FUNC fn_nthBANG
     mov rbx,rdi                ; arg1: list
     GET_TAG_BITS rbx
     cmp rbx,TAG_ID_CONS
