@@ -36,10 +36,7 @@ You can find bigger examples beneath [examples/](examples/), and our [test/](tes
 * Notable examples
   * [examples/brainfuck.lisp](examples/brainfuck.lisp) contains a useful/working brainfuck interpreter.
   * [examples/example.lisp](examples/example.lisp) has other misc. snippets.
-<<<<<<< HEAD
-=======
   * [examples/packages.lisp](examples/packages.lisp) demonstrates how our packaging system works - more details in [INTRODUCTION.md](INTRODUCTION.md).
->>>>>>> include
   * [examples/globals.lisp](examples/globals.lisp) - Explicit demonstration of scopes, showing that local variables always take precedence over global ones.
   * [examples/nqueens.lisp](examples/nqueens.lisp) is a solver for the N Queens problem, defaults to solving the 8x8 grid but you may specify different sizes via a CLI argument.
 
@@ -72,32 +69,18 @@ It should be noted that we prepend a standard library of functions to all user p
   * `dir?`, `entries`, `exists?`, `file?`, `mkdir`, `mkdirs`, `rmdir`, `stat`, `unlink` and `which`.
 * Comparison operations:
   * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
-<<<<<<< HEAD
-* Special forms:
-  * `(cond ..)`
-  * `(defun ..)`
-    * `defconst`, `defun`, and `defvar` are the only things that may appear at the top-level of user-scripts.
-  * `(defconst ..)`
-    * `defconst`, `defun`, and `defvar` are the only things that may appear at the top-level of user-scripts.
-  * `(defvar ..)`
-    * `defconst`, `defun`, and `defvar` are the only things that may appear at the top-level of user-scripts.
-=======
 * Special forms (only some of which are valid at the top-level, those are marked with `*`):
   * `(cond ..)`
   * `(defun ..)` - `*` - declare a function.
   * `(defconst ..)` - `*` - declare a global constant.
   * `(defvar ..)`- `*` - declare a global variable.
->>>>>>> include
   * `(do ..)`
   * `(if ..)`
   * `(lambda ..)`
   * `(let ..)`
   * `(list ..)`
-<<<<<<< HEAD
-=======
   * `(require ..)` - `*` - Include other source files.
   * `(package ..)` - `*` - Declare a package-scope.
->>>>>>> include
   * `(set! ..)`
   * `(while ..)`
 
@@ -105,10 +88,6 @@ You can see a complete list of our primitives, and their details in [PRIMITIVES.
 
 Anti-features:
 
-<<<<<<< HEAD
-=======
-* Mathematical operations only allow two operands (e.g. "(+ 3 2)" is fine, but "(+ 3 2 7)" will produce 5, as the 7 is ignored.)
->>>>>>> include
 * No garbage collection.
 * No macros.
   * It wouldn't be impossible to add them, but without `quote`, `quasiquote`, etc, it's a lot of work.
@@ -116,10 +95,7 @@ Anti-features:
   * Only really useful if you can call `eval` and as a compiler?  That's not going to happen easily.
 * We don't have "symbols" exposed to the language, but if you prefix a variable with "`:`" it will become visually distinct, and this is useful when working with alists, or plists.
   * Internally that is actually translated to a stringified version of the variable name (So `(print :name)` becomes `(print "name")` - that might seem weird but it works for alist/plist usage, etc.)
-<<<<<<< HEAD
-=======
 * Packages are bespoke, and not like lisp/common-lisp/scheme.
->>>>>>> include
 
 
 
