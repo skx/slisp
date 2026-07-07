@@ -129,6 +129,28 @@ type Let struct {
 	Body     []Expr
 }
 
+// Package handles a package scope.
+//
+// Packages basically put their contents into a new namespace, where everything
+// is implicitly given a prefix based on the package name.
+type Package struct {
+	// Name is the name of the package.
+	Name string
+
+	// Contents holds the top-level expressions within the package scope.
+	Contents []TopLevel
+}
+
+// Type is the implementation of the TopLevel interface
+func (r Package) Type() string { return "package" }
+
+type Require struct {
+	Feature string
+}
+
+// Type is the implementation of the TopLevel interface
+func (r Require) Type() string { return "require" }
+
 type Set struct {
 	Name string
 	Expr Expr

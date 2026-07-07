@@ -1,7 +1,6 @@
 # Brief `slisp` Introduction
 
-`slisp` is a typical toy lisp with support for floating-point numbers,
-integers, strings, characters, lambdas, and functions.
+`slisp` is a typical toy lisp with support for floating-point numbers, integers, strings, characters, lambdas, packages, and functions.
 
 
 
@@ -14,16 +13,17 @@ integers, strings, characters, lambdas, and functions.
   * `(print 3)`
   * `(print 0xff)`
   * `(print 0b10101010)`
-* Floating point numbers are only supported literally, in base10:
-  * `(print 3.4)`
+* Floating point numbers are only supported literally, in base10.  (For example `(print 3.4)`)
 * We don't have a boolean type, but `nil` (or the empty list) is false.
   * Anything else is true, and we have a `t` symbol for when you want to show that explicitly.
 * Strings are encoded literally, and escaped characters are honored:
-  * `(print "Hello, world\n")` has a trailing newline, as you would expect.
-* Characters are written with a `#\` prefix:
+  * `(print "I say \"Hello, world\".\n")` has a trailing newline, as you would expect.
+* Character-literals are specified with a `#\` prefix:
   * `(print #\*)`
 * Lists are written using parenthesis to group them:
   * `(print (list 1 2 3))`
+* The only native data structures we support is a list.
+  * But `alists` and `plists` are implemented in our standard library, and are documented below.
 
 We don't have "symbols" exposed to the language, but if you prefix a variable with "`:`" it will become visually distinct, and this is useful when working with alists, or plists.  Internally that is actually translated to a stringified version of the variable name (So `(print :name)` becomes `(print "name")` - that might seem weird but it works for alist/plist usage, etc.)
 
@@ -31,7 +31,7 @@ We don't have "symbols" exposed to the language, but if you prefix a variable wi
 
 ## Bindings
 
-To start a new scope, with local variables, use `let`:
+To start a new scope with local variables use `let`:
 
     (let ((foo "bar")
           (baz  "bart"))
@@ -40,7 +40,7 @@ To start a new scope, with local variables, use `let`:
       (print "baz is ")
       (println baz))
 
-To update the contents of a bound variable use `set!` which we saw above:
+To update the contents of a bound variable use `set!`:
 
     (set! foo "bar")
 
@@ -139,7 +139,7 @@ Or like this, if you wish to receive the command-line arguments, supplied as a l
 
 ## Global Variables
 
-A global variable may be defined via `defvar`, much like our other bindings there are only two arguments:
+A global variable may be defined via `defvar`:
 
     ; Create a global variable
     (defvar version 0.5)
@@ -148,8 +148,6 @@ A global variable may be declared as constant, which will cause errors when atte
 
     ; Create a global variable which may not be modified
     (defconst pi 3.14159)
-
-We only allow "`defconst`", "`defun`" and "`defvar`" to appear at the top-level of scripts.
 
 
 
@@ -241,6 +239,56 @@ We support the `while` expression to run loops:
         (set! i (+ i 1))))
 
 You can see this demonstrated in the [brainfuck.lisp](brainfuck.lisp) program.
+
+
+
+## File inclusion
+
+We have the ability to include other files, literally, via `(require name)`, by default this will look for `name.lisp` within the current directory.
+
+You can specify a list of directories to search with the `LISP_PATH` environmental variable.  For example:
+
+     export LISP_PATH=/usr/share/slisp:lib/
+
+Then `(require foo)` will attempt to load, in order:
+
+* `./foo.lisp`
+* `/usr/share/slisp/foo.lisp`
+* `./lib/foo.lisp`
+
+
+
+## Packages
+
+We also have rudimentary support for packages, which allows pieces of code to be reused across projects - when combined with file inclusion.
+
+[examples/packages.lisp](examples/packages.lisp) contains a good example of how these work, but essentially packages scope defuns/defvar/defconst with an implicit prefix based on the package name, however their contents may also refer to their siblings without the need for explicit qualification.
+
+Here's a brief example:
+
+     ; declare a package named foo
+     (package foo
+
+        ; inside a package we can have any top-level forms
+
+        (defun foo()
+           (println "package:foo function:foo"))
+
+        (defun bar()
+           (println "package:foo function:bar"))
+
+        ; calling package-local things doesn't need anything special
+        (defun test()
+            (foo)
+            (bar))
+
+      ) ;; end of package
+
+      ;; outside the package we can call functions within it by qualifying them.
+      (foo:foo)
+      (foo:bar)
+
+You don't need to wrap the contents of included files within packages, but you might choose to do so for isolation and clarity.
 
 
 

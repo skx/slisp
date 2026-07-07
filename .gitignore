@@ -1,7 +1,8 @@
 slisp
-example
-example.s
-example.o
+examples/*.test
+examples/*.out
+examples/*.asm
+examples/*.o
 test/tmp.asm
 test/*.test
 test/*.out

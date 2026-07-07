@@ -8,6 +8,8 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -44,6 +46,9 @@ type Compiler struct {
 	// labelID is used to give unique labels to if/lambda/etc.
 	labelID int
 
+	// loaded contains packages we've already loaded
+	loaded map[string]bool
+
 	// strings holds the strings we've encountered, indexed
 	// by their SHA1 sum as ID.  This is how we intern.
 	strings map[string]string
@@ -61,6 +66,9 @@ type Compiler struct {
 
 	// globals stores details of top-level global variables
 	globals map[string]parser.Global
+
+	// inPackage stores the name of the package we're currently inside, if any
+	inPackage string
 }
 
 // New is our constructor
@@ -70,11 +78,101 @@ func New(src string) *Compiler {
 	// all internal maps created.
 	return &Compiler{
 		source:    src,
-		strings:   map[string]string{},
 		floats:    map[string]float64{},
 		functions: map[string]*FunctionArgs{},
 		globals:   map[string]parser.Global{},
+		loaded:    map[string]bool{},
+		strings:   map[string]string{},
 	}
+}
+
+// findPackage tries to find the location from which to
+// load .lisp files via "(require foo)"
+func (c *Compiler) findPackage(file string) (string, error) {
+
+	// Present in the CWD?
+	if _, err := os.Stat(file); err == nil {
+		return file, nil
+	}
+
+	// Otherwise search the path
+	if path := os.Getenv("LISP_PATH"); path != "" {
+
+		for dir := range strings.SplitSeq(path, ":") {
+
+			if dir == "" {
+				dir = "."
+			}
+			candidate := filepath.Join(dir, file)
+
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("unable to locate package %q", file)
+}
+
+func (c *Compiler) expandRequires(defs []parser.TopLevel) ([]parser.TopLevel, error) {
+
+	var out []parser.TopLevel
+
+	for _, expr := range defs {
+
+		r, ok := expr.(parser.Require)
+		if !ok {
+			out = append(out, expr)
+			continue
+		}
+
+		name := r.Feature
+
+		// Already loaded?
+		if c.loaded[name] {
+			continue
+		}
+		c.loaded[name] = true
+
+		// If there is no suffix then add ".lisp"
+		file := name
+		if filepath.Ext(file) == "" {
+			file += ".lisp"
+		}
+
+		path, err := c.findPackage(file)
+		if err != nil {
+			return nil, err
+		}
+
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+
+		p := parser.New(string(src))
+
+		pkg, err := p.Parse()
+		if err != nil {
+			return nil, err
+		}
+
+		// Expand any nested requires.
+		pkg, err = c.expandRequires(pkg)
+		if err != nil {
+			return nil, err
+		}
+
+		// Ignore package declarations.
+		for _, x := range pkg {
+			if _, ok := x.(parser.Require); ok {
+				continue
+			}
+			out = append(out, x)
+		}
+	}
+
+	return out, nil
 }
 
 // Compile creates and returns the assembly language source for the given
@@ -88,6 +186,11 @@ func (c *Compiler) Compile() (string, error) {
 	defs, err := p.Parse()
 	if err != nil {
 		return "", fmt.Errorf("error parsing program %s", err)
+	}
+
+	defs, err = c.expandRequires(defs)
+	if err != nil {
+		return "", err
 	}
 
 	main := false
@@ -112,6 +215,33 @@ func (c *Compiler) Compile() (string, error) {
 				Arguments: len(d.Params),
 				Variadic:  d.Variadic,
 			}
+		}
+
+		// But defuns might be in packages
+		p, ok3 := fun.(parser.Package)
+		if ok3 {
+
+			c.inPackage = p.Name
+			for _, fun := range p.Contents {
+
+				// Record global variables.
+				g, ok1 := fun.(parser.Global)
+				if ok1 {
+					name := p.Name + ":" + g.Name
+					c.globals[name] = g
+				}
+
+				// Record data about defined functions
+				d, ok2 := fun.(parser.Defun)
+				if ok2 {
+					name := p.Name + ":" + d.Name
+					c.functions[name] = &FunctionArgs{
+						Arguments: len(d.Params),
+						Variadic:  d.Variadic,
+					}
+				}
+			}
+			c.inPackage = ""
 		}
 	}
 
@@ -152,6 +282,31 @@ func (c *Compiler) Compile() (string, error) {
 
 			c.emitln(fmt.Sprintf("    mov [%s], rax ; %s", c.addThing("global", g.Name), g.Name))
 		}
+
+		// Packages can have variables too
+		p, ok2 := tl.(parser.Package)
+		if ok2 {
+			c.inPackage = p.Name
+			for _, tl = range p.Contents {
+				g, ok1 := tl.(parser.Global)
+
+				if ok1 {
+					name := p.Name + ":" + g.Name
+					err = c.emitExpr(g.Value, e)
+					if err != nil {
+						return "", err
+					}
+
+					// This variable has been set now.
+					x := c.globals[name]
+					x.Init = true
+					c.globals[name] = x
+
+					c.emitln(fmt.Sprintf("    mov [%s], rax ; package %s %s", c.addThing("global", name), p.Name, name))
+				}
+			}
+			c.inPackage = ""
+		}
 	}
 
 	//
@@ -179,6 +334,27 @@ func (c *Compiler) Compile() (string, error) {
 				return "", err
 			}
 			c.emitln("")
+		}
+
+		// But defuns might be in packages
+		p, ok3 := tl.(parser.Package)
+		if ok3 {
+			c.inPackage = p.Name
+			for _, tl := range p.Contents {
+
+				d, ok := tl.(parser.Defun)
+				if ok {
+
+					// modify the name
+					d.Name = p.Name + ":" + d.Name
+					err = c.emitCallable(d)
+					if err != nil {
+						return "", err
+					}
+					c.emitln("")
+				}
+			}
+			c.inPackage = ""
 		}
 	}
 
@@ -305,7 +481,7 @@ func (c *Compiler) Compile() (string, error) {
 // and strings, based on the SHA1-hash.  Interning them.
 func (c *Compiler) addThing(prefix string, f any) string {
 	hasher := sha1.New()
-	hasher.Write(fmt.Appendf(nil, "%f", f))
+	hasher.Write(fmt.Appendf(nil, "%v", f))
 	sha := hex.EncodeToString(hasher.Sum(nil))
 	id := fmt.Sprintf("%s_%s", prefix, sha)
 	return id
@@ -381,9 +557,10 @@ func (c *Compiler) asmName(name string) string {
 	// Rewrite some names to avoid errors from nasm.
 	// e.g. creating function "foo:bar" would try to
 	// define a label "foo:bar:" and that would be rejected.
-	name = strings.ReplaceAll(name, "-", "_")
-	name = strings.ReplaceAll(name, ":", "_")
-	name = strings.ReplaceAll(name, "!", "BANG")
+	specials := []string{":", "-", "!"}
+	for _, str := range specials {
+		name = strings.ReplaceAll(name, str, "_")
+	}
 
 	// other functions just get "fn_" prefix
 	if strings.HasPrefix(name, "fn_") {
@@ -400,11 +577,26 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		if symbol, ok := n.Fn.(*parser.Symbol); ok {
 
 			// is this variadic?
-			v, ok := c.functions[symbol.Name]
+			name := symbol.Name
+			v, ok := c.functions[name]
+
+			// Failed to lookup - look for the package-local function
+			if !ok {
+				nm := c.inPackage + ":" + symbol.Name
+				vv, ok2 := c.functions[nm]
+
+				// Okay that worked.  Rename
+				if ok2 {
+					v = vv
+					ok = ok2
+					name = nm
+				}
+			}
+
 			if ok && v.Variadic {
 
 				// Variadic call.
-				err := c.emitVariadicCall(symbol.Name, v.Arguments, n.Args, ev)
+				err := c.emitVariadicCall(name, v.Arguments, n.Args, ev)
 				return err
 			}
 
@@ -420,7 +612,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			// Mismatch in argument counts?
 			if ok {
 				if len(n.Args) != v.Arguments {
-					return fmt.Errorf("arity-error: function %s expects %d arguments, %d provided", symbol.Name, v.Arguments, len(n.Args))
+					return fmt.Errorf("arity-error: function %s expects %d arguments, %d provided", name, v.Arguments, len(n.Args))
 				}
 			}
 
@@ -446,7 +638,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			//       (let ((x (lambda (a b) (+ a b))))
 			//         (println (x 3 7)))
 			//
-			if offset, ok := ev.Lookup(symbol.Name); ok {
+			if offset, ok := ev.Lookup(name); ok {
 
 				c.emitln(fmt.Sprintf(
 					"    mov rax,[rbp-%d]",
@@ -470,10 +662,10 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 			// Similar story here - a lambda that is stored in a global
 			// variable instead of a local one
-			if _, ok := c.globals[symbol.Name]; ok {
+			if _, ok := c.globals[name]; ok {
 
 				// get the address
-				c.emitln(fmt.Sprintf("    mov rax,[%s]  ; %s", c.addThing("global", symbol.Name), symbol.Name))
+				c.emitln(fmt.Sprintf("    mov rax,[%s]  ; %s", c.addThing("global", name), name))
 
 				// check if it is a lambda
 				c.emitln("mov rbx,rax")
@@ -491,7 +683,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			}
 
 			// OK then we assume it's a function
-			c.emitln("    call " + c.asmName(symbol.Name))
+			c.emitln("    call " + c.asmName(name))
 			return nil
 		}
 
@@ -749,6 +941,25 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		c.emitln("    xor rax, rax     ; NIL")
 		c.emitln("    TAG_NIL_REG rax  ; Tagged")
 
+	case parser.Package:
+		if c.inPackage != "" {
+			return fmt.Errorf("nested packages are illegal, in package %s new package %s", c.inPackage, n.Name)
+		}
+
+		// store the package
+		c.inPackage = n.Name
+
+		// emit all the expressions
+		for _, expr := range n.Contents {
+			err := c.emitExpr(expr, ev)
+			if err != nil {
+				return err
+			}
+		}
+
+		// clear the package
+		c.inPackage = ""
+
 	case *parser.String:
 		// create a label, based on the hash of the content.
 		// This has the side-effect of interning.
@@ -764,6 +975,11 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		c.emitln("    TAG_STRING_REG rax")
 
 	case *parser.Set:
+
+		// If we're in a package the name changes
+		if c.inPackage != "" {
+			n.Name = c.inPackage + ":" + n.Name
+		}
 
 		err := c.emitExpr(n.Expr, ev)
 		if err != nil {
@@ -795,9 +1011,23 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			return nil
 		}
 
-		return fmt.Errorf("unknown variable: %s", n.Name)
+		if c.inPackage != "" {
+			nm := c.inPackage + ":" + n.Name
+			if global, ok := c.globals[nm]; ok {
+
+				if global.Const && global.Init {
+					return fmt.Errorf("attempt to modify the package %s constant variable %s", c.inPackage, global.Name)
+				}
+
+				c.emitln(fmt.Sprintf("    mov [%s], rax  ; %s", c.addThing("global", nm), nm))
+				return nil
+			}
+		}
+
+		return fmt.Errorf("unknown variable: %s [package '%s']", n.Name, c.inPackage)
 
 	case *parser.Symbol:
+
 		if offset, ok := ev.Lookup(n.Name); ok {
 			c.emitln(fmt.Sprintf(
 				"    mov rax, [rbp-%d]",
@@ -819,7 +1049,15 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			return nil
 		}
 
-		return fmt.Errorf("unknown variable: %s", n.Name)
+		if c.inPackage != "" {
+			nm := c.inPackage + ":" + n.Name
+			if _, ok := c.globals[nm]; ok {
+				c.emitln(fmt.Sprintf("    mov rax, [%s]  ; package %s %s", c.addThing("global", nm), c.inPackage, n.Name))
+				return nil
+			}
+		}
+
+		return fmt.Errorf("unknown variable: %s [package '%s']", n.Name, c.inPackage)
 
 	case *parser.While:
 
