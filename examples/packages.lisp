@@ -3,6 +3,13 @@
          ;; Declare a global variable within this package.
          (defvar version 1)
 
+         ;; Local function accesses the local version variable
+         ;; and can change it with that name.
+         (defun update()
+           (println "Version before change was " version)
+           (set! version "alpha")
+           (println "version after change is " version))
+
          ;; Declare a package-function, named "noise"
          ;;
          ;; This will be callable by "foo:noise" from outside the package.
@@ -27,6 +34,13 @@
          ;; Declare a global variable within this package.
          (defvar version 2)
 
+         ;; Local function accesses the local version variable
+         ;; and can change it with that name.
+         (defun update()
+           (println "Version before change was " version)
+           (set! version "alpha")
+           (println "version after change is " version))
+
          ;; Declare a package-function, named "noise"
          ;;
          ;; This will be callable by "bar:noise" from outside the package.
@@ -48,8 +62,22 @@
 )
 
 (defun main()
+  (foo:update)
   (foo:steve)
   (foo:noise)
+
+  ; change the package variable
+  (set! foo:version "1.one.alpha")
+  (foo:steve)
+
+  (newline)
+
+  (bar:update)
   (bar:steve)
   (bar:noise)
+
+  ; change the package variable
+  (set! bar:version "2.two.beta")
+  (bar:steve)
+
 )
