@@ -17,25 +17,24 @@ The only notable special symbols are `nil`, which is synonymous with false and t
 
 We don't have symbols as a specific type, but anything prefixed with a ":" will be silently converted into a string, with the colon removed.  This is designed for visual clarity in code relating to alists, or plists.
 
-* Comments are begun with ";" and continue until the end of the line.
-  * There are no block comments.
-* We support integers and floating point numbers for mathematical operations.
+* Comments are begun with ";" and continue until the end of the line.  (There are no multi-line/block comments.)
+* We support both integers and floating point numbers for mathematical operations.
 * Integers may be written in any base the golang `strconv.ParseInt` function supports:
   * `(print 3)`
   * `(print 0xff)`
   * `(print 0b10101010)`
-* Floating point numbers are only supported literally, in base10:
-  * `(print 3.4)`
+* Floating point numbers are only supported literally, in base10.  (For example `(print 3.4)`)
 * We don't have a boolean type, but `nil` (or the empty list) is false.
   * Anything else is true, and we have a `t` symbol for when you want to show that explicitly.
 * Strings are encoded literally, and escaped characters are honored:
-  * `(print "Hello, world\n")` has a trailing newline, as you would expect.
-* Characters are written with a `#\` prefix:
+  * `(print "I say \"Hello, world\".\n")` has a trailing newline, as you would expect.
+* Character-literals are specified with a `#\` prefix:
   * `(print #\*)`
 * Lists are written using parenthesis to group them:
   * `(print (list 1 2 3))`
-* The only real native data structures we support is a list.
-  * But alists and plists are implemented in our standard library, and are documented below.
+* The only native data structures we support is a list.
+  * But `alists` and `plists` are implemented in our standard library, and are documented below.
+  * But alists and plists are implemented in our standard library, and are documented in [INTRODUCTION.md](INTRODUCTION.md).
 
 We don't have "symbols" exposed to the language, but if you prefix a variable with "`:`" it will become visually distinct, and this is useful when working with alists, or plists.  Internally that is actually translated to a stringified version of the variable name (So `(print :name)` becomes `(print "name")` - that might seem weird but it works for alist/plist usage, etc.)
 
