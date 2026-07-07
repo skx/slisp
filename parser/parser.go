@@ -94,11 +94,37 @@ func (p *Parser) parseTopLevel() (TopLevel, error) {
 		return p.parseDefun()
 	case "defvar":
 		return p.parseGlobal(tok)
+	case "package":
+		return p.parsePackage()
 	case "require":
 		return p.parseRequire()
 	}
 
 	return nil, fmt.Errorf("illegal top-level statement (%s ..)", tok)
+}
+
+// parsePackage parses a top level "(package ..)" statement.
+func (p *Parser) parsePackage() (TopLevel, error) {
+	name := p.next()
+
+	var contents []TopLevel
+
+	for p.peek() != ")" && p.peek() != "" {
+		x, err := p.parseTopLevel()
+		if err != nil {
+			return nil, err
+		}
+		contents = append(contents, x)
+	}
+
+	if !p.expectNext(")") {
+		return nil, fmt.Errorf("expected ')' after package")
+	}
+
+	return Package{
+		Name:     name,
+		Contents: contents,
+	}, nil
 }
 
 // parseRequire parses a (require :foo) statement.
