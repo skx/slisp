@@ -191,14 +191,18 @@ NOTE: This is not a macro, so all arguments are evaluated."
 (defun + (a b)
   (plus a b))
 
-(defun - (a b)
-  (minus a b))
+(defun - (a &b)
+  (if (car b)
+     (minus a (car b))
+     (minus 0 a)))
 
 (defun * (a b)
   (multiply a b))
 
-(defun / (a b)
-  (divide a b))
+(defun / (a &b)
+  (if (car b)
+     (divide a (car b))
+     (divide 1 (+ a 0.0))))
 
 (package maths
   (defun + (&xs)
@@ -206,13 +210,17 @@ NOTE: This is not a macro, so all arguments are evaluated."
     (reduce xs (lambda (a b) (plus a b)) 0))
 
   (defun - (first &rest)
-    (reduce rest (lambda (a b) (minus a b)) first))
+    (if (nil? rest)
+        (minus 0 first)
+      (reduce rest (lambda (a b) (minus a b)) first)))
 
   (defun * (first &rest)
     (reduce rest (lambda (a b) (multiply a b)) first))
 
   (defun / (first &rest)
-    (reduce rest (lambda (a b) (divide a b)) first))
+    (if (nil? rest)
+        (divide 1 (+ first 0.0))
+    (reduce rest (lambda (a b) (divide a b)) first)))
 )
 
 (defun abs (n)
