@@ -69,6 +69,10 @@ type Compiler struct {
 
 	// inPackage stores the name of the package we're currently inside, if any
 	inPackage string
+
+	// argRegs holds the names of registers we use for argument-passing, as part of
+	// the Sys V ABI
+	argRegs []string
 }
 
 // New is our constructor
@@ -77,6 +81,14 @@ func New(src string) *Compiler {
 	// return a new object, with the source and
 	// all internal maps created.
 	return &Compiler{
+		argRegs: []string{
+			"rdi",
+			"rsi",
+			"rdx",
+			"rcx",
+			"r8",
+			"r9",
+		},
 		source:    src,
 		floats:    map[string]float64{},
 		functions: map[string]*FunctionArgs{},
@@ -600,15 +612,6 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				return err
 			}
 
-			regs := []string{
-				"rdi",
-				"rsi",
-				"rdx",
-				"rcx",
-				"r8",
-				"r9",
-			}
-
 			// Mismatch in argument counts?
 			if ok {
 				if len(n.Args) != v.Arguments {
@@ -627,7 +630,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			for i := len(n.Args) - 1; i >= 0; i-- {
 				c.emitln(fmt.Sprintf(
 					"    pop %s",
-					regs[i],
+					c.argRegs[i],
 				))
 			}
 
@@ -687,20 +690,6 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			return nil
 		}
 
-		//
-		// This covers an (anonymous) inline lambda which isn't
-		// stored in our symbol/environment table such as:
-		//  (println ( (lambda (a) (/ 100 a)) 10))
-		//
-		regs := []string{
-			"rdi",
-			"rsi",
-			"rdx",
-			"rcx",
-			"r8",
-			"r9",
-		}
-
 		for _, a := range n.Args {
 			err := c.emitExpr(a, ev)
 			if err != nil {
@@ -713,7 +702,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		for i := len(n.Args) - 1; i >= 0; i-- {
 			c.emitln(fmt.Sprintf(
 				"    pop %s",
-				regs[i],
+				c.argRegs[i],
 			))
 		}
 
@@ -1107,15 +1096,6 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 // as a single argument.
 func (c *Compiler) emitVariadicCall(name string, expected int, args []parser.Expr, ev *env.Env) error {
 
-	regs := []string{
-		"rdi",
-		"rsi",
-		"rdx",
-		"rcx",
-		"r8",
-		"r9",
-	}
-
 	//
 	// Fixed arguments.
 	//
@@ -1159,7 +1139,7 @@ func (c *Compiler) emitVariadicCall(name string, expected int, args []parser.Exp
 	// Pop registers.
 	//
 	for i := fixed; i >= 0; i-- {
-		c.emitln(fmt.Sprintf("    pop %s", regs[i]))
+		c.emitln(fmt.Sprintf("    pop %s", c.argRegs[i]))
 	}
 
 	c.emitln("    call " + c.asmName(name))
@@ -1208,15 +1188,6 @@ func (c *Compiler) emitCallable(obj any) error {
 	c.emitln("    mov rbp, rsp")
 	c.emitln("    sub rsp, 256 ;; guess at space for locals")
 
-	regs := []string{
-		"rdi",
-		"rsi",
-		"rdx",
-		"rcx",
-		"r8",
-		"r9",
-	}
-
 	for i, p := range d.Params {
 
 		offset := ev.Define(p)
@@ -1224,7 +1195,7 @@ func (c *Compiler) emitCallable(obj any) error {
 		c.emitln(fmt.Sprintf(
 			"    mov [rbp-%d], %s",
 			offset,
-			regs[i],
+			c.argRegs[i],
 		))
 	}
 
