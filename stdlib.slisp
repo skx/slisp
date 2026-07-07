@@ -368,11 +368,7 @@ Incrementing by the given step each time."
   (cond
     ( (nil? xs) nil)
     ( (= item (car xs)) 1)
-<<<<<<< HEAD
-    ( 1 (member? (cdr xs) item))))
-=======
     ( t (member? (cdr xs) item))))
->>>>>>> include
 
 (defun reduce (xs fn acc)
   "This is our reduce function, which uses a list, a function, and the accumulator."
@@ -381,18 +377,10 @@ Incrementing by the given step each time."
       (reduce (cdr xs) fn (fn acc (car xs)))))
 
 (defun repeat (n fn)
-<<<<<<< HEAD
-  "Execute the supplied body of code N times."
-  (if (> n 0)
-      (do
-       (fn n)
-       (repeat (- n 1) fn))))
-=======
   "Execute the function N times."
   (while (> n 0)
        (fn n)
        (set! n (- n 1))))
->>>>>>> include
 
 (defun reverse (xs)
   "Reverse the contents of the specified list."
