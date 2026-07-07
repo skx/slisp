@@ -1,8 +1,19 @@
+Version before change was 1
+version after change is alpha
 foo::steve
-	My version is 1
+	My version is alpha
 	Noise:meow
 	Noise:meow
+foo::steve
+	My version is 1.one.alpha
+	Noise:meow
+
+Version before change was 2
+version after change is alpha
 bar::steve
-	My version is 2
+	My version is alpha
 	Noise:woof
+	Noise:woof
+bar::steve
+	My version is 2.two.beta
 	Noise:woof
