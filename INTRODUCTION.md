@@ -290,6 +290,15 @@ Here's a brief example:
 
 You don't need to wrap the contents of included files within packages, but you might choose to do so for isolation and clarity.
 
+**NOTE**: Our core mathematical primitives (`+`, `-`, `*`, and `/`) work on only two arguments, for example `(+ 3 4)`.  As an experiment they have been duplicated in the `maths` package in such a way that they work on N arguments:
+
+```lisp
+(println (+ 3 4)   )  ; -> 7
+(println (+ 3 4 5) )  ; -> Error: function + expects 2 arguments, 3 provided
+(println (maths:+ 10 20 30 40) )  ; -> 100
+(println (maths:* 10 10 3))       ; -> 300
+```
+
 
 
 ## See Also
