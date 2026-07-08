@@ -193,16 +193,16 @@ NOTE: This is not a macro, so all arguments are evaluated."
 
 (defun - (a &b)
   (if (car b)
-     (minus a (car b))
-     (minus 0 a)))
+      (minus a (car b))
+      (minus 0 a)))
 
 (defun * (a b)
   (multiply a b))
 
 (defun / (a &b)
   (if (car b)
-     (divide a (car b))
-     (divide 1 (+ a 0.0))))
+      (divide a (car b))
+      (divide 1 (+ a 0.0))))
 
 (defun abs (n)
   "Return the absolute value of N, as a positive number"
@@ -339,6 +339,23 @@ Incrementing by the given step each time."
           (cons (car xs) (flatten (cdr xs)))
           (append (flatten (car xs)) (flatten (cdr xs))))))
 
+(defun intersect (lst1 lst2)
+  "Return a list of the common entries from the two lists, with no duplicates."
+  (intersect-helper lst1 lst2 nil))
+
+(defun intersect-helper (lst1 lst2 seen)
+  (cond
+    ((null? lst1) nil)
+    ((member? seen (car lst1))
+     (intersect-helper (cdr lst1) lst2 seen))
+    ((member? lst2 (car lst1))
+     (cons (car lst1)
+           (intersect-helper (cdr lst1)
+                             lst2
+                             (cons (car lst1) seen))))
+    (t
+     (intersect-helper (cdr lst1) lst2 seen))))
+
 (defun join (xs)
   "Join an arbitrary list of strings together into a single string."
   (if xs
@@ -397,8 +414,8 @@ Incrementing by the given step each time."
 (defun repeat (n fn)
   "Execute the function N times."
   (while (> n 0)
-       (fn n)
-       (set! n (- n 1))))
+    (fn n)
+    (set! n (- n 1))))
 
 (defun reverse (xs)
   "Reverse the contents of the specified list."
@@ -442,7 +459,15 @@ Incrementing by the given step each time."
     ((nil? xs) nil)
     (t (cons (car xs) (take (- n 1) (cdr xs))))))
 
+(defun union (lst1 lst2)
+  "Return the list of all distinct values from the two lists, with no duplicates."
+  (reverse (union-helper (append lst1 lst2) nil)))
 
+(defun union-helper (xs seen)
+  (cond
+    ((null? xs) seen)
+    ((member? seen (car xs)) (union-helper (cdr xs) seen))
+    (t (union-helper (cdr xs) (cons (car xs) seen)))))
 
 
 
