@@ -674,6 +674,10 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				}
 			}
 
+			if len(n.Args) >= 5 {
+				return fmt.Errorf("%d is more than the maximum number of arguments we support", len(n.Args))
+			}
+
 			for _, a := range n.Args {
 				err := c.emitExpr(a, ev)
 				if err != nil {
@@ -743,6 +747,10 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			// OK then we assume it's a function
 			c.emitln("    call " + c.asmName(name))
 			return nil
+		}
+
+		if len(n.Args) >= 5 {
+			return fmt.Errorf("%d is more than the maximum number of arguments we support", len(n.Args))
 		}
 
 		for _, a := range n.Args {
@@ -1243,6 +1251,10 @@ func (c *Compiler) emitCallable(obj any) error {
 	c.emitln("    push rbp")
 	c.emitln("    mov rbp, rsp")
 	c.emitln("    sub rsp, 256 ;; guess at space for locals")
+
+	if len(d.Params) >= 5 {
+		return fmt.Errorf("%d is more than the maximum number of arguments we support", len(d.Params))
+	}
 
 	for i, p := range d.Params {
 
