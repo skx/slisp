@@ -93,7 +93,7 @@ func New(src string) *Compiler {
 	// This table is also used for our (alias! old new)
 	// functionality.
 	//
-	aliases := make(map[string]string)
+	aliases := map[string]string{}
 	aliases["!"] = "fn_not"
 	aliases["%"] = "modulus"
 	aliases["<"] = "lt"
@@ -196,7 +196,8 @@ func (c *Compiler) expandRequires(defs []parser.TopLevel) ([]parser.TopLevel, er
 			// Error loading from inline.
 			//
 			// Load from the filesystem.
-			path, err := c.findPackage(file)
+			path := ""
+			path, err = c.findPackage(file)
 			if err != nil {
 				return nil, err
 			}
@@ -396,7 +397,7 @@ func (c *Compiler) Compile() (string, error) {
 			return nil
 		}
 
-		if err := c.emitExpr(g.Value, e); err != nil {
+		if err = c.emitExpr(g.Value, e); err != nil {
 			return err
 		}
 
@@ -449,7 +450,7 @@ func (c *Compiler) Compile() (string, error) {
 			main = true
 		}
 
-		err := c.emitCallable(d)
+		err = c.emitCallable(d)
 		if err != nil {
 			return err
 		}
@@ -617,7 +618,7 @@ func (c *Compiler) asmName(name string) string {
 	// Rewrite some names to avoid errors from nasm.
 	// e.g. creating function "foo:bar" would try to
 	// define a label "foo:bar:" and that would be rejected.
-	specials := make(map[string]string)
+	specials := map[string]string{}
 	specials[":"] = "COLON"
 	specials["-"] = "MINUS"
 	specials["+"] = "PLUS"
