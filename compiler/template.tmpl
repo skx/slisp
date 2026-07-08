@@ -1431,6 +1431,26 @@ FUNC fn_int
     ret
 
 
+;; isqrt
+FUNC fn_isqrt
+    ;; Preserve original argument, as load_both_floats
+    ;; clobbers RSI.
+    mov rsi, rdi
+
+    ;; Converts integer(s) to doubles as necessary.
+    ;; Result is:
+    ;;    xmm0 = input
+    ;;    xmm1 = copy (ignored)
+    call load_both_floats
+
+    cvtsi2sd xmm0, rdi
+    sqrtsd xmm0, xmm0
+    cvttsd2si rax, xmm0
+
+    TAG_INTEGER_REG rax
+    ret
+
+
 ;; Make a directory, mode is fixed
 FUNC fn_mkdir
     mov rbx, rdi
@@ -1747,6 +1767,32 @@ FUNC fn_split
     ret
 
 
+
+;; sqrt
+FUNC fn_sqrt
+    ;; Preserve original argument, as load_both_floats
+    ;; clobbers RSI.
+    mov rsi, rdi
+
+    ;; Converts integer(s) to doubles as necessary.
+    ;; Result is:
+    ;;    xmm0 = input
+    ;;    xmm1 = copy (ignored)
+    call load_both_floats
+
+    ;; Compute sqrt(xmm0)
+    sqrtsd xmm0, xmm0
+
+    ;; Allocate a new float object.
+    mov rax, [heap_ptr]
+    add qword [heap_ptr], 8
+
+    ;; Store the result.
+    movq [rax], xmm0
+
+    ;; Return tagged pointer.
+    TAG_FLOAT_REG rax
+    ret
 
 ;;
 ;; stat(path)

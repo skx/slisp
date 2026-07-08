@@ -123,6 +123,8 @@ Note that functions have their names mangled a little bit ("-" is converted to "
   * `int`
     * Convert the given float, or character, to an integer.
     * Anything else becomes zero.
+  * `isqrt`
+    * Integer square root, which rounds down.
   * `mkdir`
     * Create the named directory.  **NOTE**: Mode is fixed at 0755, and parent directories must exist unless you use `mkdirs`.
   * `newline`
@@ -152,6 +154,8 @@ Note that functions have their names mangled a little bit ("-" is converted to "
   * `split-all`
     * Return a list of all parts of string, split by the character.
     * e.g. `(split-all (getenv "PATH") #\:)` to find all directories on the PATH.
+  * `sqrt`
+    * Square root.
   * `stat`
     * Returns file information as a list (TYPE SIZE MODE), or nil on failure.
   * `strcat`
