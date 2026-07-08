@@ -344,13 +344,17 @@ func (c *Compiler) Compile() (string, error) {
 		switch n := tl.(type) {
 
 		case parser.Alias:
-			n.Old = n.Old[1 : len(n.Old)-1]
-			n.New = n.New[1 : len(n.New)-1]
 
-			newS := c.asmName(n.New)
+			// strip quotes, if present.
+			old := strings.Trim(n.Old, "\"")
+			new := strings.Trim(n.New, "\"")
 
-			c.functions[n.Old] = c.functions[n.New]
-			c.aliases[n.Old] = newS
+			_, ok := c.functions[new]
+			if !ok {
+				return fmt.Errorf("failed to find details for function %s (%s)", n.New, new)
+			}
+			c.functions[old] = c.functions[new]
+			c.aliases[old] = c.asmName(new)
 		}
 		return nil
 	})
