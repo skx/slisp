@@ -10,6 +10,15 @@ import (
 	"strings"
 )
 
+// namedCharacters are the special ones handled by our lexer,
+// so "#\Newline" is the same as "#\\n".
+var namedCharacters = map[string]string{
+	"Space":   " ",
+	"Tab":     "\t",
+	"Newline": "\n",
+	"Return":  "\r",
+}
+
 // Lexer holds our state.
 type Lexer struct {
 
@@ -71,6 +80,13 @@ func (l *Lexer) Tokenize() ([]string, error) {
 	return out, nil
 }
 
+// isLetter looks for valid alphabetical characters, and is used
+// to handle "long-form" character literals (such as \#Newline).
+func (l *Lexer) isLetter(b byte) bool {
+	return (b >= 'a' && b <= 'z') ||
+		(b >= 'A' && b <= 'Z')
+}
+
 // scanStringLiteral is called to consume a string literal, and return it.
 func (l *Lexer) scanStringLiteral() (string, error) {
 	var b strings.Builder
@@ -113,7 +129,6 @@ func (l *Lexer) scanStringLiteral() (string, error) {
 // scanCharacterLiteral is invoked to parse a character literal, i.e. something prefixed with #\.
 func (l *Lexer) scanCharacterLiteral() (string, error) {
 
-	// We've already seen '#'
 	if l.next() != '#' {
 		return "", fmt.Errorf("scanCharacterLiteral called at wrong position")
 	}
@@ -122,25 +137,47 @@ func (l *Lexer) scanCharacterLiteral() (string, error) {
 		return "", fmt.Errorf("expected '\\' after '#'")
 	}
 
-	var b strings.Builder
-	b.WriteString("#\\")
-
 	if l.eof() {
 		return "", fmt.Errorf("unterminated character literal")
 	}
 
+	// Read the first character after #\
 	ch := l.next()
-	b.WriteByte(ch)
 
-	// Allow escaped characters such as #\\ or #\"
+	// Existing escaped-character handling.
 	if ch == '\\' {
 		if l.eof() {
 			return "", fmt.Errorf("unterminated escape")
 		}
-		b.WriteByte(l.next())
+		return "#\\" + string([]byte{'\\', l.next()}), nil
 	}
 
-	return b.String(), nil
+	// Named character?
+	if l.isLetter(ch) {
+		var b strings.Builder
+		b.WriteByte(ch)
+
+		for !l.eof() && l.isLetter(l.peek()) {
+			b.WriteByte(l.next())
+		}
+
+		name := b.String()
+
+		// single character? then no lookup
+		if len(name) == 1 {
+			return "#\\" + name, nil
+		}
+
+		// lookup and replace
+		if value, ok := namedCharacters[name]; ok {
+			return "#\\" + string(value), nil
+		}
+
+		return "", fmt.Errorf("unknown named character %q", name)
+	}
+
+	// Ordinary single-character literal.
+	return "#\\" + string(ch), nil
 }
 
 // scanSymbol is invoked to parse a symbol.
