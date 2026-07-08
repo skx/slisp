@@ -167,6 +167,8 @@ Note that functions have their names mangled a little bit ("-" is converted to "
      * Everything else returns an empty string.
   * `strlen`
     * Return the length of the given string.
+  * `sys_run`
+    * Helper for command execution.
   * `unlink`
     * Delete the named file.
 
@@ -285,6 +287,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return a substring from a given string.
 * `sum`
   * Sum the values in the given list.
+* `system`
+  * Run a command via `sys_run`,  return the output on success, and nil on failure.
 * `upper`
   * Return the given string, converted to upper-case.
 * `which`

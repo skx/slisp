@@ -464,6 +464,17 @@ Incrementing by the given step each time."
             (getenv-loop name (cdr xs))))
       nil))
 
+(defun system(cmd)
+  "Run a command and return the output; nil on failure."
+  (let ((tmp     "/tmp/mktmp")         ; tmp file for output
+        (res     (sys_run cmd tmp))    ; run command
+        (handle  (fopen tmp "r"))      ; open file
+        (data    (fread handle))       ; read output
+        (ignore1 (fclose handle))      ; close file
+        (ignore2 (unlink tmp)))        ; delete temporary file
+    (if (= 0 res)                      ; return either data, or nil
+        data
+        nil)))
 
 
 
