@@ -5,7 +5,7 @@ package compiler
 import (
 	"bytes"
 	"crypto/sha1"
-	_ "embed"
+	"embed"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -40,6 +40,9 @@ type Compiler struct {
 	// aliases handles renaming user-visible names to
 	// assembly routines
 	aliases map[string]string
+
+	// fs is the internal filesystem from which packages are loaded
+	fs embed.FS
 
 	// source stores the program we're parsing.
 	source string
@@ -128,8 +131,12 @@ func New(src string) *Compiler {
 	}
 }
 
-// findPackage tries to find the location from which to
-// load .lisp files via "(require foo)"
+// LoadPackages will enable loading packages from the specified embedded filesystem.
+func (c *Compiler) LoadPackages(fs embed.FS) {
+	c.fs = fs
+}
+
+// findPackage tries to find the location from which to load .lisp files via "(require foo)".
 func (c *Compiler) findPackage(file string) (string, error) {
 
 	// Present in the CWD?
@@ -182,17 +189,25 @@ func (c *Compiler) expandRequires(defs []parser.TopLevel) ([]parser.TopLevel, er
 			file += ".lisp"
 		}
 
-		path, err := c.findPackage(file)
+		// Try to load the given content from the embedded filesystem
+		data, err := c.fs.ReadFile("packages/" + file)
 		if err != nil {
-			return nil, err
+
+			// Error loading from inline.
+			//
+			// Load from the filesystem.
+			path, err := c.findPackage(file)
+			if err != nil {
+				return nil, err
+			}
+
+			data, err = os.ReadFile(path)
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		src, err := os.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-
-		p := parser.New(string(src))
+		p := parser.New(string(data))
 
 		pkg, err := p.Parse()
 		if err != nil {
@@ -260,15 +275,17 @@ func (c *Compiler) walkTopLevel(
 // list of functions.
 func (c *Compiler) Compile() (string, error) {
 
-	// Create a parser
+	// Create a parser object with our source.
 	p := parser.New(c.source)
 
-	// Parse the program into functions
+	// Parse the program into top-level items.
 	defs, err := p.Parse()
 	if err != nil {
 		return "", fmt.Errorf("error parsing program %s", err)
 	}
 
+	// Walk over the generated AST and process any (require ..)
+	// statements, recursively.
 	defs, err = c.expandRequires(defs)
 	if err != nil {
 		return "", err
@@ -314,7 +331,14 @@ func (c *Compiler) Compile() (string, error) {
 		return "", err
 	}
 
-	// Handle remapping functions
+	//
+	// Walk over the top-level functions and handle any aliasing updates
+	// these will change calls from "(old ..)" to "(new ..)" and ensure
+	// the parameters match.
+	//
+	// This has to happen after functons have been recorded, and parameters
+	// recorded.
+	//
 	err = c.walkTopLevel(defs, func(pkg string, tl parser.TopLevel) error {
 
 		switch n := tl.(type) {
@@ -330,6 +354,15 @@ func (c *Compiler) Compile() (string, error) {
 		}
 		return nil
 	})
+	if err != nil {
+		return "", err
+	}
+
+	//
+	// Create a new environment for the global defun/defvar
+	// statements - they can't really use it, but it is required.
+	//
+	e := env.New(nil)
 
 	//
 	// This whole function is messy, but in brief
@@ -346,13 +379,12 @@ func (c *Compiler) Compile() (string, error) {
 		return txt
 	}
 
-	// Create a new environment for the global defun/defvar
-	// statements - they can't really use it, but it is required.
-	e := env.New(nil)
+	///
+	/// Now we compile
+	///
 
 	//
-	// Similar story here - walk over all top-level things, and
-	// handle the setup of global variables
+	// Walk over all top-level expressions, and handle the setup of global variables.
 	//
 	err = c.walkTopLevel(defs, func(pkg string, tl parser.TopLevel) error {
 		g, ok := tl.(parser.Global)
@@ -380,7 +412,6 @@ func (c *Compiler) Compile() (string, error) {
 
 		return nil
 	})
-
 	if err != nil {
 		return "", err
 	}
@@ -949,9 +980,6 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 	case *parser.Nil:
 		c.emitln("    xor rax, rax     ; NIL")
 		c.emitln("    TAG_NIL_REG rax  ; Tagged")
-
-	case parser.Alias:
-		// NOP
 
 	case parser.Package:
 		if c.inPackage != "" {
