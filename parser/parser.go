@@ -88,6 +88,8 @@ func (p *Parser) parseTopLevel() (TopLevel, error) {
 	tok := p.next()
 
 	switch tok {
+	case "alias!":
+		return p.parseAlias()
 	case "defconst":
 		return p.parseGlobal(tok)
 	case "defun":
@@ -101,6 +103,22 @@ func (p *Parser) parseTopLevel() (TopLevel, error) {
 	}
 
 	return nil, fmt.Errorf("illegal top-level statement (%s ..)", tok)
+}
+
+// parseAlias parses a top level "(alias! old new)" statement.
+func (p *Parser) parseAlias() (TopLevel, error) {
+
+	old := p.next()
+	new := p.next()
+
+	if !p.expectNext(")") {
+		return nil, fmt.Errorf("expected ')' after alias")
+	}
+
+	return Alias{
+		Old: old,
+		New: new,
+	}, nil
 }
 
 // parsePackage parses a top level "(package ..)" statement.

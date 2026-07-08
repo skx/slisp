@@ -37,6 +37,10 @@ type FunctionArgs struct {
 // Compiler holds our state
 type Compiler struct {
 
+	// aliases handles renaming user-visible names to
+	// assembly routines
+	aliases map[string]string
+
 	// source stores the program we're parsing.
 	source string
 
@@ -78,6 +82,31 @@ type Compiler struct {
 // New is our constructor
 func New(src string) *Compiler {
 
+	//
+	// NASM has restrictions on the characters
+	// that can be used in labels, so we remap
+	// some basic things into their _real_ functions.
+	//
+	// This table is also used for our (alias! old new)
+	// functionality.
+	//
+	aliases := make(map[string]string)
+	aliases["!"] = "fn_not"
+	aliases["%"] = "modulus"
+	aliases["<"] = "lt"
+	aliases["<="] = "lt_equals"
+	aliases["="] = "equals"
+	aliases[">"] = "gt"
+	aliases[">="] = "gt_equals"
+	aliases["char?"] = "charp"
+	aliases["cons?"] = "consp"
+	aliases["float?"] = "floatp"
+	aliases["int?"] = "intp"
+	aliases["lambda?"] = "lambdap"
+	aliases["nil?"] = "nilp"
+	aliases["numeric?"] = "numericp"
+	aliases["str?"] = "strp"
+
 	// return a new object, with the source and
 	// all internal maps created.
 	return &Compiler{
@@ -89,6 +118,7 @@ func New(src string) *Compiler {
 			"r8",
 			"r9",
 		},
+		aliases:   aliases,
 		source:    src,
 		floats:    map[string]float64{},
 		functions: map[string]*FunctionArgs{},
@@ -283,6 +313,23 @@ func (c *Compiler) Compile() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	// Handle remapping functions
+	err = c.walkTopLevel(defs, func(pkg string, tl parser.TopLevel) error {
+
+		switch n := tl.(type) {
+
+		case parser.Alias:
+			n.Old = n.Old[1 : len(n.Old)-1]
+			n.New = n.New[1 : len(n.New)-1]
+
+			newS := c.asmName(n.New)
+
+			c.functions[n.Old] = c.functions[n.New]
+			c.aliases[n.Old] = newS
+		}
+		return nil
+	})
 
 	//
 	// This whole function is messy, but in brief
@@ -527,43 +574,9 @@ func (c *Compiler) emitln(s string) {
 // they're called.  ("call abs" will result in a syntax error from nasm.)
 func (c *Compiler) asmName(name string) string {
 
-	switch name {
-
-	// comparisons
-	case "=":
-		return "equals"
-	case "!":
-		return "fn_not"
-	case "<=":
-		return "lt_equals"
-	case "<":
-		return "lt"
-	case ">":
-		return "gt"
-	case ">=":
-		return "gt_equals"
-
-	// maths
-	case "%":
-		return "modulus"
-
-	// type checks
-	case "cons?":
-		return "consp"
-	case "char?":
-		return "charp"
-	case "float?":
-		return "floatp"
-	case "int?":
-		return "intp"
-	case "lambda?":
-		return "lambdap"
-	case "nil?":
-		return "nilp"
-	case "numeric?":
-		return "numericp"
-	case "str?":
-		return "strp"
+	renamed, ok := c.aliases[name]
+	if ok {
+		return renamed
 	}
 
 	// Rewrite some names to avoid errors from nasm.
@@ -937,6 +950,9 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		c.emitln("    xor rax, rax     ; NIL")
 		c.emitln("    TAG_NIL_REG rax  ; Tagged")
 
+	case parser.Alias:
+		// NOP
+
 	case parser.Package:
 		if c.inPackage != "" {
 			return fmt.Errorf("nested packages are illegal, in package %s new package %s", c.inPackage, n.Name)
@@ -1179,6 +1195,14 @@ func (c *Compiler) emitCallable(obj any) error {
 	// Code that is common, and Defun-related
 	//
 	nm := c.asmName(name)
+
+	//
+	// Avoid duplication
+	//
+	_, renamed := c.aliases[name]
+	if renamed {
+		return nil
+	}
 
 	// functions go into their own sections
 	c.emitln(fmt.Sprintf("section .text.%s,\"ax\",@progbits", nm))
