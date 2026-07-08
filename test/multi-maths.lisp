@@ -1,3 +1,5 @@
+(require variadic-maths)
+
 (defun main ()
   ;; +
   (println (+ 3 7))

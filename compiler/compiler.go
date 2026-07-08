@@ -5,7 +5,7 @@ package compiler
 import (
 	"bytes"
 	"crypto/sha1"
-	_ "embed"
+	"embed"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -36,6 +36,13 @@ type FunctionArgs struct {
 
 // Compiler holds our state
 type Compiler struct {
+
+	// aliases handles renaming user-visible names to
+	// assembly routines
+	aliases map[string]string
+
+	// fs is the internal filesystem from which packages are loaded
+	fs embed.FS
 
 	// source stores the program we're parsing.
 	source string
@@ -78,6 +85,31 @@ type Compiler struct {
 // New is our constructor
 func New(src string) *Compiler {
 
+	//
+	// NASM has restrictions on the characters
+	// that can be used in labels, so we remap
+	// some basic things into their _real_ functions.
+	//
+	// This table is also used for our (alias! old new)
+	// functionality.
+	//
+	aliases := make(map[string]string)
+	aliases["!"] = "fn_not"
+	aliases["%"] = "modulus"
+	aliases["<"] = "lt"
+	aliases["<="] = "lt_equals"
+	aliases["="] = "equals"
+	aliases[">"] = "gt"
+	aliases[">="] = "gt_equals"
+	aliases["char?"] = "charp"
+	aliases["cons?"] = "consp"
+	aliases["float?"] = "floatp"
+	aliases["int?"] = "intp"
+	aliases["lambda?"] = "lambdap"
+	aliases["nil?"] = "nilp"
+	aliases["numeric?"] = "numericp"
+	aliases["str?"] = "strp"
+
 	// return a new object, with the source and
 	// all internal maps created.
 	return &Compiler{
@@ -89,6 +121,7 @@ func New(src string) *Compiler {
 			"r8",
 			"r9",
 		},
+		aliases:   aliases,
 		source:    src,
 		floats:    map[string]float64{},
 		functions: map[string]*FunctionArgs{},
@@ -98,8 +131,12 @@ func New(src string) *Compiler {
 	}
 }
 
-// findPackage tries to find the location from which to
-// load .lisp files via "(require foo)"
+// LoadPackages will enable loading packages from the specified embedded filesystem.
+func (c *Compiler) LoadPackages(fs embed.FS) {
+	c.fs = fs
+}
+
+// findPackage tries to find the location from which to load .lisp files via "(require foo)".
 func (c *Compiler) findPackage(file string) (string, error) {
 
 	// Present in the CWD?
@@ -152,17 +189,25 @@ func (c *Compiler) expandRequires(defs []parser.TopLevel) ([]parser.TopLevel, er
 			file += ".lisp"
 		}
 
-		path, err := c.findPackage(file)
+		// Try to load the given content from the embedded filesystem
+		data, err := c.fs.ReadFile("packages/" + file)
 		if err != nil {
-			return nil, err
+
+			// Error loading from inline.
+			//
+			// Load from the filesystem.
+			path, err := c.findPackage(file)
+			if err != nil {
+				return nil, err
+			}
+
+			data, err = os.ReadFile(path)
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		src, err := os.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-
-		p := parser.New(string(src))
+		p := parser.New(string(data))
 
 		pkg, err := p.Parse()
 		if err != nil {
@@ -230,15 +275,17 @@ func (c *Compiler) walkTopLevel(
 // list of functions.
 func (c *Compiler) Compile() (string, error) {
 
-	// Create a parser
+	// Create a parser object with our source.
 	p := parser.New(c.source)
 
-	// Parse the program into functions
+	// Parse the program into top-level items.
 	defs, err := p.Parse()
 	if err != nil {
 		return "", fmt.Errorf("error parsing program %s", err)
 	}
 
+	// Walk over the generated AST and process any (require ..)
+	// statements, recursively.
 	defs, err = c.expandRequires(defs)
 	if err != nil {
 		return "", err
@@ -285,6 +332,39 @@ func (c *Compiler) Compile() (string, error) {
 	}
 
 	//
+	// Walk over the top-level functions and handle any aliasing updates
+	// these will change calls from "(old ..)" to "(new ..)" and ensure
+	// the parameters match.
+	//
+	// This has to happen after functons have been recorded, and parameters
+	// recorded.
+	//
+	err = c.walkTopLevel(defs, func(pkg string, tl parser.TopLevel) error {
+
+		switch n := tl.(type) {
+
+		case parser.Alias:
+			n.Old = n.Old[1 : len(n.Old)-1]
+			n.New = n.New[1 : len(n.New)-1]
+
+			newS := c.asmName(n.New)
+
+			c.functions[n.Old] = c.functions[n.New]
+			c.aliases[n.Old] = newS
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	//
+	// Create a new environment for the global defun/defvar
+	// statements - they can't really use it, but it is required.
+	//
+	e := env.New(nil)
+
+	//
 	// This whole function is messy, but in brief
 	// we assemble stuff into an internal buffer "g.text"
 	// and at various points we need to read the contents
@@ -299,13 +379,12 @@ func (c *Compiler) Compile() (string, error) {
 		return txt
 	}
 
-	// Create a new environment for the global defun/defvar
-	// statements - they can't really use it, but it is required.
-	e := env.New(nil)
+	///
+	/// Now we compile
+	///
 
 	//
-	// Similar story here - walk over all top-level things, and
-	// handle the setup of global variables
+	// Walk over all top-level expressions, and handle the setup of global variables.
 	//
 	err = c.walkTopLevel(defs, func(pkg string, tl parser.TopLevel) error {
 		g, ok := tl.(parser.Global)
@@ -333,7 +412,6 @@ func (c *Compiler) Compile() (string, error) {
 
 		return nil
 	})
-
 	if err != nil {
 		return "", err
 	}
@@ -527,43 +605,9 @@ func (c *Compiler) emitln(s string) {
 // they're called.  ("call abs" will result in a syntax error from nasm.)
 func (c *Compiler) asmName(name string) string {
 
-	switch name {
-
-	// comparisons
-	case "=":
-		return "equals"
-	case "!":
-		return "fn_not"
-	case "<=":
-		return "lt_equals"
-	case "<":
-		return "lt"
-	case ">":
-		return "gt"
-	case ">=":
-		return "gt_equals"
-
-	// maths
-	case "%":
-		return "modulus"
-
-	// type checks
-	case "cons?":
-		return "consp"
-	case "char?":
-		return "charp"
-	case "float?":
-		return "floatp"
-	case "int?":
-		return "intp"
-	case "lambda?":
-		return "lambdap"
-	case "nil?":
-		return "nilp"
-	case "numeric?":
-		return "numericp"
-	case "str?":
-		return "strp"
+	renamed, ok := c.aliases[name]
+	if ok {
+		return renamed
 	}
 
 	// Rewrite some names to avoid errors from nasm.
@@ -1179,6 +1223,14 @@ func (c *Compiler) emitCallable(obj any) error {
 	// Code that is common, and Defun-related
 	//
 	nm := c.asmName(name)
+
+	//
+	// Avoid duplication
+	//
+	_, renamed := c.aliases[name]
+	if renamed {
+		return nil
+	}
 
 	// functions go into their own sections
 	c.emitln(fmt.Sprintf("section .text.%s,\"ax\",@progbits", nm))

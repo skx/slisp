@@ -43,6 +43,14 @@ type TopLevel interface {
 	Type() string
 }
 
+type Alias struct {
+	Old string
+	New string
+}
+
+// Type is the implementation of the TopLevel interface
+func (d Alias) Type() string { return "alias" }
+
 type Binding struct {
 	Name string
 	Expr Expr

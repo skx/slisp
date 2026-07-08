@@ -256,15 +256,15 @@ Then `(require foo)` will attempt to load, in order:
 * `/usr/share/slisp/foo.lisp`
 * `./lib/foo.lisp`
 
+We also embed some packages from the contents of the [packages/](package/) directory.
+
 
 
 ## Packages
 
 We also have rudimentary support for packages, which allows pieces of code to be reused across projects - when combined with file inclusion.
 
-[examples/packages.lisp](examples/packages.lisp) contains a good example of how these work, but essentially packages scope defuns/defvar/defconst with an implicit prefix based on the package name, however their contents may also refer to their siblings without the need for explicit qualification.
-
-Here's a brief example:
+[examples/packages.lisp](examples/packages.lisp) contains a good example of how these work, but essentially packages scope defuns/defvar/defconst with an implicit prefix based on the package name, however their contents may also refer to their siblings without the need for explicit qualification.  Here's a brief example:
 
      ; declare a package named foo
      (package foo
@@ -290,13 +290,16 @@ Here's a brief example:
 
 You don't need to wrap the contents of included files within packages, but you might choose to do so for isolation and clarity.
 
-**NOTE**: Our core mathematical primitives (`+`, `-`, `*`, and `/`) work on only two arguments, for example `(+ 3 4)`.  As an experiment they have been duplicated in the `maths` package in such a way that they work on N arguments:
+Our core mathematical primitives (`+`, `-`, `*`, and `/`) work on only two arguments, for example `(+ 3 4)` (trying to call `(+ 3 4 5)` will give an error because the argument count is wrong.  There is an included package to convert mathematical primitives into into variadic functions, this package can be found in [packages/variadic-maths.lisp](packages/variadic-maths.lisp).
+
+Here's how it might be used:
 
 ```lisp
-(println (+ 3 4)   )  ; -> 7
-(println (+ 3 4 5) )  ; -> Error: function + expects 2 arguments, 3 provided
-(println (maths:+ 10 20 30 40) )  ; -> 100
-(println (maths:* 10 10 3))       ; -> 300
+;; Allow maths operations to work with an arbitrary number of operands.
+(require variadic-maths)
+
+;; Show it works.
+(println (+ 3 4 5 6 7))
 ```
 
 

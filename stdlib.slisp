@@ -204,25 +204,6 @@ NOTE: This is not a macro, so all arguments are evaluated."
      (divide a (car b))
      (divide 1 (+ a 0.0))))
 
-(package maths
-  (defun + (&xs)
-    "sum all the numbers in the list"
-    (reduce xs (lambda (a b) (plus a b)) 0))
-
-  (defun - (first &rest)
-    (if (nil? rest)
-        (minus 0 first)
-      (reduce rest (lambda (a b) (minus a b)) first)))
-
-  (defun * (first &rest)
-    (reduce rest (lambda (a b) (multiply a b)) first))
-
-  (defun / (first &rest)
-    (if (nil? rest)
-        (divide 1 (+ first 0.0))
-    (reduce rest (lambda (a b) (divide a b)) first)))
-)
-
 (defun abs (n)
   "Return the absolute value of N, as a positive number"
   (if (< n 0) (- 0 n) n))
@@ -485,139 +466,13 @@ Incrementing by the given step each time."
 
 
 
+
+
 ;;; 10. alist functions.
-;;
-;; An association list is a way of implementing a "hash-like" structure
-;; using only a list of lists.  For example to store details about a person
-;; you might have this alist:
-;;
-;;  ( (name "Steve") (age 42) (email "steve@example.com") )
-;;
-
-(defun alist-new()
-  "Create a new associated list / hash"
-  (list))
-
-(defun alist-get (alist key &default)
-  "Given an alist get the value of the specified key.
-
-Return nil if it wasn't present, or the given default value."
-  (cond
-    ((null? alist)
-     (car default))
-    ((= (car (car alist)) key)
-     (car (cdr (car alist))))
-    (t
-     (alist-get (cdr alist) key (car default)))))
-
-(defun alist-keys (alist)
-  "Return a list of all stored keys."
-  (cond
-    ((null? alist)
-     nil)
-    (t
-     (cons (car (car alist))
-           (alist-keys (cdr alist))))))
-
-(defun alist-remove (alist key)
-  "Given an alist remove the entry for the given key, if it was present.
-
-Returns the updated list."
-  (cond
-    ((null? alist)
-     nil)
-    ((= (car (car alist)) key)
-     (alist-remove (cdr alist) key))
-    (t
-     (cons (car alist)
-           (alist-remove (cdr alist) key)))))
-
-(defun alist-set (alist key value)
-  "Add the given key/value pair to the specified alist.
-
-This removes any pre-existing value with that key first."
-  (cons
-   (list key value)
-   (alist-remove alist key)))
-
-(defun alist-values (alist)
-  "Return a list of all stored values."
-  (cond
-    ((null? alist)
-     nil)
-    (t
-     (cons (car (cdr (car alist)))
-           (alist-values (cdr alist))))))
-
-
-
+(require alist)
 
 ;;; 11. plist functions.
-;;
-;; A property list (plist for short) is a list of paired elements
-;; stored in a regular list.
-;;
-;; The example of storing details of a person in the alist-section
-;; above would become this;
-;;
-;;  ( name "Steve" age 42 email "steve@example.com" )
-;;
-
-(defun plist-new()
-  (list))
-
-(defun plist-get (plist key &default)
-  "Given a plist get the value of the specified key.
-
-Return nil if it wasn't present, or the given default value."
-  (cond
-    ((null? plist)
-     (car default))
-    ((= (car plist) key)
-     (car (cdr plist)))
-    (t
-     (plist-get (cdr (cdr plist)) key (car default)))))
-
-(defun plist-keys (plist)
-  "Return a list of all stored keys."
-  (cond
-    ((null? plist)
-     nil)
-    (t
-     (cons (car plist)
-           (plist-keys (cdr (cdr plist)))))))
-
-(defun plist-remove (plist key)
-  "Given a plist remove any entry for the given key, if present.
-
-Returns the updated list."
-  (cond
-    ((null? plist)
-     nil)
-    ((= (car plist) key)
-     (plist-remove (cdr (cdr plist)) key))
-    (t
-     (cons (car plist)
-           (cons (car (cdr plist))
-                 (plist-remove (cdr (cdr plist)) key))))))
-
-(defun plist-set (plist key value)
-  "Add the given key/value pair to the specified plist.
-
-This removes any pre-existing value with that key first."
-  (append
-   (plist-remove plist key)
-   (list key value)))
-
-(defun plist-values (plist)
-  "Return a list of all stored values."
-  (cond
-    ((null? plist)
-     nil)
-    (t
-     (cons (car (cdr plist))
-           (plist-values (cdr (cdr plist)))))))
-
+(require plist)
 
 ;;; 12. Conversion functions.
 ;;

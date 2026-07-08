@@ -3,7 +3,7 @@
 package main
 
 import (
-	_ "embed"
+	"embed"
 	"flag"
 	"fmt"
 	"os"
@@ -17,11 +17,17 @@ import (
 //go:embed stdlib.slisp
 var stdlibLisp string
 
+//go:embed packages/*.lisp
+var staticFiles embed.FS
+
 // generate is a helper to compile a program
 func generate(prg string) (string, error) {
 
 	// Create a compiler
 	c := compiler.New(prg)
+
+	// Inline packages
+	c.LoadPackages(staticFiles)
 
 	// Generate the code
 	txt, err := c.Compile()

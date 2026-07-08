@@ -47,11 +47,11 @@ Special forms are things that are built into the compiler core, and handled spec
 * `cond`
   * An efficient switch implementation.
 * `defconst`
-  * Define a top-level, global, variable which is immutable.
+  * Define an immutable global variable.
 * `defun`
   * Define a function - The function named `main` is both mandatory, and the entry-point to user-scripts.
 * `defvar`
-  * Define a top-level, global, variable.
+  * Define a global variable.
 * `do`
   * Execute each statement in the list.
 * `if`

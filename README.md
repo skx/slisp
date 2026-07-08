@@ -70,6 +70,7 @@ It should be noted that we prepend a standard library of functions to all user p
 * Comparison operations:
   * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
 * Special forms (only some of which are valid at the top-level, those are marked with `*`):
+  * `(alias! ..)` - `*` - Alias/overwrite a function.
   * `(cond ..)`
   * `(defun ..)` - `*` - declare a function.
   * `(defconst ..)` - `*` - declare a global constant.
