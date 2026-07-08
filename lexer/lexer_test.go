@@ -114,6 +114,7 @@ func TestCharacterLiteral(t *testing.T) {
 		`#\`,
 		`#\\`,
 		`#x`,
+		`#\cake`,
 	}
 
 	for _, tst := range test {
@@ -130,7 +131,12 @@ func TestCharacterLiteral(t *testing.T) {
 		`#\(`,
 		`#\)`,
 		`#\a`,
+		`#\B`,
 		`#\\n`,
+		`#\Newline`,
+		`#\Space`,
+		`#\Tab`,
+		`#\Return`,
 	}
 
 	for _, tst := range test {
