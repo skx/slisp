@@ -36,6 +36,9 @@
 ;; Functions here are added for compatibility with other lisp dialects,
 ;; to allow easy copying/pasting of code.
 
+(defun ! (x)
+  (not x))
+
 (defun caar (x)
   (car (car x)))
 
