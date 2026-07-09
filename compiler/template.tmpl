@@ -236,6 +236,14 @@ _start:
 ;;; 5.0. common routines
 
 
+;; xmm0 contains a float, store it on the heap and return it
+return_float:
+   mov rax, [heap_ptr]     ; allocate
+   add qword [heap_ptr],8
+   movq [rax], xmm0        ; store
+   TAG_FLOAT_REG rax       ; type
+   ret                     ; return
+
 ;; rdi points to string, return result in rax
 strlen:
     xor rax, rax
@@ -408,11 +416,7 @@ FUNC fn_plus
 
    call load_both_floats
    addsd xmm0, xmm1        ; add
-   mov rax, [heap_ptr]     ; allocate
-   add qword [heap_ptr],8
-   movq [rax], xmm0        ; store
-   TAG_FLOAT_REG rax       ; type
-   ret                     ; return
+   jmp return_float
 
 plus_integer:
    UNTAG_REG rdi
@@ -431,11 +435,7 @@ FUNC fn_minus
 
    call load_both_floats
    subsd xmm0, xmm1        ; subtrack
-   mov rax, [heap_ptr]     ; allocate
-   add qword [heap_ptr],8
-   movq [rax], xmm0        ; store
-   TAG_FLOAT_REG rax       ; type
-   ret                     ; return
+   jmp return_float
 
 integer_minus:
    UNTAG_REG rdi
@@ -454,11 +454,7 @@ FUNC fn_divide
 
    call load_both_floats
    divsd xmm0, xmm1        ; multiply
-   mov rax, [heap_ptr]     ; allocate
-   add qword [heap_ptr],8
-   movq [rax], xmm0        ; store
-   TAG_FLOAT_REG rax       ; type
-   ret                     ; return
+   jmp return_float
 
 integer_divide:
    UNTAG_REG rdi
@@ -478,11 +474,7 @@ FUNC fn_multiply
 
    call load_both_floats
    mulsd xmm0, xmm1        ; multiply
-   mov rax, [heap_ptr]     ; allocate
-   add qword [heap_ptr],8
-   movq [rax], xmm0        ; store
-   TAG_FLOAT_REG rax       ; type
-   ret                     ; return
+   jmp return_float
 
 integer_multiply:
    UNTAG_REG rdi
@@ -1837,16 +1829,7 @@ FUNC fn_sqrt
     ;; Compute sqrt(xmm0)
     sqrtsd xmm0, xmm0
 
-    ;; Allocate a new float object.
-    mov rax, [heap_ptr]
-    add qword [heap_ptr], 8
-
-    ;; Store the result.
-    movq [rax], xmm0
-
-    ;; Return tagged pointer.
-    TAG_FLOAT_REG rax
-    ret
+    jmp return_float
 
 ;;
 ;; stat(path)
