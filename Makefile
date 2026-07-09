@@ -24,9 +24,9 @@ all: $(PROGRAMS)
 
 # Optionally remove unused sections and strip the binaries.
 ifeq ($(SMALL),1)
-LINK_CMD = ld --gc-sections -s -o $@ $@.o
+LINK_CMD = @ld --gc-sections -s -o $@ $@.o
 else
-LINK_CMD = ld -o $@ $@.o
+LINK_CMD = @ld -o $@ $@.o
 endif
 
 
