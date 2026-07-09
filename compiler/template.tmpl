@@ -14,6 +14,7 @@
 ;; 3. User-defined lambdas
 ;; 4. entry-point
 ;; 5. stdlib
+;; 5.0. common routines
 ;; 5.1. type checking utilities
 ;; 5.2. math functions
 ;; 5.2.1 comparison functions
@@ -231,6 +232,20 @@ _start:
 
 ;;; 5. stdlib
 
+
+;;; 5.0. common routines
+
+
+;; rdi points to string, return result in rax
+strlen:
+    xor rax, rax
+.loop:
+    cmp byte [rdi+rax],0
+    je .done
+    inc rax
+    jmp .loop
+.done:
+    ret
 
 ;;; 5.1 type-checking utilities
 
@@ -867,15 +882,11 @@ fn_printstr:
     cmp rbx, TAG_ID_STRING
     jne type_error
     UNTAG_REG rdi
-    push rdi
-    mov rdx, 0                ; length counter
-.printstr_len_loop:
-    cmp byte [rdi + rdx], 0
-    je .printstr_found_len
-    inc rdx
-    jmp .printstr_len_loop
-.printstr_found_len:
-    pop rsi
+
+    call strlen               ; string in rdi will stay unmodified
+    mov rdx, rax              ; lengh goes to rdx
+
+    mov rsi,rdi
     mov rax, SYS_write
     mov rdi, 1                ; stdout
     syscall
@@ -2115,14 +2126,7 @@ FUNC fn_strlen
     jne type_error
 
     UNTAG_REG rdi
-    xor rax, rax
-.find:
-    cmp byte [rdi], 0
-    je .found_end
-    inc rdi
-    inc rax
-    jmp .find
-.found_end:
+    call strlen
     TAG_INTEGER_REG rax
     ret
 
