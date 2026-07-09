@@ -36,6 +36,7 @@ You can find bigger examples beneath [examples/](examples/), and our [test/](tes
 * Notable examples
   * [examples/brainfuck.lisp](examples/brainfuck.lisp) contains a useful/working brainfuck interpreter.
   * [examples/example.lisp](examples/example.lisp) has other misc. snippets.
+  * [examples/life.lisp](examples/life.lisp) - Game of Life.
   * [examples/packages.lisp](examples/packages.lisp) demonstrates how our packaging system works - more details in [INTRODUCTION.md](INTRODUCTION.md).
   * [examples/globals.lisp](examples/globals.lisp) - Explicit demonstration of scopes, showing that local variables always take precedence over global ones.
   * [examples/nqueens.lisp](examples/nqueens.lisp) is a solver for the N Queens problem, defaults to solving the 8x8 grid but you may specify different sizes via a CLI argument.
