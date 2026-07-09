@@ -21,9 +21,9 @@ test: $(TESTS)
 
 # Optionally remove unused sections and strip the binaries.
 ifeq ($(SMALL),1)
-LINK_CMD = ld --gc-sections -s -o $@ tmp.o
+LINK_CMD = @ld --gc-sections -s -o $@ tmp.o
 else
-LINK_CMD = ld -o $@ tmp.o
+LINK_CMD = @ld -o $@ tmp.o
 endif
 
 
@@ -44,5 +44,6 @@ endif
 	@../slisp $< > tmp.asm
 	@nasm -f elf64 tmp.asm
 	$(LINK_CMD)
+	@echo "testing $@"
 	@./$@ > $@.out 2>&1  || true
 	@cmp $@.out $@.expected || (echo "program $< did not match" ; cat $@.out ; exit 1)

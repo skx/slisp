@@ -251,43 +251,43 @@ is_type:
 
 
 ;; Is the given value an character?
-charp:
+fn_charQUESTION:
     mov rbx, TAG_ID_CHAR
     jmp is_type
 
 ;; Is the given value a cons?
-consp:
+fn_consQUESTION:
     mov rbx, TAG_ID_CONS
     jmp is_type
 
 ;; Is the given value a float?
-floatp:
+fn_floatQUESTION:
     mov rbx, TAG_ID_FLOAT
     jmp is_type
 
 ;; Is the given value an integer?
-intp:
+fn_intQUESTION:
     mov rbx, TAG_ID_INTEGER
     jmp is_type
 
 ;; is the given value a lambda?
-lambdap:
+fn_lambdaQUESTION:
     mov rbx, TAG_ID_LAMBDA
     jmp is_type
 
 ;; Is the given value nil?
-nilp:
+fn_nilQUESTION:
     mov rbx, TAG_ID_NIL
     jmp is_type
 
 ;; Is the given value a string?
-strp:
+fn_strQUESTION:
     mov rbx, TAG_ID_STRING
     jmp is_type
 
 
 ;; numeric?
-numericp:
+fn_numericQUESTION:
     mov rax, rdi
     GET_TAG_BITS rax
     call is_numeric
@@ -482,7 +482,7 @@ integer_multiply:
 
 
 ;; %
-FUNC modulus
+FUNC fn_PERCENT
    call are_both_integers
    jz modulus_integer
    jmp type_error       ; type error
@@ -501,7 +501,7 @@ modulus_integer:
 ;;; 5.2.1 comparison functions
 
 ;; =
-FUNC equals
+FUNC fn_EQUALS
     mov r8, rdi
     mov r9, rsi
 
@@ -569,7 +569,7 @@ FUNC equals
 ;;
 ;; Note: The result of this function is inverted for ">".
 ;;
-FUNC lt_equals
+FUNC fn_LTEQUALS
    call are_both_integers
    jz lte_integer
 
@@ -595,7 +595,7 @@ lte_integer:
 
 
 ;; >=
-FUNC gt_equals
+FUNC fn_GTEQUALS
    call are_both_integers
    jz gte_integer
 
@@ -621,19 +621,19 @@ gte_integer:
 
 
 ;; < - this is the inverse of >=
-FUNC lt
-    call gt_equals
+FUNC fn_LT
+    call fn_GTEQUALS
     mov rdi, rax
-    call fn_not
+    call fn_BANG
     ret
 
 
 
 ;; > - this is the inverse of <=
-FUNC gt
-    call lt_equals
+FUNC fn_GT
+    call fn_LTEQUALS
     mov rdi, rax
-    call fn_not
+    call fn_BANG
     ret
 
 
