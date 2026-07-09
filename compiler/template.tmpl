@@ -680,6 +680,9 @@ fn_printfloat:
     ret
 
 
+
+
+
 ;; convert the (untagged) float in xmm0 into a string.
 ;;
 ;; This reuses the "random_buffer", so you need to copy
@@ -688,15 +691,51 @@ fn_printfloat:
 ;; On return RSI pointing to the formatted result,
 ;; with RCX holding the length.
 fn_printfloat_format:
-    xor r8, r8                      ; sign flag
+     xor r8, r8
+     ucomisd xmm0, xmm0
+     jp .nan
 
-    xorpd xmm1, xmm1                ; Handle sign
-    ucomisd xmm0, xmm1
+     movq rax, xmm0
+
+     mov rcx, rax
+     mov rdx, 0x7ff0000000000000
+     and rcx, rdx
+     cmp rcx, rdx
+     jne .finite
+
+     mov rcx, rax
+     mov rdx, 0x000fffffffffffff
+     and rcx, rdx
+     jnz .nan
+
+     bt rax,63
+     jc .minus_inf
+;;      jmp .plus_inf              ; fall through
+
+
+.plus_inf:
+    mov rsi, inf_msg
+    mov rcx, inf_msg_end - inf_msg
+    ret
+
+.minus_inf:
+    mov rsi, minus_inf_msg
+    mov rcx, minus_inf_msg_end - minus_inf_msg
+    ret
+
+.nan:
+    mov rsi, nan_msg
+    mov rcx, nan_msg_end - nan_msg
+    ret
+
+.finite:
+    xorpd xmm1,xmm1             ; Is the number negative?
+    ucomisd xmm0,xmm1
     jae .positive
 
-    mov r8, 1
-    movq xmm1, [rel minusmask]
-    xorpd xmm0, xmm1
+    mov r8,1                    ; record negative number
+    movq xmm1,[rel minusmask]   ; and fix it.
+    xorpd xmm0,xmm1
 
 .positive:
     cvttsd2si r9, xmm0             ; Integer part -> R9
@@ -2267,6 +2306,24 @@ million:
 align 8
 minusmask:
         dq 0x8000000000000000
+
+;; used by fn_printfloat
+align 8
+inf_msg:
+        db "+Inf"
+inf_msg_end:
+
+;; used by fn_printfloat
+align 8
+minus_inf_msg:
+        db "-Inf"
+minus_inf_msg_end:
+
+;; used by fn_printfloat
+align 8
+nan_msg:
+        db "NaN"
+nan_msg_end:
 
 ;; Used by sys_run
 align 8
