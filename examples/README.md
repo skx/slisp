@@ -21,3 +21,5 @@ This directory is designed to contain bigger, or more interesting examples, than
   * How to declare a package.
   * How it works.
   * How to refer to functions/globals in another package, via qualifiers.
+* [wc.lisp](wc.lisp) - Clone of the Unix "wc" command.
+  * Shows lines, characters, and words for named files.

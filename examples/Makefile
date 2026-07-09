@@ -42,6 +42,9 @@ endif
 life.test:
 	@echo "ignoring $@ - as it doesn't terminate"
 
+wc.test:
+	@echo "ignoring $@ - as it doesn't terminate"
+
 # Generic rule for testing each binary
 %.test: %.lisp ../slisp
 	@echo "compiling $@"
