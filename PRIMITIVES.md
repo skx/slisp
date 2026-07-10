@@ -63,9 +63,9 @@ Special forms are things that are built into the compiler core, and handled spec
 * `list`
   * Create a list.
 * `package`
-  * Define a new package.
+  * Define a new package.  See [INTRODUCTION.md](INTRODUCTION.md) for details.
 * `require`
-  * Load a new package, inline.
+  * Load a new package, inline.  See [INTRODUCTION.md](INTRODUCTION.md) for details.
 * `set!`
   * Set the value of a variable.
 * `while`
@@ -77,8 +77,9 @@ Special forms are things that are built into the compiler core, and handled spec
 
 Core primitives are implemented in assembly language, and can be found within the file [compiler/template.tmpl](compiler/template.tmpl)
 
-Note that functions have their names mangled a little bit ("-" is converted to "_", a
-"fn_" prefix is added, and we rename trailing question-marks, such as "int?", to "intp").
+Note that functions have their names mangled a little bit ("!" is converted to "BANG", and
+"?" to "QUESTION", for example).  All functions that are user-callable have a "fn_" prefix
+added to them too.
 
 * Type checking functions:
   * `char?`, `cons?`, `float?`, `int?`, `lambda?`, `nil?`, and `str?`.
