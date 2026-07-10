@@ -47,7 +47,7 @@
            "Return the flags from this argument."
            (if args
                (append
-                (flags-from-arg (car args))
+                (if (> (length (car args)) 1) (flags-from-arg (car args)) (list "-"))
                 (flags-helper (cdr args)))
                nil))
 
@@ -56,13 +56,13 @@
            (let ((chars (explode arg)))
              (cond
                ;; Not a flag.
-               ((! (= (nth chars 0) #\-))   nil)
+               ((! (= (nth chars 0) #\-)) nil)
 
-               ;; Long flag (--foo)
-               ((= (nth chars 1) #\-)      (list arg))
+                   ;; Long flag (--foo)
+                   ((= (nth chars 1) #\-) (list arg))
 
-               ;; Short flag(s): -abc -> ("-a" "-b" "-c")
-               (t                          (expand-short-flags (cdr chars))))))
+                   ;; Short flag(s): -abc -> ("-a" "-b" "-c")
+                   (t (expand-short-flags (cdr chars))))))
 
          (defun expand-short-flags (chars)
            "Given a list of short flags 'xyz' return (-x -y -z)"
@@ -71,4 +71,4 @@
                (cons (strcat "-" (string (car chars)))
                      (expand-short-flags (cdr chars)))))
 
- ) ;; end of arg-parser
+         ) ;; end of arg-parser
