@@ -45,7 +45,8 @@
 
 ;; Draw the state of the board.
 (defun draw-board (b)
-  (print "\033[H")
+  (print "\033[?25l")  ; hide cursor
+  (print "\033[H")     ; move home & clear
   (print "\033[2J")
 
   (let ((y 0))
@@ -58,7 +59,9 @@
               (putc #\Space))
           (set! x (+ x 1)))
         (newline)
-        (set! y (+ y 1))))))
+        (set! y (+ y 1)))))
+  (print "\033[?25h") ; restore cursor
+)
 
 
 ;;
