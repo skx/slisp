@@ -302,6 +302,8 @@ Here's how it might be used:
 (println (+ 3 4 5 6 7))
 ```
 
+We have a simple argument-parser located in [packages/arg-parser.lisp](packages/arg-parser.lisp) which you can see demonstrated in the [examples/wc.lisp](examples/wc.lisp) sample program.
+
 
 
 ## See Also

@@ -40,6 +40,7 @@ You can find bigger examples beneath [examples/](examples/), and our [test/](tes
   * [examples/packages.lisp](examples/packages.lisp) demonstrates how our packaging system works - more details in [INTRODUCTION.md](INTRODUCTION.md).
   * [examples/globals.lisp](examples/globals.lisp) - Explicit demonstration of scopes, showing that local variables always take precedence over global ones.
   * [examples/nqueens.lisp](examples/nqueens.lisp) is a solver for the N Queens problem, defaults to solving the 8x8 grid but you may specify different sizes via a CLI argument.
+  * [examples/wc.lisp](examples/wc.lisp) is a clone of the standard `wc` utility, which demonstrates our included argument-parser [packages/](package/).
 
 * Notable tests:
   * [test/entries.lisp](test/entries.lisp) - Read all the files in a directory, filter them, sort them, and print their names.
