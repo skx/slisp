@@ -1,0 +1,5 @@
+    (require arg-parser)
+    (defun main(args)
+      (let ((parser (arg-parser:new (cdr args))))
+        (println "Flags " (parser :flags))
+        (println "Files " (parser :files))))
