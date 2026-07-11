@@ -249,6 +249,12 @@ NOTE: This is not a macro, so all arguments are evaluated."
   "Return 1 if the number is positive, nil otherwise."
   (> n 0))
 
+(defun pow (x y)
+  "Return x to the power of y"
+  (if (= 0 y)
+      1
+      (* x (pow x (- y 1)))))
+
 ;; Sum all the numbers in the given list
 (defun sum (xs)
   "sum all the numbers in the list"
