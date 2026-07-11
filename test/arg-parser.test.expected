@@ -1,0 +1,15 @@
+Created parser with arguments: (--long /etc/passwd)
+	Args :(/etc/passwd)
+	Flags:(--long)
+Created parser with arguments: (-lwc id)
+	Args :(id)
+	Flags:(-l -w -c)
+Created parser with arguments: (foo bar baz -w -l --long=-s)
+	Args :(foo bar baz)
+	Flags:(-w -l --long=-s)
+Created parser with arguments: (-)
+	Args :<nil>
+	Flags:(-)
+Created parser with arguments: <nil>
+	Args :<nil>
+	Flags:<nil>

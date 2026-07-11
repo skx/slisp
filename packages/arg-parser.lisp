@@ -41,7 +41,8 @@
            "Return non-flag arguments, i.e. files"
            (filter a
                    (lambda (arg)
-                     (! (= (nth (explode arg) 0) #\-)))))
+                     (if (> (length arg) 0)
+                         (! (= (nth (explode arg) 0) #\-))))))
 
          (defun flags-helper (args)
            "Return the flags from this argument."
