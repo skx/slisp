@@ -1072,16 +1072,12 @@ FUNC fn_environment
     dec rcx
 
     ;; string pointer
-    mov rdx, [rbx + rcx*8]
-    TAG_STRING_REG rdx
+    mov rdi, [rbx + rcx*8]
+    TAG_STRING_REG rdi
 
-    ;; allocate cons pair
-    mov r8, [heap_ptr]
-    add qword [heap_ptr], 16
-    mov [r8], rdx        ; car = string
-    mov [r8+8], rax      ; cdr = list-so-far
-    mov rax, r8
-    TAG_CONS_REG rax
+    ;; cons(string, list)
+    mov rsi, rax
+    call fn_cons
     jmp .loop
 .done:
     ret
@@ -1106,13 +1102,12 @@ FUNC fn_explode
     jne type_error
 
     UNTAG_REG rdi
-    mov rsi, rdi
-.find_end:
-    cmp byte [rsi], 0
-    je .found_end
-    inc rsi
-    jmp .find_end
-.found_end:
+
+    push rdi           ; point to start of the string.
+    call strlen        ; RAX = length
+    pop rdi
+    lea rsi, [rdi+rax] ; So now RSI points to the end of the string.
+
     xor rax, rax
     TAG_NIL_REG rax
 .loop:
@@ -1120,15 +1115,17 @@ FUNC fn_explode
     cmp rsi, rdi
     je .done
     dec rsi
-    movzx rcx, byte [rsi]
-    mov rdx, rcx
+
+    movzx rdx, byte [rsi]
     TAG_CHAR_REG rdx
-    mov r8, [heap_ptr]
-    add qword [heap_ptr], 16
-    mov [r8], rdx
-    mov [r8+8], rax
-    mov rax, r8
-    TAG_CONS_REG rax
+
+    push rdi        ; preserve string start
+    push rsi        ; preserve scan pointer
+    mov rdi, rdx
+    mov rsi, rax
+    call fn_cons
+    pop rsi
+    pop rdi
     jmp .loop
 .done:
     ret
