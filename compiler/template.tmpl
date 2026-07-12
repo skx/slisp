@@ -239,6 +239,11 @@ _start:
 ;; xmm0 contains a float, store it on the heap and return it
 return_float:
    mov rax, [heap_ptr]     ; allocate
+    push rbx
+    mov rbx, heap_end        ; we allocate 8Mb. but we abort if we go past 7Mb.
+    cmp rax, rbx
+    pop rbx
+    jge heap_exhausted       ; then abort
    add qword [heap_ptr],8
    movq [rax], xmm0        ; store
    TAG_FLOAT_REG rax       ; type
