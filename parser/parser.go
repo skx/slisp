@@ -314,8 +314,9 @@ func (p *Parser) parseExpr() (Expr, error) {
 	}
 
 	// string
-	if strings.HasPrefix(t, "\"") {
-		return &String{Value: strings.Trim(t, "\"")}, nil
+	if strings.HasPrefix(t, "\"") && strings.HasSuffix(t, "\"") {
+		t = t[1 : len(t)-1]
+		return &String{Value: t}, nil
 	}
 
 	// integer?
