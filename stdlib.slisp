@@ -498,6 +498,21 @@ Incrementing by the given step each time."
             (getenv-loop name (cdr xs))))
       nil))
 
+(defun read-line ()
+   "Read and return a line of text from STDIN"
+    (let ((text "")
+          (done nil)
+          (ch ""))
+        (while (not done)
+            (set! ch (getc))
+            (if (not  ch)
+                (set! done t)
+                (if (= ch #\Newline)
+                    (set! done t)
+                    (set! text
+                        (strcat text (string (chr ch)))))))
+        text))
+
 (defun system(cmd)
   "Run a command and return the output; nil on failure."
   (let ((tmp     "/tmp/mktmp")         ; tmp file for output
