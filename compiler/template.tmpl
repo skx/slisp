@@ -948,6 +948,11 @@ FUNC fn_chr
 ;; 16-bytes; first has the CAR, second the CDR.
 FUNC fn_cons
     mov rax, [heap_ptr]      ; get the value of the heap pointer
+    push rbx
+    mov rbx, heap_end        ; we allocate 8Mb. but we abort if we go past 7Mb.
+    cmp rax, rbx
+    pop rbx
+    jge heap_exhausted       ; then abort
     add qword [heap_ptr], 16 ; bump it by 2x ptrs
     mov [rax], rdi           ; store first item
     mov [rax+8], rsi         ; second item
@@ -2241,6 +2246,19 @@ out_of_range:
     jmp fn_exit
 
 
+section .text.heap_error,"ax",@progbits
+
+heap_exhausted:
+    mov rdi, heap_error_msg              ; show the error
+    TAG_STRING_REG rdi
+    call fn_printstr
+    mov rdi, qword [rel last_function]   ; and the function-name
+    TAG_STRING_REG rdi
+    call fn_printstr
+    call fn_newline
+    mov rdi, 1                           ; exit-code
+    jmp fn_exit
+
 section .text.type_error,"ax",@progbits
 
 type_error:
@@ -2273,6 +2291,12 @@ nil_str:
 align 8
 out_of_range_msg:
         db `Out of bounds access.  Aborted inside `
+        db 00
+
+;; error message for heap exhaustion
+align 8
+heap_error_msg:
+        db `Heap exhausted! Aborted inside `
         db 00
 
 ;; error message for type-errors
@@ -2356,6 +2380,13 @@ dir_buffer_end:
 ;; heap storage
 heap:
     resb 1 * 1024 * 1024 * 1024  ; 1 Mb
+    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
+    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
+    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
+    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
+    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
+    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
+heap_end:
     resb 1 * 1024 * 1024 * 1024  ; 1 Mb
 
 
