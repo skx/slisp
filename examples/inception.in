@@ -1,0 +1,90 @@
+;;; inception.in - Test file for lisp interpreter
+
+
+;; global variable
+(defvar x 7)
+
+;; comments are here
+(defun square (x)
+   (* x x))
+
+;; Test our square function
+(println (square 10))
+
+
+;; factorial function
+(defun fact (n)
+  (if (<= n 1)
+      1
+      (* n (fact (- n 1)))))
+
+
+;; recursion
+(defun length (xs)
+    (if (nil? xs)
+        0
+        (+ 1 (length (cdr xs)))))
+
+;; map
+(defun map (f xs)
+    (if (nil? xs)
+        nil
+        (cons
+            (f (car xs))
+            (map f (cdr xs)))))
+
+
+;;
+;; Start running some code
+;;
+(print   "Squaring some numbers: ")
+(println (map square (list 4 5 20 30 40)))
+
+;;
+;; Show that our lambda works with map, and that
+;; multiple expressions work.
+;;
+(map
+   (lambda (x) (println "LAMBDA X " x "*" x ": -> " (* x x)) (* x x))
+        (list 1 2 3 4 5))
+
+
+;;
+;; Make a closure/adder.
+;;
+(defun make-adder (n)
+    (lambda (x)
+        (+ x n)))
+
+
+(println "This is what a function looks like: " (make-adder 10))
+
+;;
+;; Create an adder, and use it
+;;
+(defvar add10 (make-adder 10))
+(println "Adder (+10) result for  5:" (add10 5))
+(println "Adder (+10) result for 25:" (add10 25))
+
+;; maths
+(println "Some maths:")
+(println "  " (+ 329 1))
+(println "  " (* 37 26))
+(println "  " (/   9 3))     ; integer division
+(println "  " (/   1.0 10))  ; need to add a ".0" suffix to force floats
+
+
+;; length tests
+(println (-  0  2 ))
+(println (- -3 -2 ))
+(println nil)
+(println (length (list )))
+(println (length (list 1)))
+(println (length (list 1 2)))
+(println (length (list 1 2 3 )))
+(println (length (list 1 2 3 4)))
+(println (length (list 1 2 3 4 5)))
+(println (length (list 1 2 3 4 5 6)))
+(println x)
+
+(println "Program time is over now!")

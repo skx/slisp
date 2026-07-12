@@ -2,7 +2,9 @@
 
 This repository contains `slisp` (either named for "Steve's Lisp Compiler", or "Simple Lisp Compiler"), which is a compiler reading Lisp programs as input, generating standalone assembly representations for Linux/AMD64 as output.
 
-Lisp is traditionally interactive, and provides a REPL, which this project is not.  That said it's still a great way to execute programs, and a good project for learning (either using a compiled lisp, or implementing one).
+Lisp is traditionally used in an interactive way, via a REPL.  By contrast this repository allows you to turn a lisp program into a compiled executable which will run non-interactively.
+
+> But note that I did write a **Lisp Interpreter**, complete with a REPL, which you can see described below in the [INCEPTION](#inception) section.
 
 Quick links:
 
@@ -151,6 +153,80 @@ There is also support for the fuzz-testing that golang provides, you can run fiv
 ```sh
 $ go test -fuzztime=300s -parallel=1 -fuzz=FuzzProject -v
 ```
+
+
+
+## Inception
+
+As noted this is a _compiler_ which means that for a given lisp program we produce an executable, there is no REPL.
+
+But I thought it might be fun to prove that my slisp is a _real lisp_, and so I implemented a lisp interpreter which can read lisp source code from files and execute it, and which also implements a REPL.
+
+Build the compiler, and build the interpreter:
+
+```
+go build .
+cd examples/
+make
+```
+
+Now you should find, amongst other binaries, you have the executable `inception` which is an interpreter.  Fire it up:
+
+```
+$ ./inception --repl
+Welcome to lisp in slisp!
+Enter :quit to exit.
+
+> (defun square (x) (* x x))
+(symbol square)
+> square
+(closure (x) (((symbol *) (symbol x) (symbol x))) <nil>)
+> (square 3)
+9
+> (square (square (square 3) ) )
+6561
+> :quit
+```
+
+In addition to having a REPL you can also load files (and then optionally have the REPL start).  So here's running the self-contained example:
+
+```
+$ ./inception inception.in
+Loading .. inception.in
+100
+Squaring some numbers: (16 25 400 900 1600)
+LAMBDA X 1*1: -> 1
+LAMBDA X 2*2: -> 4
+LAMBDA X 3*3: -> 9
+LAMBDA X 4*4: -> 16
+LAMBDA X 5*5: -> 25
+This is what a function looks like: (closure (x) (((symbol +) (symbol x) (symbol n))) ((n 10)))
+Adder (+10) result for  5:15
+..
+```
+
+And here is loading an existing test - which will define the function `main` and launching that via the REPL:
+
+```
+$ ./inception ../test/closure2.lisp  --repl
+Loading .. ../test/closure2.lisp
+Welcome to lisp in slisp!
+Enter :quit to exit.
+
+> (main)   ; loading "closure2.lisp" will produce a (defun main) now we call it.
+25
+35
+5
+10
+22
+40
+```
+
+So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can print.  But the biggest difference is that the compiler has a significantly larger standard-library.
+
+The compiler prepends [stdlib.slisp](stdlib.slisp) to all programs, so you always have `map`, `filter`, etc, available.  By contrast the interpreter has a very small standard library - it exposes `print`, `println`, `cons`, `list` and the special forms.  It understands strings, integers, and floating-point numbers but it doesn't have a character-type.
+
+That said, and as demonstrated above, the interpreter can run many of the same programs that the compiler can.  The main omissions are mutating captured variables inside closures, and the need to enter functions all on one line if you're using the REPL.
 
 
 
