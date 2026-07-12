@@ -156,8 +156,8 @@
 
     (t
      (env-bound?
-       (cdr env)
-       name))))
+      (cdr env)
+      name))))
 
 ;; set a variable in the environment
 (defun env-set (env name value)
@@ -366,7 +366,7 @@
 
 ;; eval set!
 (defun eval-set (expr env)
- (let ((name
+  (let ((name
          (symbol-name (cadr expr))))
 
     (let ((result
@@ -378,11 +378,11 @@
              (cadr result)))
 
         (if (env-bound? env name)
-    (list value
-          (env-update env name value))
-    (do
-      (global-set name value)
-      (list value env)))))))
+            (list value
+                  (env-update env name value))
+            (do
+             (global-set name value)
+             (list value env)))))))
 
 ;; return the contents of a symbol
 (defun eval-symbol (sym env)
@@ -689,18 +689,18 @@
 
       (if (= (reader-peek) "\\")
           (do
-            (reader-next)     ; consume '\'
+           (reader-next)     ; consume '\'
 
-            (let ((ch (reader-next)))
-              (set! text
-                    (strcat
-                     text
-                     (cond
-                       ((= ch "n") "\n")
-                       ((= ch "t") "\t")
-                       ((= ch "\"") "\"")
-                       ((= ch "\\") "\\")
-                       (t ch))))))
+           (let ((ch (reader-next)))
+             (set! text
+                   (strcat
+                    text
+                    (cond
+                      ((= ch "n") "\n")
+                      ((= ch "t") "\t")
+                      ((= ch "\"") "\"")
+                      ((= ch "\\") "\\")
+                      (t ch))))))
           (set! text
                 (strcat
                  text
