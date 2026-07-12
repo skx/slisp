@@ -82,6 +82,7 @@
 (defun lookup-builtin (name)
   (cond
     ((= name "+")       (builtin "+"))
+    ((= name "%")       (builtin "%"))
     ((= name "-")       (builtin "-"))
     ((= name "*")       (builtin "*"))
     ((= name "/")       (builtin "/"))
@@ -293,6 +294,9 @@
     (cond
       ((= name "+")
        (+ (car args) (cadr args)))
+
+      ((= name "%")
+       (% (car args) (cadr args)))
 
       ((= name "-")
        (- (car args) (cadr args)))
