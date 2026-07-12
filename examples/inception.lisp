@@ -75,7 +75,11 @@
   (env-get *globals* name))
 
 (defun global-set (name value)
-  (set! *globals* (env-set *globals* name value)))
+  (if (env-bound? *globals* name)
+      (set! *globals*
+            (env-update *globals* name value))
+      (set! *globals*
+            (env-set *globals* name value))))
 
 
 ;; Lookup a builtin function.
@@ -97,9 +101,12 @@
     ((= name "cdr")     (builtin "cdr"))
     ((= name "list")    (builtin "list"))
     ((= name "nat")     (builtin "nat"))
+    ((= name "newline") (builtin "newline"))
     ((= name "not")     (builtin "not"))
+    ((= name "or")      (builtin "or"))
     ((= name "print")   (builtin "print"))
     ((= name "println") (builtin "println"))
+    ((= name "reverse") (builtin "reverse"))
     ((= name "seq")     (builtin "seq"))
     ((= name "nil?")    (builtin "nil?"))
     (t nil)))
@@ -138,6 +145,19 @@
           (cadr (car env))
           (env-get (cdr env) name))))
 
+;; is a binding present?
+(defun env-bound? (env name)
+  (cond
+    ((nil? env)
+     nil)
+
+    ((= (caar env) name)
+     t)
+
+    (t
+     (env-bound?
+      (cdr env)
+      name))))
 
 ;; set a variable in the environment
 (defun env-set (env name value)
@@ -145,57 +165,141 @@
    (list name value)
    env))
 
+(defun env-update (env name value)
+  (cond
+    ((nil? env)
+     nil)
+    ((= (caar env) name)
+     (cons
+      (list name value)
+      (cdr env)))
+    (t
+     (cons
+      (car env)
+      (env-update
+       (cdr env)
+       name
+       value)))))
+
+;; eval will return a list: (return-value updated-environment)
+;; get the value.
+(defun eval-value (x)
+  (car x))
+
+;; eval will return a list: (return-value updated-environment)
+;; get the environment
+(defun eval-env (x)
+  (cadr x))
 
 ;; eval: where the magic happens.
 (defun eval (expr env)
   (cond
     ;; integers evaluate to themselves
-    ((int? expr) expr)
+    ((int? expr) (list expr env))
 
     ;; floats are self-evaluating too.
-    ((float? expr) expr)
+    ((float? expr) (list expr env))
 
     ;; strings are self-evaluating too.
-    ((str? expr) expr)
+    ((str? expr) (list expr env))
 
     ;; symbols will be looked up
-    ((symbol? expr) (eval-symbol expr env))
+    ((symbol? expr) (list (eval-symbol expr env) env))
 
     ;; lists are expressions
     ((cons? expr) (eval-list expr env))
 
     ;; something unknown
-    (t nil)))
+    (t (list nil env))))
 
 ;; helper which is used by apply, do, and let.
 (defun eval-body (forms env)
-    (let ((result nil))
-        (while forms
-            (set! result (eval (car forms) env))
-            (set! forms (cdr forms)))
-        result))
+  (let ((result nil))
+    (while forms
+      (set! result (eval (car forms) env))
+      (set! env (eval-env result))
+      (set! forms (cdr forms)))
+    result))
 
 
 ;; function-call, lambda, builtin, etc.
 (defun eval-call (expr env)
-  (let ((fn   (eval (car expr) env))
-        (args (map (lambda (x) (eval x env)) (cdr expr))))
-    (apply fn args)))
+  (let ((fn-result
+         (eval (car expr) env)))
+
+    (let ((fn
+           (car fn-result))
+          (env
+           (cadr fn-result))
+          (args nil)
+          (forms
+           (cdr expr)))
+
+      ;; evaluate arguments left-to-right
+      (while forms
+
+        (let ((result
+               (eval (car forms) env)))
+          (set! args
+                (append
+                 args
+                 (list (car result))))
+          (set! env
+                (cadr result)))
+        (set! forms
+              (cdr forms)))
+      (list
+       (apply fn args)
+       env))))
+
+;; special form: cond
+(defun eval-cond (expr env)
+  (eval-cond-clauses (cdr expr) env))
+
+(defun eval-cond-clauses (clauses env)
+  (if (nil? clauses)
+      (list nil env)
+
+      (let ((clause (car clauses)))
+
+        ;; Evaluate the test expression.
+        (let ((result (eval (car clause) env)))
+
+          (if (eval-value result)
+
+              ;; Test succeeded.
+              (eval-body
+               (cdr clause)
+               (eval-env result))
+
+              ;; Try the next clause.
+              (eval-cond-clauses
+               (cdr clauses)
+               (eval-env result)))))))
 
 ;; special form: defun
-(defun eval-defun (expr)
+(defun eval-defun (expr env)
   (add-function
    (symbol-name (cadr expr))    ; name
    (symbols-names (caddr expr)) ; params
    (cdddr expr))                ; body
   ;; return the name of the defun
-  (cadr expr))
+  (list (cadr expr)  env))
 
 ;; special form: defvar - return the value
 (defun eval-defvar (expr env)
-  (let ((name  (symbol-name (cadr expr)))
-        (value (eval (caddr expr) env)))
-    (set! *globals* (env-set *globals* name value)) value))
+  (let ((name (symbol-name (cadr expr)))
+        (result (eval (caddr expr) env)))
+
+    (set! *globals*
+          (env-set
+           *globals*
+           name
+           (eval-value result)))
+
+    (list
+     (eval-value result)
+     (eval-env result))))
 
 ;; special form: do - run each statement in the list
 (defun eval-do (expr env)
@@ -203,39 +307,46 @@
 
 ;; special form; if
 (defun eval-if (expr env)
-  (if (eval (cadr expr) env)
-      (eval (caddr expr) env)
-      (eval (cadddr expr) env)))
+  (let ((r (eval (cadr expr) env)))
+    (if (eval-value r)
+        (eval (caddr expr) (eval-env r))
+        (eval (cadddr expr) (eval-env r)))))
 
 ;; evaluate a lambda
 (defun eval-lambda (expr env)
-    (closure
-        (symbols-names (cadr expr)) ; params
-        (cddr expr)                 ; body
-        env))
+  (list
+   (closure
+    (symbols-names (cadr expr)) ; params
+    (cddr expr)                 ; body
+    env)
+   env))
 
 ;; special form: let
 (defun eval-let (expr env)
   (let ((bindings (cadr expr))
         (body     (cddr expr))
         (new-env  env))
+
     (while bindings
-      (set! new-env
-            (env-set
-             new-env
-             (symbol-name (car (car bindings)))
+      (let ((result
              (eval (cadr (car bindings))
-                   env)))
+                   new-env)))
+        (set! new-env
+              (env-set
+               new-env
+               (symbol-name (car (car bindings)))
+               (eval-value result))))
       (set! bindings (cdr bindings)))
     (eval-body body new-env)))
-
 
 ;; evaluate a list - sleazy
 (defun eval-list (expr env)
   (let ((op (symbol-name (car expr))))
     (cond
+      ((= op "cond")
+       (eval-cond expr env))
       ((= op "defun")
-       (eval-defun expr))
+       (eval-defun expr env))
       ((= op "defvar")
        (eval-defvar expr env))
       ((= op "do")
@@ -248,32 +359,65 @@
        (eval-let expr env))
       ((= op "quote")
        (eval-quote expr env))
+      ((= op "set!")
+       (eval-set expr env))
       (t
        (eval-call expr env)))))
+
+;; eval set!
+(defun eval-set (expr env)
+  (let ((name
+         (symbol-name (cadr expr))))
+
+    (let ((result
+           (eval (caddr expr) env)))
+
+      (let ((value
+             (car result))
+            (env
+             (cadr result)))
+
+        (if (env-bound? env name)
+            (list value
+                  (env-update env name value))
+            (do
+             (global-set name value)
+             (list value env)))))))
 
 ;; return the contents of a symbol
 (defun eval-symbol (sym env)
   (let ((name (symbol-name sym)))
-    ;; environment
-    (let ((value (env-get env name)))
-      (if value
-          value
 
-          ;; global variable
-          (let ((value (env-get *globals* name)))
-            (if value
-                value
+    ;; boolean constants
+    (cond
+      ((= name "t")
+       t)
 
-                ;; builtin
-                (let ((fn (lookup-builtin name)))
-                  (if fn
-                      fn
-                      ;; user-function
-                      (lookup-function name)))))))))
+      ((= name "nil")
+       nil)
+
+      (t
+
+       ;; env
+       (if (env-bound? env name)
+           (env-get env name)
+
+           ;; global
+           (if (env-bound? *globals* name)
+               (env-get *globals* name)
+
+               ;; builtin
+               (let ((fn (lookup-builtin name)))
+                 (if fn
+                     fn
+                     ;; user-function
+                     (lookup-function name)))))))))
 
 ;; special form: quote
 (defun eval-quote (expr env)
-  (cadr expr))
+  (list
+   (cadr expr)
+   env))
 
 
 ;; apply for built-in and user-functoins
@@ -340,8 +484,17 @@
       ((= name "nat")
        (nat (car args)))
 
+      ((= name "newline")
+       (newline))
+
       ((= name "not")
        (not (car args)))
+
+      ((= name "or")
+       (or (car args) (cadr args)))
+
+      ((= name "reverse")
+       (reverse (car args)))
 
       ((= name "print")
        (do
@@ -385,7 +538,7 @@
       (set! args   (cdr args)))
 
     ;; Now execute all the statements in the body
-    (eval-body body env)))
+    (car (eval-body body env))))
 
 
 ;;
@@ -490,7 +643,7 @@
     ((= (reader-peek) "'")
      (reader-next)
      (list
-      "quote"
+      (symbol "quote")
       (reader-read)))
     (t
      (reader-read-atom))))
@@ -525,6 +678,38 @@
     (reverse items)))
 
 (defun reader-read-string ()
+  (reader-next)   ; consume opening "
+
+  (let ((text ""))
+
+    (while
+        (and
+         (!= (reader-peek) "")
+         (!= (reader-peek) "\""))
+
+      (if (= (reader-peek) "\\")
+          (do
+           (reader-next)     ; consume '\'
+
+           (let ((ch (reader-next)))
+             (set! text
+                   (strcat
+                    text
+                    (cond
+                      ((= ch "n") "\n")
+                      ((= ch "t") "\t")
+                      ((= ch "\"") "\"")
+                      ((= ch "\\") "\\")
+                      (t ch))))))
+          (set! text
+                (strcat
+                 text
+                 (reader-next)))))
+
+    (reader-next)    ; closing "
+    text))
+
+(defun reader-read-string-old ()
   ;; consume opening "
   (reader-next)
   (let ((text ""))
@@ -636,7 +821,7 @@
                     (res    (fclose handle)))  ; close
                 (if data
                     (run-program data))))))
-         (cdr args))
+       (cdr args))
 
 
   ;; Is this REPL mode?  Then run it
@@ -644,4 +829,4 @@
       (do
        (repl)
        (exit 0)))
-)
+  )

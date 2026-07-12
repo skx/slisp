@@ -1,0 +1,31 @@
+;; map
+(defun map (f xs)
+    (if (nil? xs)
+        nil
+        (cons
+            (f (car xs))
+            (map f (cdr xs)))))
+
+
+;; odd/even helpers
+(defun odd? (x)
+  (if (= (% x 2)  1)
+     1
+    nil))
+
+(defun even? (x)
+  (if (= (% x 2)  0)
+     1
+    nil))
+
+;; function to show results, via cond
+(defun show (x)
+  (cond
+    ((odd? x) (println "odd: " x))
+    ((even? x) (println "even: " x))
+    (t (println "Meh - life is hard"))
+    )
+)
+
+;; Show the results of the first 20 numbers.
+(map show (nat 20))
