@@ -349,6 +349,8 @@
        (eval-defun expr env))
       ((= op "defvar")
        (eval-defvar expr env))
+      ((= op "defconst")
+       (eval-defvar expr env))
       ((= op "do")
        (eval-do expr env))
       ((= op "if")
@@ -813,7 +815,8 @@
 
   ;; We process each named file (skipping --repl)
   (map (lambda (name)
-         (if (!= name "--repl")
+         (if (and (!= name "--repl")
+                  (!= name "--main"))
              (do
               (println "Loading .. " name)
               (let ((handle (fopen name "r"))  ; open
@@ -823,6 +826,9 @@
                     (run-program data))))))
        (cdr args))
 
+  ;; Should we auto-run (defun main) ..?
+  (if (member? args "--main")
+      (repl-execute-line "(main)"))
 
   ;; Is this REPL mode?  Then run it
   (if (member? args "--repl")
