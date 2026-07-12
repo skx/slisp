@@ -54,6 +54,7 @@
 (defun builtin-name (x)
   (cadr x))
 
+;; get the names of parameters
 (defun symbols-names (lst)
   (if (nil? lst)
       nil
@@ -88,12 +89,17 @@
     ((= name "<=")      (builtin "<="))
     ((= name ">")       (builtin ">"))
     ((= name ">=")      (builtin ">="))
+    ((= name "=")       (builtin "="))
+    ((= name "abs")     (builtin "abs"))
     ((= name "cons")    (builtin "cons"))
     ((= name "car")     (builtin "car"))
     ((= name "cdr")     (builtin "cdr"))
     ((= name "list")    (builtin "list"))
+    ((= name "nat")     (builtin "nat"))
+    ((= name "not")     (builtin "not"))
     ((= name "print")   (builtin "print"))
     ((= name "println") (builtin "println"))
+    ((= name "seq")     (builtin "seq"))
     ((= name "nil?")    (builtin "nil?"))
     (t nil)))
 
@@ -178,9 +184,9 @@
 ;; special form: defun
 (defun eval-defun (expr)
   (add-function
-   (symbol-name (cadr expr))
-   (symbols-names (caddr expr))
-   (cdddr expr))
+   (symbol-name (cadr expr))    ; name
+   (symbols-names (caddr expr)) ; params
+   (cdddr expr))                ; body
   ;; return the name of the defun
   (cadr expr))
 
@@ -203,8 +209,8 @@
 ;; evaluate a lambda
 (defun eval-lambda (expr env)
     (closure
-        (symbols-names (cadr expr))
-        (cddr expr)
+        (symbols-names (cadr expr)) ; params
+        (cddr expr)                 ; body
         env))
 
 ;; special form: let
@@ -309,6 +315,12 @@
       ((= name ">=")
        (>= (car args) (cadr args)))
 
+      ((= name "=")
+       (= (car args) (cadr args)))
+
+      ((= name "abs")
+       (abs (car args)))
+
       ((= name "cons")
        (cons (car args) (cadr args)))
 
@@ -320,6 +332,12 @@
 
       ((= name "list")
        args)
+
+      ((= name "nat")
+       (nat (car args)))
+
+      ((= name "not")
+       (not (car args)))
 
       ((= name "print")
        (do
@@ -335,6 +353,9 @@
           (set! args (cdr args)))
         (print "\n")
         nil))
+
+      ((= name "seq")
+       (seq (car args)))
 
       ((= name "nil?")
        (nil? (car args)))
