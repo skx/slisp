@@ -182,6 +182,22 @@
         (args (map (lambda (x) (eval x env)) (cdr expr))))
     (apply fn args)))
 
+;; special form: cond
+(defun eval-cond (expr env)
+    (eval-cond-clauses (cdr expr) env))
+
+(defun eval-cond-clauses (clauses env)
+    (if (nil? clauses)
+        nil
+        (let ((clause (car clauses)))
+            (if (or
+                    (= (car clause) t)
+                    (eval (car clause) env))
+                (eval-body (cdr clause) env)
+                (eval-cond-clauses
+                    (cdr clauses)
+                    env)))))
+
 ;; special form: defun
 (defun eval-defun (expr)
   (add-function
@@ -234,6 +250,8 @@
 (defun eval-list (expr env)
   (let ((op (symbol-name (car expr))))
     (cond
+      ((= op "cond")
+       (eval-cond expr env))
       ((= op "defun")
        (eval-defun expr))
       ((= op "defvar")
@@ -254,6 +272,16 @@
 ;; return the contents of a symbol
 (defun eval-symbol (sym env)
   (let ((name (symbol-name sym)))
+
+    ;; boolean constants
+    (cond
+      ((= name "t")
+       t)
+
+      ((= name "nil")
+       nil)
+
+      (t
     ;; environment
     (let ((value (env-get env name)))
       (if value
@@ -269,7 +297,7 @@
                   (if fn
                       fn
                       ;; user-function
-                      (lookup-function name)))))))))
+                      (lookup-function name)))))))))))
 
 ;; special form: quote
 (defun eval-quote (expr env)

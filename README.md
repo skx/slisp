@@ -228,6 +228,9 @@ The compiler prepends [stdlib.slisp](stdlib.slisp) to all programs, so you alway
 
 That said, and as demonstrated above, the interpreter can run many of the same programs that the compiler can.  The main omissions are mutating captured variables inside closures, and the need to enter functions all on one line if you're using the REPL.
 
+* [examples/inception.in](examples/inception.in) is my test program.
+* [examples/cond.in](examples/cond.in) shows that the in-build `cond` primitive works.
+
 
 
 ## Motivation
