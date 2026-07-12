@@ -39,17 +39,25 @@
 (defun ! (x)
   (not x))
 
-(defun caar (x)
-  (car (car x)))
+(defun != (a b) (not (= a b)))
 
-(defun cadr (x)
-  (car (cdr x)))
+(defun caar (x) (car (car x)))
+(defun cadr (x) (car (cdr x)))
+(defun cdar (x) (cdr (car x)))
+(defun cddr (x) (cdr (cdr x)))
 
-(defun cdar (x)
-  (cdr (car x)))
+(defun caaar (x) (car (caar x)))
+(defun caadr (x) (car (cadr x)))
+(defun cadar (x) (car (cdar x)))
+(defun caddr (x) (car (cddr x)))
 
-(defun cddr (x)
-  (cdr (cdr x)))
+(defun cdaar (x) (cdr (caar x)))
+(defun cdadr (x) (cdr (cadr x)))
+(defun cddar (x) (cdr (cdar x)))
+(defun cdddr (x) (cdr (cddr x)))
+
+(defun cadddr (x) (car (cdr (cdr (cdr x)))))
+
 
 (defun eq (a b)
   (= a b))
