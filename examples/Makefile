@@ -42,6 +42,16 @@ endif
 life.test:
 	@echo "ignoring $@ - as it doesn't terminate"
 
+# inception needs a file to be named
+inception.test:
+	@echo "compiling $@"
+	@../slisp inception.lisp > tmp.asm
+	@nasm -f elf64 tmp.asm
+	$(LINK_CMD)
+	@echo "testing $@"
+	@./$@ inception.in > $@.out 2>&1  || true
+	@cmp $@.out $@.expected || (echo "program $< did not match" ; cat $@.out ; exit 1)
+
 wc.test:
 	@echo "ignoring $@ - as it doesn't terminate"
 
