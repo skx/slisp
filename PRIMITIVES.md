@@ -270,6 +270,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Print "anything" by invoking `print`, then outputting a newline.
 * `range`
   * Return a list of numbers between the given start/end, using the specified step-size.
+* `read-line`
+  * Return a single line of input from STDIN, built on top of `getc`.
 * `reduce`
   * Reduce combines all elements of a list with a function and accumulator.
 * `repeated`
