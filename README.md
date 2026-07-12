@@ -213,13 +213,39 @@ Loading .. ../test/closure2.lisp
 Welcome to lisp in slisp!
 Enter :quit to exit.
 
-> (main)   ; loading "closure2.lisp" will produce a (defun main) now we call it.
+; loading "closure2.lisp" will produce a (defun main) now we call it.
+> (main)
 25
 35
 5
 10
 22
 40
+```
+
+Perhaps more interesting is that we can execute the [examples/nqueens.lisp](examples/nqueens.lisp) example, with no changes:
+
+```
+$ ./inception nqueens.lisp  --repl
+Loading .. nqueens.lisp
+Welcome to lisp in slisp!
+Enter :quit to exit.
+
+> (main)
+8 Queens Solver for board size 8x8
+
+Solution 1 (1 5 8 6 3 7 2 4):
+
+    Q . . . . . . .
+    . . . . Q . . .
+    . . . . . . . Q
+    . . . . . Q . .
+    . . Q . . . . .
+    . . . . . . Q .
+    . Q . . . . . .
+    . . . Q . . . .
+
+..
 ```
 
 So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can print.  But the biggest difference is that the compiler has a significantly larger standard-library.
