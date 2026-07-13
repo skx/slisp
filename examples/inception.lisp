@@ -105,6 +105,7 @@
     ((= name "car")     (builtin "car"))
     ((= name "cdr")     (builtin "cdr"))
     ((= name "list")    (builtin "list"))
+    ((= name "map")     (builtin "map"))
     ((= name "nat")     (builtin "nat"))
     ((= name "newline") (builtin "newline"))
     ((= name "not")     (builtin "not"))
@@ -463,6 +464,14 @@
     ;; nothing known
     (t nil)))
 
+
+(defun builtin-map (fn lst)
+  (if (nil? lst)
+      nil
+      (cons
+        (apply fn (list (car lst)))
+        (builtin-map fn (cdr lst)))))
+
 ;; built-in functions all live here, which is a bit horrid.
 (defun apply-builtin (fn args)
   (let ((name (builtin-name fn)))
@@ -511,6 +520,9 @@
 
       ((= name "list")
        args)
+
+      ((= name "map")
+       (builtin-map (car args) (cadr args)))
 
       ((= name "nat")
        (nat (car args)))

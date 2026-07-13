@@ -55,8 +55,8 @@
             (x 0))
         (while (< x WIDTH)
           (if (= (nth row x) 1)
-              (putc #\#)
-              (putc #\Space))
+              (print "#")
+              (print " "))
           (set! x (+ x 1)))
         (newline)
         (set! y (+ y 1)))))
@@ -212,7 +212,11 @@
 
   ;; no arguments? then random display
   ;; otherwise gliders
-  (seed (> (length args) 1))
+  (if (nil? args)
+      (seed 1) ; glider
+      (if (> (length args) 1)
+          (seed 1) ; glider
+          (seed nil))) ; random
 
   (while 1
     (draw-board board)
