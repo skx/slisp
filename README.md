@@ -245,7 +245,7 @@ Solution 1 (1 5 8 6 3 7 2 4):
 
 So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can print.  But the biggest difference is that the compiler has a significantly larger standard-library.
 
-The compiler prepends [stdlib.slisp](stdlib.slisp) to all programs, so you always have `map`, `filter`, etc, available.  By contrast the interpreter has a very small standard library - it exposes `print`, `println`, `cons`, `list` and the special forms.  It understands strings, integers, and floating-point numbers but it doesn't have a character-type.
+The compiler prepends [stdlib.slisp](stdlib.slisp) to all programs, so you always have `map`, `filter`, etc, available.  By contrast the interpreter has a very small standard library - it exposes `print`, `println`, `cons`, `list`, `nth`, `map`, and a few other carefully selected primitives, along with the special forms `do`, `if`, `let`, `while`, etc.  It understands strings, integers, and floating-point numbers but notably it doesn't have a character-type.
 
 That said, and as demonstrated above, the interpreter can run many of the same programs that the compiler can.  The main omissions are mutating captured variables inside closures, and the need to enter functions all on one line if you're using the REPL.
 
