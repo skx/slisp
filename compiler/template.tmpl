@@ -296,6 +296,19 @@ alloc:
     jmp heap_exhausted
 
 
+alloc_cons:
+    mov rax, [heap_cur]
+    push rcx
+    lea rcx, [rax+16]
+    cmp rcx, [heap_end]
+    ja .fail
+    mov [heap_cur], rcx
+    pop rcx
+    ret
+.fail:
+    pop rcx
+    jmp heap_exhausted
+
 ;; xmm0 contains a float, store it on the heap and return it
 return_float:
     mov rax, 8              ; size to allocate
@@ -1047,8 +1060,7 @@ FUNC fn_sys_chr
 ;;
 ;; 16-bytes; first has the CAR, second the CDR.
 FUNC fn_sys_cons
-    mov rax, 16              ; size to allocate
-    call alloc               ; Allocate memory, result in RAX
+    call alloc_cons          ; Allocate memory, result in RAX
     mov [rax], rdi           ; store first item
     mov [rax+8], rsi         ; second item
     TAG_CONS_REG rax         ; return the tagged allocation
