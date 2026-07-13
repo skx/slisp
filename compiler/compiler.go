@@ -910,11 +910,11 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		//   ...
 		size := 8 * (1 + len(n.Captures))
 
-		c.emitln("    mov rax, [heap_ptr]")
 		c.emitln(fmt.Sprintf(
-			"    add qword [heap_ptr], %d",
+			"     mov rax, %d",
 			size,
 		))
+		c.emitln("    call alloc")
 		c.emitln("    mov rbx, rax")
 
 		// store code pointer

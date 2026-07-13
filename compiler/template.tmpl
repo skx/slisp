@@ -201,7 +201,9 @@ section .text
 
 _start:
     mov rax, heap
-    mov [heap_ptr], rax
+    mov [heap_start], rax
+    mov rax, heap_end_ref
+    mov [heap_end], rax
 
     mov rcx, [rsp]             ; argc
     lea rbx, [rsp+8]           ; argv
@@ -236,18 +238,41 @@ _start:
 ;;; 5.0. common routines
 
 
+;; Allocate memory, return address in RAX.
+;; RAX has size, which is then rounded up to 16 bytes.
+alloc:
+    add rax,15            ; Round up to 16 bytes
+    and rax,-16
+
+    push rcx
+    push rdx
+
+    mov rcx,[heap_start]  ; get the current value
+
+    mov rdx,rcx
+    add rdx,rax           ; compute the final size
+
+    cmp rdx,[heap_end]
+    jae .fail
+
+    mov [heap_start], rdx ; store
+    mov rax, rcx          ; the initial value which is now ours
+    pop rdx
+    pop rcx
+    ret
+.fail:
+    pop rdx
+    pop rcx
+    jmp heap_exhausted
+
+
 ;; xmm0 contains a float, store it on the heap and return it
 return_float:
-   mov rax, [heap_ptr]     ; allocate
-    push rbx
-    mov rbx, heap_end        ; we allocate 8Mb. but we abort if we go past 7Mb.
-    cmp rax, rbx
-    pop rbx
-    jge heap_exhausted       ; then abort
-   add qword [heap_ptr],8
-   movq [rax], xmm0        ; store
-   TAG_FLOAT_REG rax       ; type
-   ret                     ; return
+    mov rax, 8              ; size to allocate
+    call alloc              ; Allocate memory, result in RAX
+    movq [rax], xmm0        ; store
+    TAG_FLOAT_REG rax       ; type
+    ret                     ; return
 
 ;; rdi points to string, return result in rax
 strlen:
@@ -992,13 +1017,8 @@ FUNC fn_sys_chr
 ;;
 ;; 16-bytes; first has the CAR, second the CDR.
 FUNC fn_sys_cons
-    mov rax, [heap_ptr]      ; get the value of the heap pointer
-    push rbx
-    mov rbx, heap_end        ; we allocate 8Mb. but we abort if we go past 7Mb.
-    cmp rax, rbx
-    pop rbx
-    jge heap_exhausted       ; then abort
-    add qword [heap_ptr], 16 ; bump it by 2x ptrs
+    mov rax, 16              ; size to allocate
+    call alloc               ; Allocate memory, result in RAX
     mov [rax], rdi           ; store first item
     mov [rax+8], rsi         ; second item
     TAG_CONS_REG rax         ; return the tagged allocation
@@ -1059,10 +1079,12 @@ FUNC fn_sys_entries
 .length_done:
     mov r10, r9                             ; Allocate length+1 (rounded)
     inc r10
-    add r10, 7
-    and r10, -8
-    mov r11, [heap_ptr]
-    add [heap_ptr], r10
+
+    push rax         ; alloc save
+    mov rax, r10     ; length
+    call alloc       ; allocate
+    mov r11, rax     ; into reg
+    pop rax          ; restore
 
     mov rdi, r11                            ; Copy string into newly allocated memory in R11
     mov rsi, r8
@@ -1291,8 +1313,8 @@ FUNC fn_sys_fread
         mov rdi, rbx
         inc rdi
 
-        mov rax, [heap_ptr]       ; rax contains allocated storage
-        add qword [heap_ptr], rdi
+        mov rax, rdi              ; size to allocate
+        call alloc                ; Allocate memory, result in RAX
 
         pop rbx                   ; restore size
         mov r12, rax              ; data pointer in r12.
@@ -1458,10 +1480,10 @@ FUNC fn_sys_implode
     jmp .count
 
 .have_len:
-    mov rax,[heap_ptr]
-    mov rdx,rcx
-    inc rdx
-    add [heap_ptr],rdx
+    mov rdx,rcx     ; rdx has length
+    inc rdx         ; add one for null
+    mov rax, rdx    ; size to allocate
+    call alloc      ; allocate
     mov r8,rax
 
     mov rbx,rdi
@@ -1782,12 +1804,11 @@ FUNC fn_sys_split
     ret
 
 .found:
-    mov r10, [heap_ptr]       ; allocate left
-    mov r11, r10
-
-    mov rax, rcx
-    inc rax
-    add [heap_ptr], rax
+    mov rax, rcx    ; length
+    inc rax         ; plus nill
+    call alloc      ; allocate
+    mov r11, rax    ; save
+    mov r10, rax    ; save
 
     mov rsi, rcx
     mov rdx, r8
@@ -1820,11 +1841,11 @@ FUNC fn_sys_split
     jmp .count_right
 
 .alloc_right:
-    mov r11, [heap_ptr]   ; allocate
-    mov r12, r11
-    mov rax, rcx
-    inc rax
-    add [heap_ptr], rax
+    mov rax, rcx         ; size
+    inc rax              ; plus null
+    call alloc           ; allocate
+    mov r11, rax         ; save
+    mov r12, rax         ; save
 
     lea rdx, [rdi+1]
     mov rsi, rcx
@@ -1846,15 +1867,21 @@ FUNC fn_sys_split
 
     xor rax, rax                    ; right
     TAG_NIL_REG rax
-    mov rbx, [heap_ptr]
-    add qword [heap_ptr],16
+    push rax
+    mov rax, 16                 ; allocate 16 bytes
+    call alloc                  ; allocate
+    mov rbx, rax                ; rbx has the address
+    pop rax                     ; restore reg
     mov [rbx], r11
     mov [rbx+8], rax
     mov rax, rbx
     TAG_CONS_REG rax
 
-    mov rbx, [heap_ptr]
-    add qword [heap_ptr],16
+    push rax
+    mov rax, 16                 ; allocate 16 bytes
+    call alloc                  ; allocate
+    mov rbx, rax                ; rbx has the address
+    pop rax                     ; restore reg
     mov [rbx], r10
     mov [rbx+8], rax
     mov rax, rbx
@@ -2014,11 +2041,11 @@ FUNC fn_sys_strcat
     mov r9,rax         ; r9 to save strlen(b)
 
     ; allocate
-    mov rax,[heap_ptr]
     mov rcx,r8
     add rcx,r9
     inc rcx                  ; +1 for '\0'
-    add [heap_ptr],rcx
+    mov rax, rcx             ; size in rax
+    call alloc               ; make the allocation
 
     mov rdx,rax              ; destination
     pop rsi                  ; restore strings
@@ -2109,8 +2136,9 @@ FUNC fn_sys_string
     ret
 .from_char:
     ; two bytes of memory
-    mov rsi, [heap_ptr]       ; allocate two bytes
-    add qword [heap_ptr],2
+    mov rax, 2   ; two bytes
+    call alloc   ; RAX has result
+    mov rsi, rax
     mov rax, rdi
     UNTAG_REG rax
     mov byte [rsi], al       ; char
@@ -2126,9 +2154,12 @@ FUNC fn_sys_string
     ; RSI has the start
     ; RCX has the length
     inc rcx
-    mov rdi, [heap_ptr]       ; allocate length
+    push rax           ; alloc save
+    mov rax, rcx       ; size
+    call alloc         ; allocate
+    mov rdi, rax       ; in the reg
+    pop rax            ; restore
     push rdi
-    add qword [heap_ptr], rcx
     ; copy bytes
 .copy_loop:
     mov al, [rsi]
@@ -2411,8 +2442,10 @@ section .bss
 last_function:
     resq 1
 
-;; offset used of our heap area.
-heap_ptr:
+;; start of heap space.
+heap_start:
+    resq 1
+heap_end:
     resq 1
 
 ;; start of the environmental variable array
@@ -2433,7 +2466,9 @@ heap:
     resb 1 * 1024 * 1024 * 1024  ; 1 Mb
     resb 1 * 1024 * 1024 * 1024  ; 1 Mb
     resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-heap_end:
+    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
+heap_end_ref:
+    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
     resb 1 * 1024 * 1024 * 1024  ; 1 Mb
 
 
