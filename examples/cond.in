@@ -1,12 +1,3 @@
-;; map
-(defun map (f xs)
-    (if (nil? xs)
-        nil
-        (cons
-            (f (car xs))
-            (map f (cdr xs)))))
-
-
 ;; odd/even helpers
 (defun odd? (x)
   (if (= (% x 2)  1)
