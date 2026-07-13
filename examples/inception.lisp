@@ -10,23 +10,31 @@
 ;; We store built-in primitives, variables, and functions in different namespaces.
 ;;
 ;; Special forms:
+;;
+;;   AND
+;;   COND
+;;   DEFUN
+;;   DEFCONST
+;;   DEFVAR
+;;   DO
 ;;   IF
 ;;   LAMBDA
 ;;   LET
-;;   DEFUN
-;;   DEFVAR
+;;   OR
 ;;   QUOTE
+;;   SET!
 ;;   WHILE
 ;;
-;; Nothing too surprising I guess.
+;; We have a couple of builtin-functions we handle specially, but most are deferred to the
+;; host/compiler's version of the code.
 ;;
-
-;; compat
 
 
 (defvar *DEBUG* nil)
 
-;; Since we don't "tag" things we wrap them in lists
+
+;; Since we don't "tag" types as we do in our compiler instead we wrap them in lists, and identify
+;; them via a string-compare of the first element.
 (defun builtin (name)
   (list "builtin" name))
 
@@ -90,35 +98,39 @@
 ;; Lookup a builtin function.
 (defun lookup-builtin (name)
   (cond
-    ((= name "+")       (builtin "+"))
-    ((= name "%")       (builtin "%"))
-    ((= name "-")       (builtin "-"))
-    ((= name "*")       (builtin "*"))
-    ((= name "/")       (builtin "/"))
-    ((= name "<")       (builtin "<"))
-    ((= name "<=")      (builtin "<="))
-    ((= name ">")       (builtin ">"))
-    ((= name ">=")      (builtin ">="))
-    ((= name "=")       (builtin "="))
-    ((= name "abs")     (builtin "abs"))
-    ((= name "cons")    (builtin "cons"))
-    ((= name "car")     (builtin "car"))
-    ((= name "cdr")     (builtin "cdr"))
-    ((= name "list")    (builtin "list"))
-    ((= name "map")     (builtin "map"))
-    ((= name "nat")     (builtin "nat"))
-    ((= name "newline") (builtin "newline"))
-    ((= name "not")     (builtin "not"))
-    ((= name "nth")     (builtin "nth"))
-    ((= name "nth!")    (builtin "nth!"))
-    ((= name "or")      (builtin "or"))
-    ((= name "print")   (builtin "print"))
-    ((= name "println") (builtin "println"))
-    ((= name "random")  (builtin "random"))
+    ((= name "+")        (builtin "+"))
+    ((= name "%")        (builtin "%"))
+    ((= name "-")        (builtin "-"))
+    ((= name "*")        (builtin "*"))
+    ((= name "/")        (builtin "/"))
+    ((= name "<")        (builtin "<"))
+    ((= name "<=")       (builtin "<="))
+    ((= name ">")        (builtin ">"))
+    ((= name ">=")       (builtin ">="))
+    ((= name "=")        (builtin "="))
+    ((= name "abs")      (builtin "abs"))
+    ((= name "cons")     (builtin "cons"))
+    ((= name "car")      (builtin "car"))
+    ((= name "cdr")      (builtin "cdr"))
+    ((= name "chr")      (builtin "chr"))
+    ((= name "getc")     (builtin "getc"))
+    ((= name "list")     (builtin "list"))
+    ((= name "map")      (builtin "map"))
+    ((= name "nat")      (builtin "nat"))
+    ((= name "newline")  (builtin "newline"))
+    ((= name "not")      (builtin "not"))
+    ((= name "nth")      (builtin "nth"))
+    ((= name "nth!")     (builtin "nth!"))
+    ((= name "ord")      (builtin "ord"))
+    ((= name "print")    (builtin "print"))
+    ((= name "println")  (builtin "println"))
+    ((= name "random")   (builtin "random"))
     ((= name "repeated") (builtin "repeated"))
-    ((= name "reverse") (builtin "reverse"))
-    ((= name "seq")     (builtin "seq"))
-    ((= name "nil?")    (builtin "nil?"))
+    ((= name "reverse")  (builtin "reverse"))
+    ((= name "seq")      (builtin "seq"))
+    ((= name "strlen")   (builtin "strlen"))
+    ((= name "substr")   (builtin "substr"))
+    ((= name "nil?")     (builtin "nil?"))
     (t nil)))
 
 ;; add a function
@@ -158,22 +170,15 @@
 ;; is a binding present?
 (defun env-bound? (env name)
   (cond
-    ((nil? env)
-     nil)
+    ((nil? env)           nil)
 
-    ((= (caar env) name)
-     t)
+    ((= (caar env) name)  t)
 
-    (t
-     (env-bound?
-      (cdr env)
-      name))))
+    (t (env-bound? (cdr env) name))))
 
 ;; set a variable in the environment
 (defun env-set (env name value)
-  (cons
-   (list name value)
-   env))
+  (cons (list name value) env))
 
 (defun env-update (env name value)
   (cond
@@ -202,6 +207,8 @@
   (cadr x))
 
 ;; eval: where the magic happens.
+;;
+;; NOTE: This returns a list of "return value" and "[possibly updated] environment".
 (defun eval (expr env)
   (if *DEBUG* (println "expr:" expr))
   (cond
@@ -235,33 +242,47 @@
 
 ;; function-call, lambda, builtin, etc.
 (defun eval-call (expr env)
-  (let ((fn-result
-         (eval (car expr) env)))
+  (let ((fn-result (eval (car expr) env)))
 
-    (let ((fn
-           (car fn-result))
-          (env
-           (cadr fn-result))
-          (args nil)
-          (forms
-           (cdr expr)))
+    (let ((fn    (car fn-result))   ; eval returns "[RESULT ENV]" - get the [callable] result
+          (env   (cadr fn-result))  ; eval returns "[RESULT ENV]" - get the environment
+          (args  nil)
+          (forms (cdr expr)))
 
       ;; evaluate arguments left-to-right
       (while forms
 
-        (let ((result
-               (eval (car forms) env)))
-          (set! args
-                (append
-                 args
-                 (list (car result))))
-          (set! env
-                (cadr result)))
-        (set! forms
-              (cdr forms)))
-      (list
-       (apply fn args)
-       env))))
+        (let ((result (eval (car forms) env)))
+          (set! args (append args (list (car result))))
+          (set! env  (cadr result)))
+        (set! forms (cdr forms)))
+
+      ;; make the call, and return the result of apply, and the env, as a list
+      (list (apply fn args) env))))
+
+;; special form: and
+(defun eval-and (expr env)
+  (eval-and-forms (cdr expr) env))
+
+(defun eval-and-forms (forms env)
+  (if (nil? forms)
+
+      ;; (and) => t
+      (list t env)
+
+      (let ((result (eval (car forms) env)))
+
+        (if (nil? (eval-value result))
+
+            ;; first false value
+            result
+
+            ;; last value wins
+            (if (nil? (cdr forms))
+                result
+                (eval-and-forms
+                 (cdr forms)
+                 (eval-env result)))))))
 
 ;; special form: cond
 (defun eval-cond (expr env)
@@ -294,23 +315,21 @@
    (symbol-name (cadr expr))    ; name
    (symbols-names (caddr expr)) ; params
    (cdddr expr))                ; body
-  ;; return the name of the defun
-  (list (cadr expr)  env))
+
+  ;; return the name of the defun, and the environment
+  (list (cadr expr) env))
 
 ;; special form: defvar - return the value
 (defun eval-defvar (expr env)
-  (let ((name (symbol-name (cadr expr)))
-        (result (eval (caddr expr) env)))
+  (let ((name (symbol-name (cadr expr)))    ; get the name
+        (result (eval (caddr expr) env)))   ; get the result of the expression
 
-    (set! *globals*
-          (env-set
-           *globals*
-           name
-           (eval-value result)))
+    ;; remember the result of eval is a list, so use "eval-value" to get the
+    ;; actual value
+    (set! *globals* (env-set *globals* name (eval-value result)))
 
-    (list
-     (eval-value result)
-     (eval-env result))))
+    ;; return list of "value" "env"
+    (list (eval-value result) (eval-env result))))
 
 ;; special form: do - run each statement in the list
 (defun eval-do (expr env)
@@ -325,11 +344,12 @@
 
 ;; evaluate a lambda
 (defun eval-lambda (expr env)
+  ;; return a list of result + env
   (list
    (closure
     (symbols-names (cadr expr)) ; params
     (cddr expr)                 ; body
-    env)
+    env) ; result
    env))
 
 ;; special form: let
@@ -350,10 +370,12 @@
       (set! bindings (cdr bindings)))
     (eval-body body new-env)))
 
-;; evaluate a list - sleazy
+;; evaluate a list - handling special forms via our own code
 (defun eval-list (expr env)
   (let ((op (symbol-name (car expr))))
     (cond
+      ((= op "and")
+       (eval-and expr env))
       ((= op "cond")
        (eval-cond expr env))
       ((= op "defun")
@@ -370,6 +392,8 @@
        (eval-lambda expr env))
       ((= op "let")
        (eval-let expr env))
+      ((= op "or")
+       (eval-or expr env))
       ((= op "quote")
        (eval-quote expr env))
       ((= op "set!")
@@ -428,6 +452,28 @@
                      ;; user-function
                      (lookup-function name)))))))))
 
+;; special form: or
+(defun eval-or (expr env)
+  (eval-or-forms (cdr expr) env))
+
+(defun eval-or-forms (forms env)
+  (if (nil? forms)
+
+      ;; (or) => nil
+      (list nil env)
+
+      (let ((result (eval (car forms) env)))
+
+        (if (eval-value result)
+
+            ;; first true value
+            result
+
+            ;; otherwise continue
+            (eval-or-forms
+             (cdr forms)
+             (eval-env result))))))
+
 ;; special form: quote
 (defun eval-quote (expr env)
   (list
@@ -444,10 +490,10 @@
         (set! env (eval-env cond-result))
         (if (eval-value cond-result)
             (do
-              (set! result
-                    (eval-body (cddr expr) env))
-              (set! env
-                    (eval-env result)))
+             (set! result
+                   (eval-body (cddr expr) env))
+             (set! env
+                   (eval-env result)))
             (set! running nil))))
     result))
 
@@ -469,10 +515,12 @@
   (if (nil? lst)
       nil
       (cons
-        (apply fn (list (car lst)))
-        (builtin-map fn (cdr lst)))))
+       (apply fn (list (car lst)))
+       (builtin-map fn (cdr lst)))))
 
 ;; built-in functions all live here, which is a bit horrid.
+;;
+;; 99% of these are deferred to the host.  map/print/println are the only obvious exceptions.
 (defun apply-builtin (fn args)
   (let ((name (builtin-name fn)))
     (cond
@@ -518,6 +566,12 @@
       ((= name "cdr")
        (cdr (car args)))
 
+      ((= name "chr")
+       (chr (car args)))
+
+      ((= name "getc")
+       (getc))
+
       ((= name "list")
        args)
 
@@ -539,8 +593,8 @@
       ((= name "nth!")
        (nth! (car args) (cadr args) (caddr args)))
 
-      ((= name "or")
-       (or (car args) (cadr args)))
+      ((= name "ord")
+       (ord (car args)))
 
       ((= name "random")
        (random (car args)))
@@ -568,6 +622,12 @@
 
       ((= name "seq")
        (seq (car args)))
+
+      ((= name "strlen")
+       (strlen (car args)))
+
+      ((= name "substr")
+       (substr (car args) (cadr args) (caddr args)))
 
       ((= name "nil?")
        (nil? (car args)))
@@ -849,8 +909,7 @@
             (set! run nil)
             (let ((result
                    (repl-execute-line line)))
-              (if result
-                  (println result))))))))
+              (println (car result))))))))
 
 (defun repl-execute-line (text)
   (reader-init text)

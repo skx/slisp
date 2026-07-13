@@ -12,10 +12,22 @@
 (defvar board nil)
 
 ;;
+;; Generation count
+;;
+(defvar generation 0)
+
+;;
 ;; The next board
 ;;
 (defvar next-board nil)
 
+
+;; Print an escape character
+;;
+;; This is a bit clunky, but it allows our code to be executed by the
+;; inception interpreter.
+(defun escape ()
+  (chr 27))
 
 ;; Build a row containing WIDTH zeroes.
 (defun make-row ()
@@ -45,9 +57,9 @@
 
 ;; Draw the state of the board.
 (defun draw-board (b)
-  (print "\033[?25l")  ; hide cursor
-  (print "\033[H")     ; move home & clear
-  (print "\033[2J")
+  (print (escape) "[?25l")  ; hide cursor
+  (print (escape) "[H")     ; move home & clear
+  (print (escape) "[2J")
 
   (let ((y 0))
     (while (< y HEIGHT)
@@ -60,7 +72,8 @@
           (set! x (+ x 1)))
         (newline)
         (set! y (+ y 1)))))
-  (print "\033[?25h") ; restore cursor
+  (println "generation " generation)
+  (print (escape) "[?25h") ; restore cursor
 )
 
 
@@ -219,6 +232,7 @@
           (seed nil))) ; random
 
   (while 1
+    (set! generation (+ generation 1))
     (draw-board board)
     (step-board board next-board)
     (swap-boards)
