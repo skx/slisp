@@ -37,6 +37,7 @@ SYS_open        equ 2
 SYS_close       equ 3
 SYS_stat        equ 4
 SYS_lseek       equ 8
+SYS_mmap        equ 9
 SYS_dup2        equ 33
 SYS_fork        equ 57
 SYS_exec        equ 59
@@ -48,6 +49,8 @@ SYS_unlink      equ 87
 SYS_getdents64  equ 217
 SYS_getrandom   equ 318
 
+;; size of our heap (allocated via Mmap)
+heap_size equ 16*1024*1024*1024
 
 ;; (entries)
 O_RDONLY        equ 0
@@ -63,7 +66,19 @@ S_IFDIR         equ 0040000o
 S_IFCHR         equ 0020000o
 S_IFIFO         equ 0010000o
 
+;; mmap
+PROT_NONE      equ 0x0
+PROT_READ      equ 0x1
+PROT_WRITE     equ 0x2
+PROT_EXEC      equ 0x4
 
+;;
+;; mmap() flags
+;;
+MAP_SHARED     equ 0x01
+MAP_PRIVATE    equ 0x02
+MAP_FIXED      equ 0x10
+MAP_ANONYMOUS  equ 0x20
 
 
 ;;; 1. macros
@@ -200,10 +215,22 @@ global _start
 section .text
 
 _start:
-    mov rax, heap
-    mov [heap_start], rax
-    mov rax, heap_end_ref
-    mov [heap_end], rax
+    mov rax, SYS_mmap
+    xor rdi, rdi
+    mov rsi, heap_size
+    mov rdx,  PROT_READ|PROT_WRITE
+    mov r10d, MAP_PRIVATE|MAP_ANONYMOUS
+    mov r8, -1
+    xor r9d,r9d
+    syscall
+
+    ; record the start and end.
+    mov [heap_start],rax
+    mov [heap_cur],rax
+    mov rcx, rax
+    mov rdx, heap_size
+    add rcx, rdx
+    mov [heap_end], rcx
 
     mov rcx, [rsp]             ; argc
     lea rbx, [rsp+8]           ; argv
@@ -241,25 +268,28 @@ _start:
 ;; Allocate memory, return address in RAX.
 ;; RAX has size, which is then rounded up to 16 bytes.
 alloc:
-    add rax,15            ; Round up to 16 bytes
-    and rax,-16
+    ; RAX = requested size
+
+    add rax, 15
+    and rax, -16
 
     push rcx
     push rdx
 
-    mov rcx,[heap_start]  ; get the current value
+    mov rcx, [heap_cur]       ; current allocation pointer
+    lea rdx, [rcx + rax]      ; proposed new heap pointer
 
-    mov rdx,rcx
-    add rdx,rax           ; compute the final size
+    cmp rdx, [heap_end]
+    ja .fail
 
-    cmp rdx,[heap_end]
-    jae .fail
+    mov [heap_cur], rdx       ; advance heap
 
-    mov [heap_start], rdx ; store
-    mov rax, rcx          ; the initial value which is now ours
+    mov rax, rcx              ; return old pointer
+
     pop rdx
     pop rcx
     ret
+
 .fail:
     pop rdx
     pop rcx
@@ -2435,17 +2465,23 @@ random_buffer:
 random_buffer_end:
 
 
+;; The start of the heap-space.
+heap_start:
+    dq 1
+
+;; Where we are.
+heap_cur:
+    dq 1
+
+;; Where the heap-space ends.
+heap_end:
+   dq 1
+
 ;; zero section
 section .bss
 
 ;; last function we've called
 last_function:
-    resq 1
-
-;; start of heap space.
-heap_start:
-    resq 1
-heap_end:
     resq 1
 
 ;; start of the environmental variable array
@@ -2456,22 +2492,6 @@ envp_ptr:
 dir_buffer:
     resb 1024 * 1024
 dir_buffer_end:
-
-;; heap storage
-heap:
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-heap_end_ref:
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-
-
 
 ;;; 6. string literals
 
