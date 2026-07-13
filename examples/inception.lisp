@@ -13,13 +13,18 @@
 ;;   IF
 ;;   LAMBDA
 ;;   LET
-;;   QUOTE
 ;;   DEFUN
 ;;   DEFVAR
+;;   QUOTE
+;;   WHILE
 ;;
 ;; Nothing too surprising I guess.
 ;;
 
+;; compat
+
+
+(defvar *DEBUG* nil)
 
 ;; Since we don't "tag" things we wrap them in lists
 (defun builtin (name)
@@ -103,9 +108,13 @@
     ((= name "nat")     (builtin "nat"))
     ((= name "newline") (builtin "newline"))
     ((= name "not")     (builtin "not"))
+    ((= name "nth")     (builtin "nth"))
+    ((= name "nth!")    (builtin "nth!"))
     ((= name "or")      (builtin "or"))
     ((= name "print")   (builtin "print"))
     ((= name "println") (builtin "println"))
+    ((= name "random")  (builtin "random"))
+    ((= name "repeated") (builtin "repeated"))
     ((= name "reverse") (builtin "reverse"))
     ((= name "seq")     (builtin "seq"))
     ((= name "nil?")    (builtin "nil?"))
@@ -193,6 +202,7 @@
 
 ;; eval: where the magic happens.
 (defun eval (expr env)
+  (if *DEBUG* (println "expr:" expr))
   (cond
     ;; integers evaluate to themselves
     ((int? expr) (list expr env))
@@ -363,6 +373,8 @@
        (eval-quote expr env))
       ((= op "set!")
        (eval-set expr env))
+      ((= op "while")
+       (eval-while expr env))
       (t
        (eval-call expr env)))))
 
@@ -420,6 +432,23 @@
   (list
    (cadr expr)
    env))
+
+;; special form: while
+(defun eval-while (expr env)
+  (let ((running t)
+        (result (list nil env)))
+    (while running
+      (let ((cond-result (eval (cadr expr) env)))
+
+        (set! env (eval-env cond-result))
+        (if (eval-value cond-result)
+            (do
+              (set! result
+                    (eval-body (cddr expr) env))
+              (set! env
+                    (eval-env result)))
+            (set! running nil))))
+    result))
 
 
 ;; apply for built-in and user-functoins
@@ -492,8 +521,20 @@
       ((= name "not")
        (not (car args)))
 
+      ((= name "nth")
+       (nth (car args) (cadr args)))
+
+      ((= name "nth!")
+       (nth! (car args) (cadr args) (caddr args)))
+
       ((= name "or")
        (or (car args) (cadr args)))
+
+      ((= name "random")
+       (random (car args)))
+
+      ((= name "repeated")
+       (repeated (car args) (cadr args)))
 
       ((= name "reverse")
        (reverse (car args)))
@@ -769,6 +810,7 @@
 (defun eval-program (forms)
   (let ((result nil))
     (while forms
+      (if *DEBUG* (println "FORM " (car forms)))
       (set! result (eval (car forms) nil))
       (set! forms  (cdr forms)))
     result))
@@ -776,7 +818,9 @@
 ;; Evaluate a program comprised of expressions
 (defun run-program (text)
   (reader-init text)
-  (eval-program (reader-parse-program)))
+  (let ((forms (reader-parse-program)))
+    (if *DEBUG* (println "Parsed: " forms))
+    (eval-program forms)))
 
 
 ;; REPL code
