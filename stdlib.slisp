@@ -13,6 +13,7 @@
 
 ;;; Contents
 
+;;  0. Core
 ;;  1. Compatibility
 ;;  2. Printing
 ;;  3. Filesystem Functions
@@ -29,7 +30,129 @@
 ;; I tried to order the functions alphabetically, where it made sense.
 
 
+;;; 0. Core
+;;
+;; We define a bunch of primitives inside our compiler/template.tmpl file,
+;; these become immediately callable, however if we rely on that then we
+;; lose the argument-checking facility.
+;;
+;; So we've defined our assembly-implemented primitives with a "sys_"-prefix
+;; and here we present them to callers.
+;;
 
+(defun < (a b)
+       (sys_< a b))
+
+(defun <= (a b)
+       (sys_<= a b))
+
+(defun > (a b)
+       (sys_> a b))
+
+(defun >= (a b)
+       (sys_>= a b))
+
+(defun = (a b)
+       (sys_= a b))
+
+(defun % (a b)
+       (sys_% a b))
+
+(defun car (xs)
+       (sys_car xs))
+
+(defun cdr (xs)
+       (sys_cdr xs))
+
+(defun chr (x)
+       (sys_chr x))
+
+(defun cons(a b)
+       (sys_cons a b))
+
+(defun entries (str)
+      (sys_entries str))
+
+(defun environment ()
+      (sys_environment))
+
+(defun exit (n)
+      (sys_exit n))
+
+(defun explode (str)
+      (sys_explode str))
+
+(defun fclose (n)
+       (sys_fclose n))
+
+(defun fopen (str mode)
+       (sys_fopen str mode))
+
+(defun fread (handle)
+       (sys_fread handle))
+
+(defun fwrite (handle data len)
+       (sys_fwrite handle data len))
+
+(defun getc ()
+       (sys_getc))
+
+(defun implode (xs)
+       (sys_implode xs))
+
+(defun int (x)
+       (sys_int x))
+
+(defun mkdir (str)
+       (sys_mkdir str))
+
+(defun not (x)
+       (sys_not x))
+
+(defun isqrt(x)
+       (sys_isqrt x))
+
+(defun nth(xs n)
+       (sys_nth xs n))
+
+(defun nth!(xs n x)
+       (sys_nth! xs n x))
+
+(defun ord (c)
+       (sys_ord c))
+
+(defun putc (c)
+       (sys_putc c))
+
+(defun random (n)
+       (sys_random n))
+
+(defun rmdir (str)
+       (sys_rmdir str))
+
+(defun split (str c)
+       (sys_split str c))
+
+(defun sqrt(x)
+       (sys_sqrt x))
+
+(defun stat(str)
+       (sys_stat str))
+
+(defun strcat(a b)
+       (sys_strcat a b))
+
+(defun strcmp(a b)
+       (sys_strcmp a b))
+
+(defun string (x)
+       (sys_string x))
+
+(defun strlen (str)
+       (sys_strlen str))
+
+(defun unlink (str)
+       (sys_unlink str))
 
 ;;; 1. Compatibility
 
@@ -200,20 +323,20 @@ NOTE: This is not a macro, so all arguments are evaluated."
 
 ;; Define the usual maths
 (defun + (a b)
-  (plus a b))
+  (sys_plus a b))
 
 (defun - (a &b)
   (if (car b)
-      (minus a (car b))
-      (minus 0 a)))
+      (sys_minus a (car b))
+      (sys_minus 0 a)))
 
 (defun * (a b)
-  (multiply a b))
+  (sys_multiply a b))
 
 (defun / (a &b)
   (if (car b)
-      (divide a (car b))
-      (divide 1 (+ a 0.0))))
+      (sys_divide a (car b))
+      (sys_divide 1 (+ a 0.0))))
 
 (defun abs (n)
   "Return the absolute value of N, as a positive number"
