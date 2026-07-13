@@ -8,19 +8,19 @@
 
          (defun + (&xs)
            "sum all the numbers in the list"
-           (reduce xs (lambda (a b) (plus a b)) 0))
+           (reduce xs (lambda (a b) (sys_plus a b)) 0))
 
          (defun - (first &rest)
            (if (nil? rest)
-               (minus 0 first)
-               (reduce rest (lambda (a b) (minus a b)) first)))
+               (sys_minus 0 first)
+               (reduce rest (lambda (a b) (sys_minus a b)) first)))
 
          (defun * (first &rest)
-           (reduce rest (lambda (a b) (multiply a b)) first))
+           (reduce rest (lambda (a b) (sys_multiply a b)) first))
 
          (defun / (first &rest)
            (if (nil? rest)
-               (divide 1 (+ first 0.0))
-               (reduce rest (lambda (a b) (divide a b)) first)))
+               (sys_divide 1 (+ first 0.0))
+               (reduce rest (lambda (a b) (sys_divide a b)) first)))
 
 ) ;; end of package maths

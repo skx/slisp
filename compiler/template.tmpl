@@ -216,7 +216,7 @@ _start:
     dec rcx
     mov rdi, [rbx + rcx*8]     ; argv[rcx]
     TAG_STRING_REG rdi         ; Tag as Lisp string
-    call fn_cons               ; cons(string, list)
+    call fn_sys_cons           ; cons(string, list)
     mov rsi, rax               ; result becomes next list
     jmp .loop
 .done:
@@ -415,7 +415,7 @@ load_both_floats:
 
 
 ;; +
-FUNC fn_plus
+FUNC fn_sys_plus
    call are_both_integers
    jz plus_integer
 
@@ -434,7 +434,7 @@ plus_integer:
 
 
 ;; -
-FUNC fn_minus
+FUNC fn_sys_minus
    call are_both_integers
    jz integer_minus
 
@@ -453,7 +453,7 @@ integer_minus:
 
 
 ;; /
-FUNC fn_divide
+FUNC fn_sys_divide
    call are_both_integers
    jz integer_divide
 
@@ -473,7 +473,7 @@ integer_divide:
 
 
 ;; *
-FUNC fn_multiply
+FUNC fn_sys_multiply
    call are_both_integers
    jz integer_multiply
 
@@ -494,7 +494,7 @@ integer_multiply:
 
 
 ;; %
-FUNC fn_PERCENT
+FUNC fn_sys_PERCENT
    call are_both_integers
    jz modulus_integer
    jmp type_error       ; type error
@@ -513,7 +513,7 @@ modulus_integer:
 ;;; 5.2.1 comparison functions
 
 ;; =
-FUNC fn_EQUALS
+FUNC fn_sys_EQUALS
     mov r8, rdi
     mov r9, rsi
 
@@ -581,7 +581,7 @@ FUNC fn_EQUALS
 ;;
 ;; Note: The result of this function is inverted for ">".
 ;;
-FUNC fn_LTEQUALS
+FUNC fn_sys_LTEQUALS
    call are_both_integers
    jz lte_integer
 
@@ -607,7 +607,7 @@ lte_integer:
 
 
 ;; >=
-FUNC fn_GTEQUALS
+FUNC fn_sys_GTEQUALS
    call are_both_integers
    jz gte_integer
 
@@ -633,7 +633,7 @@ gte_integer:
 
 
 ;; < - this is the inverse of >=
-FUNC fn_LT
+FUNC fn_sys_LT
     call fn_GTEQUALS
     mov rdi, rax
     call fn_BANG
@@ -642,7 +642,7 @@ FUNC fn_LT
 
 
 ;; > - this is the inverse of <=
-FUNC fn_GT
+FUNC fn_sys_GT
     call fn_LTEQUALS
     mov rdi, rax
     call fn_BANG
@@ -895,10 +895,50 @@ fn_printstr:
 
 
 ;;; 5.4. fn_XXX - alphabetical order
+;;
+;; Any function named "fn_foo" can be called directly from lisp via
+;; (foo arg1 arg2 .. argN).  That works because we ultimately compile
+;; such a call to "call fn_foo", after setting up the arguments, & etc.
+;;
+;; (Same applies for user functions, if the user writes "(defun x ()..)"
+;; that becomes code with an assembly label of "fn_x:".  There are some
+;; minor replacements made to remove illegal characters, but in brief
+;; that's how it works.)
+;;
+;; However for primitives which are implemented in 100% assembly language
+;; we don't have appropriate argument information present, so the compiler
+;; cannot prevent somebody from writing:
+;;
+;;   (car one two three four)
+;;   (+ 4)
+;;   (/ 3 4 5)
+;;
+;; It's only user-defined functions written in lisp that the compiler
+;; knows about.  We could have solved that problem by hardcoding argument
+;; information into the compiler, but that would risk drift and omissions
+;; as things were updated in the future.
+;;
+;; Instead we give all our built-in primitives, which are 100% assembly,
+;; a "sys_" prefix, so the code for the function "car" is named here fn_sys_car.
+;;
+;; To allow the function to be called we then define a lisp wrapper:
+;;
+;;   (defun car (xs) (sys_car xs))
+;;
+;; And that allows the compiler to do argument-checking at compilation
+;; time - it doesn't know what arguments are valid for `sys_car` but
+;; it will see that definition and know that `(car ..)` only expects
+;; and permits a single argument.
+;;
+;; That introduces overhead for each primitive, but I think that's
+;; a fair trade-off.
+;;
+;; End communique.
+;;
 
 ;; Get the first item in the cons cell.
 ;; Note: calling (car nil) will return nil.
-FUNC fn_car
+FUNC fn_sys_car
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_NIL
@@ -917,7 +957,7 @@ FUNC fn_car
 
 ;; Get the second item in the cons cell.
 ;; Note: calling (cdr nil) will return nil.
-FUNC fn_cdr
+FUNC fn_sys_cdr
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_NIL
@@ -935,7 +975,7 @@ FUNC fn_cdr
 
 
 ;; chr - convert an integer to a character
-FUNC fn_chr
+FUNC fn_sys_chr
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_INTEGER
@@ -951,7 +991,7 @@ FUNC fn_chr
 ;; Allocate space for a new cons cell, return it in RAX.
 ;;
 ;; 16-bytes; first has the CAR, second the CDR.
-FUNC fn_cons
+FUNC fn_sys_cons
     mov rax, [heap_ptr]      ; get the value of the heap pointer
     push rbx
     mov rbx, heap_end        ; we allocate 8Mb. but we abort if we go past 7Mb.
@@ -968,7 +1008,7 @@ FUNC fn_cons
 
 ;; Return a list of directory-entries beneath the given prefix.
 ;; Return nil on failure.
-FUNC fn_entries
+FUNC fn_sys_entries
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -1038,7 +1078,7 @@ FUNC fn_entries
     TAG_STRING_REG rdi
 
     mov rsi, r13                            ; Add to our list
-    call fn_cons
+    call fn_sys_cons
 
     mov r13, rax                            ; Save the updated list head
 
@@ -1064,7 +1104,7 @@ FUNC fn_entries
 
 
 ;; Return a list of all environmental variables
-FUNC fn_environment
+FUNC fn_sys_environment
     mov rbx, [envp_ptr]
     xor rcx, rcx     ;; Count entries into RCX
 .count:
@@ -1087,7 +1127,7 @@ FUNC fn_environment
 
     ;; cons(string, list)
     mov rsi, rax
-    call fn_cons
+    call fn_sys_cons
     jmp .loop
 .done:
     ret
@@ -1095,7 +1135,7 @@ FUNC fn_environment
 
 
 ;; terminate execution with the given exit-code
-FUNC fn_exit
+FUNC fn_sys_exit
     UNTAG_REG rdi
     mov rax, SYS_exit
     syscall
@@ -1105,7 +1145,7 @@ FUNC fn_exit
 
 ;; Explode a string to a list of characters.
 ;; Find the length and work backwards.
-FUNC fn_explode
+FUNC fn_sys_explode
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -1133,7 +1173,7 @@ FUNC fn_explode
     push rsi        ; preserve scan pointer
     mov rdi, rdx
     mov rsi, rax
-    call fn_cons
+    call fn_sys_cons
     pop rsi
     pop rdi
     jmp .loop
@@ -1146,7 +1186,7 @@ FUNC fn_explode
 ;;
 ;; As a special case closing a nil-filehandle is valid.
 ;;
-FUNC fn_fclose
+FUNC fn_sys_fclose
     mov rbx, rdi             ; type-check arg1 (path)
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_NIL
@@ -1165,7 +1205,7 @@ FUNC fn_fclose
 
 
 ;; Open a file handle, modes are "r", "w", or "a"
-FUNC fn_fopen
+FUNC fn_sys_fopen
     mov rbx, rdi             ; type-check arg1 (path)
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -1225,7 +1265,7 @@ FUNC fn_fopen
 ;;
 ;; As a special case reading from a nil-filehandle
 ;; will return nil.
-FUNC fn_fread
+FUNC fn_sys_fread
         mov rbx, rdi             ; type-check arg1
         GET_TAG_BITS rbx
         cmp rbx, TAG_ID_NIL      ; special case the nil-handle
@@ -1339,7 +1379,7 @@ FUNC fn_fread
 ;;
 ;; As a special case writing to a nil-filehandle
 ;; will return nil.
-FUNC fn_fwrite
+FUNC fn_sys_fwrite
         mov rbx, rdi             ; type-check arg1: int
         GET_TAG_BITS rbx
         cmp rbx, TAG_ID_NIL      ; special case the nil-handle
@@ -1374,7 +1414,7 @@ FUNC fn_fwrite
 
 
 ;; Read an ASCII character from STDIN, return NIL on failure.
-FUNC fn_getc
+FUNC fn_sys_getc
      mov     rax, SYS_read
      mov     rdi, 0        ; STDIN
      mov rsi, random_buffer
@@ -1390,13 +1430,13 @@ FUNC fn_getc
      ret
 .getc_failed:
      xor rax, rax
-     TAG_NIL_REG rax
+     TAG_INTEGER_REG rax
      ret
 
 
 
 ;; join a character list to a string.
-FUNC fn_implode
+FUNC fn_sys_implode
     mov rbx,rdi
     xor rcx,rcx
 
@@ -1454,7 +1494,7 @@ FUNC fn_implode
 
 
 ;; Convert a numeric value to an integer
-FUNC fn_int
+FUNC fn_sys_int
     mov rax, rdi
     GET_TAG_BITS rax
     cmp rax, TAG_ID_INTEGER
@@ -1485,7 +1525,7 @@ FUNC fn_int
 
 
 ;; isqrt
-FUNC fn_isqrt
+FUNC fn_sys_isqrt
     ;; Preserve original argument, as load_both_floats
     ;; clobbers RSI.
     mov rsi, rdi
@@ -1505,7 +1545,7 @@ FUNC fn_isqrt
 
 
 ;; Make a directory, mode is fixed
-FUNC fn_mkdir
+FUNC fn_sys_mkdir
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -1526,7 +1566,7 @@ FUNC fn_mkdir
 
 
 ;; A nil becomes 1, anything else becomes nil.
-FUNC fn_not
+FUNC fn_sys_not
     mov rax, rdi
     GET_TAG_BITS rax
     cmp rax, TAG_ID_NIL
@@ -1542,7 +1582,7 @@ FUNC fn_not
 
 
 ;; Get the Nth item from the list
-FUNC fn_nth
+FUNC fn_sys_nth
     mov rbx,rdi                 ; type-check arg1: list
     GET_TAG_BITS rbx
     cmp rbx,TAG_ID_CONS
@@ -1583,84 +1623,8 @@ FUNC fn_nth
 
 
 
-;; ord - convert a character to an integer.
-FUNC fn_ord
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_CHAR
-    jne type_error
-    UNTAG_REG rdi
-    mov rax, rdi
-    TAG_INTEGER_REG rax
-    ret
-
-
-
-;; Write the given ASCII character to STDOUT
-FUNC fn_putc
-    mov rax, rdi
-    push rax
-    UNTAG_REG rax
-    mov [random_buffer],  al  ; store character
-    mov rax, SYS_write
-    mov rdi, 1                ; STDOUT
-    mov rsi, random_buffer
-    mov rdx, 1                ; 1 byte
-    syscall
-    pop rax                   ; This is the tagged input value
-    ret
-
-
-
-;; Generate a random number 0-N
-FUNC fn_random
-    mov rbx, rdi             ; type-check arg1
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_INTEGER
-    jne type_error
-
-    UNTAG_REG rdi
-    push rdi                        ; push the limit
-
-    mov rax, SYS_getrandom
-    lea rdi, [ random_buffer]  ; random value location
-    mov rsi, 4                 ; number of bytes
-    xor rdx, rdx               ; flags = 0
-    syscall
-
-    pop rcx                    ; limit the value
-    mov eax, [random_buffer]
-    xor edx, edx
-    div ecx
-
-    mov rax, rdx
-    TAG_INTEGER_REG rax
-    ret
-
-
-
-;; Remove a directory, mode is fixed
-FUNC fn_rmdir
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-    mov rax, SYS_rmdir
-    syscall
-    test rax,rax
-    js .failure
-    TAG_INTEGER_REG rax
-    ret
-.failure:
-    xor rax,rax
-    TAG_NIL_REG rax
-    ret
-
-
 ;; Update the Nth list item, leaving everything else as-is.
-FUNC fn_nthBANG
+FUNC fn_sys_nthBANG
     mov rbx,rdi                ; arg1: list
     GET_TAG_BITS rbx
     cmp rbx,TAG_ID_CONS
@@ -1705,8 +1669,86 @@ FUNC fn_nthBANG
 
 
 
+
+;; ord - convert a character to an integer.
+FUNC fn_sys_ord
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_CHAR
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, rdi
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; Write the given ASCII character to STDOUT
+FUNC fn_sys_putc
+    mov rax, rdi
+    push rax
+    UNTAG_REG rax
+    mov [random_buffer],  al  ; store character
+    mov rax, SYS_write
+    mov rdi, 1                ; STDOUT
+    mov rsi, random_buffer
+    mov rdx, 1                ; 1 byte
+    syscall
+    pop rax                   ; This is the tagged input value
+    ret
+
+
+
+;; Generate a random number 0-N
+FUNC fn_sys_random
+    mov rbx, rdi             ; type-check arg1
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+
+    UNTAG_REG rdi
+    push rdi                        ; push the limit
+
+    mov rax, SYS_getrandom
+    lea rdi, [ random_buffer]  ; random value location
+    mov rsi, 4                 ; number of bytes
+    xor rdx, rdx               ; flags = 0
+    syscall
+
+    pop rcx                    ; limit the value
+    mov eax, [random_buffer]
+    xor edx, edx
+    div ecx
+
+    mov rax, rdx
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; Remove a directory, mode is fixed
+FUNC fn_sys_rmdir
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    mov rax, SYS_rmdir
+    syscall
+    test rax,rax
+    js .failure
+    TAG_INTEGER_REG rax
+    ret
+.failure:
+    xor rax,rax
+    TAG_NIL_REG rax
+    ret
+
+
+
 ;; split(string, char)
-FUNC fn_split
+FUNC fn_sys_split
     mov rbx, rdi              ; type-check arg1: string
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -1822,7 +1864,7 @@ FUNC fn_split
 
 
 ;; sqrt
-FUNC fn_sqrt
+FUNC fn_sys_sqrt
     ;; Preserve original argument, as load_both_floats
     ;; clobbers RSI.
     mov rsi, rdi
@@ -1857,7 +1899,7 @@ FUNC fn_sqrt
 ;; Returns NIL on failure.
 ;;
 
-FUNC fn_stat
+FUNC fn_sys_stat
     mov rbx,rdi                      ; type-check arg1: string
     GET_TAG_BITS rbx
     cmp rbx,TAG_ID_STRING
@@ -1910,21 +1952,21 @@ FUNC fn_stat
     TAG_INTEGER_REG rax
     mov rdi,rax
     mov rsi,r13
-    call fn_cons
+    call fn_sys_cons
     mov r13,rax
 
     mov rax,[rsp+48]           ; add size
     TAG_INTEGER_REG rax
     mov rdi,rax
     mov rsi,r13
-    call fn_cons
+    call fn_sys_cons
     mov r13,rax
 
     mov eax,edx                ; add type
     TAG_INTEGER_REG rax
     mov rdi,rax
     mov rsi,r13
-    call fn_cons
+    call fn_sys_cons
     add rsp, 160               ; restore stack
     ret
 
@@ -1936,7 +1978,7 @@ FUNC fn_stat
 
 
 ;; join the two given strings and return a new one.
-FUNC fn_strcat
+FUNC fn_sys_strcat
     mov rbx, rdi            ; type-check arg1: str
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -2007,7 +2049,7 @@ FUNC fn_strcat
 
 
 ;; Compare the two specified strings.
-FUNC fn_strcmp
+FUNC fn_sys_strcmp
     mov rbx, rdi             ; type-check arg1
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -2040,7 +2082,7 @@ FUNC fn_strcmp
 
 
 ;; Convert a thing to a string
-FUNC fn_string
+FUNC fn_sys_string
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -2109,7 +2151,7 @@ FUNC fn_string
 
 
 ;; Find the length of the given string.
-FUNC fn_strlen
+FUNC fn_sys_strlen
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
@@ -2217,7 +2259,7 @@ FUNC fn_sys_run
 
 
 ;; Delete the given file.
-FUNC fn_unlink
+FUNC fn_sys_unlink
     mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
