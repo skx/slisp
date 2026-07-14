@@ -18,23 +18,44 @@ type Env struct {
 	// captures hold offsets against R15 for captured
 	// variables inside closures.
 	captures map[string]int
+
+	// shared by all child environments in a function
+	maxOffset *int
 }
 
 // New creates a new environment, with an optional parent.
 func New(parent *Env) *Env {
+	var maxOffset *int
+
+	if parent != nil {
+		maxOffset = parent.maxOffset
+	} else {
+		maxOffset = new(int)
+	}
+
 	return &Env{
-		parent:   parent,
-		slots:    map[string]int{},
-		captures: map[string]int{},
+		parent:    parent,
+		slots:     map[string]int{},
+		captures:  map[string]int{},
+		maxOffset: maxOffset,
 	}
 }
 
 // Define defines a local variable, and returns the offset relative to the RBP register.
 func (e *Env) Define(name string) int {
-	offset := (e.countLocals() + 1) * 8
+
+	offset := (e.countLocals() + 2) * 8
 	e.slots[name] = offset
 	e.order = append(e.order, name)
+
+	if offset > *e.maxOffset {
+		*e.maxOffset = offset
+	}
 	return offset
+}
+
+func (e *Env) MaxOffset() int {
+	return *e.maxOffset
 }
 
 // DefineCapture defines a captured variable, in this case the offset returned will be used

@@ -1264,6 +1264,7 @@ func (c *Compiler) emitCallable(obj any) error {
 
 	c.emitln("    push rbp")
 	c.emitln("    mov rbp, rsp")
+	c.emitln(fmt.Sprintf("    push fn_%s_gc", nm))
 	c.emitln("    sub rsp, 256 ;; guess at space for locals")
 
 	if len(d.Params) >= 5 {
@@ -1296,7 +1297,6 @@ func (c *Compiler) emitCallable(obj any) error {
 	//
 	// Now back to the shared/defun-related epilogue.
 	//
-
 	for _, xpr := range d.Exprs {
 		err := c.emitExpr(xpr, ev)
 		if err != nil {
@@ -1307,5 +1307,13 @@ func (c *Compiler) emitCallable(obj any) error {
 
 	c.emitln("    leave")
 	c.emitln("    ret")
+
+	c.emitln("section .data")
+	locals := ev.MaxOffset()
+	c.emitln(fmt.Sprintf("fn_%s_gc:", nm))
+	c.emitln("dq 0x47430001     ; GC01")
+	c.emitln(fmt.Sprintf("dq %d", locals-8))
+	c.emitln("section .text")
+
 	return nil
 }

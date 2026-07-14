@@ -1055,6 +1055,8 @@ FUNC fn_sysMINUSheapMINUSobjectMINUScount
     ret
 
 FUNC fn_sysMINUSgc
+     mov rax, [rbp]              ; caller's rbp
+     mov [gc_stack_base], rax
      call gc_collect
      TAG_NIL_REG rax
      ret
@@ -2569,6 +2571,10 @@ envp_ptr:
 last_function:
     resq 1
 
+;; current stack frame for GC
+gc_stack_base:
+    resq 1
+
 ;;
 ;; Active heap (allocator uses these)
 ;;
@@ -2879,6 +2885,11 @@ gc_collect:
 .done_globals:
 
     ;;
+    ;; copy stack roots
+    ;;
+    call gc_scan_stack
+
+    ;;
     ;; Process copied objects.
     ;;
     call gc_scan_loop
@@ -2915,6 +2926,124 @@ gc_collect:
     ret
 
 
+;;
+;; Scan all active Lisp stack frames.
+;;
+;; Registers:
+;;
+;; r12 = current frame rbp
+;; r13 = current slot address
+;; r14 = remaining bytes to scan
+;;
+;; Frame layout:
+;;
+;; rbp+8    return address
+;; rbp      previous rbp
+;;
+;; rbp-8    GC descriptor
+;; rbp-16   local/argument 0
+;; rbp-24   local/argument 1
+;; ...
+;;
+
+gc_scan_stack:
+    ;;
+    ;; Preserve traversal registers
+    ;;
+    push r12
+    push r13
+    push r14
+
+    ;;
+    ;; Start from Lisp frame captured by sys-gc
+    ;;
+    mov r12, [gc_stack_base]
+
+
+.next_frame:
+    test r12, r12
+    jz .done
+
+    ;;
+    ;; Load descriptor
+    ;;
+    mov rax, [r12-8]
+
+    ;; Look for magic marker
+    cmp qword [rax],0x47430001
+    jne .done
+
+    ;;
+    ;; Number of bytes containing Lisp roots
+    ;;
+    mov r14, [rax+8]
+
+    ;;
+    ;; First slot is rbp-16
+    ;;
+    lea r13, [r12-16]
+
+.scan_slots:
+    test r14, r14
+    jz .next_parent
+
+    ;;
+    ;; Load possible Lisp value
+    ;;
+    mov rax, [r13]
+
+    ;;
+    ;; Immediates never move
+    ;;
+    IS_IMMEDIATE rax
+    test r11,r11
+    jnz .slot_done
+
+    ;;
+    ;; Forward heap object
+    ;;
+    push r12
+    push r13
+    push r14
+
+    push    rcx
+    push    rdx
+    push    rsi
+
+    call forward
+    pop rsi
+    pop rdx
+    pop rcx
+    pop r14
+    pop r13
+    pop r12
+
+    ;;
+    ;; Store updated pointer
+    ;;
+    mov [r13], rax
+
+.slot_done:
+
+    add r13, 8
+    sub r14, 8
+    jmp .scan_slots
+
+
+
+.next_parent:
+
+    ;;
+    ;; Follow saved rbp
+    ;;
+    mov r12, [r12]
+    jmp .next_frame
+
+.done:
+    pop r14
+    pop r13
+    pop r12
+    ret
 
 
 ;;; 7. string literals

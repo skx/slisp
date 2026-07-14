@@ -72,7 +72,7 @@
           (set! x (+ x 1)))
         (newline)
         (set! y (+ y 1)))))
-  (println "generation " generation)
+  (println "generation " generation " heap size:" (sys-heap-bytes))
   (print (escape) "[?25h") ; restore cursor
 )
 
