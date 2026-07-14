@@ -65,7 +65,6 @@ S_IFIFO         equ 0010000o
 
 
 
-
 ;;; 1. macros
 
 ;;
@@ -200,10 +199,22 @@ global _start
 section .text
 
 _start:
-    mov rax, heap
-    mov [heap_start], rax
-    mov rax, heap_end_ref
-    mov [heap_end], rax
+    ; Heap A is initially active
+    mov rax, heap_a
+    mov [from_space], rax
+    mov [alloc_ptr], rax
+
+    mov rax, heap_a_end
+    mov [from_limit], rax
+    mov [alloc_limit], rax
+
+    ; Heap B is initially empty
+    mov rax, heap_b
+    mov [to_space], rax
+
+    mov rax, heap_b_end
+    mov [to_limit], rax
+
 
     mov rcx, [rsp]             ; argc
     lea rbx, [rsp+8]           ; argv
@@ -257,15 +268,15 @@ alloc:
     push rcx
     push rdx
 
-    mov rcx,[heap_start]      ; get the current value
+    mov rcx,[alloc_ptr]       ; get the current value
 
     mov rdx,rcx
     add rdx,rax               ; compute the final size
 
-    cmp rdx,[heap_end]
+    cmp rdx,[alloc_limit]
     jae .fail
 
-    mov [heap_start], rdx     ; store
+    mov [alloc_ptr], rdx     ; store
 
                               ; add the header
     mov       [rcx+0], rax    ; size (after rounding)
@@ -2464,42 +2475,69 @@ section .bss
 alloc_count:
     resq 1
 
-;; last function we've called
-last_function:
-    resq 1
-
-;; start of heap space.
-heap_start:
-    resq 1
-heap_end:
-    resq 1
-
-;; start of the environmental variable array
-envp_ptr:
-    resq 1
-
 ;; buffer for reading directory entries
 dir_buffer:
     resb 1024 * 1024
 dir_buffer_end:
 
-;; heap storage
-heap:
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-heap_end_ref:
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
+;; start of the environmental variable array
+envp_ptr:
+    resq 1
 
+;; last function we've called
+last_function:
+    resq 1
+
+;;
+;; Active heap (allocator uses these)
+;;
+alloc_ptr:
+    resq 1          ; next free byte
+
+alloc_limit:
+    resq 1          ; end of current heap
+
+;;
+;; Heap descriptors used by the GC
+;;
+from_space:
+    resq 1          ; base of current heap
+
+from_limit:
+    resq 1          ; end of current heap
+
+to_space:
+    resq 1          ; base of spare heap
+
+to_limit:
+    resq 1          ; end of spare heap
+
+;;
+;; Scan/free pointers used only during GC
+;;
+gc_scan:
+    resq 1
+
+gc_free:
+    resq 1
+
+section .bss
+
+;;
+;; Two heaps
+;;
+heap_a:
+    resb 8 * 1024 * 1024 * 1024  ; 8 Gb
+heap_a_end:
+
+heap_b:
+    resb 8 * 1024 * 1024 * 1024  ; 8 Gb
+heap_b_end:
 
 
 ;;; 6. string literals
+
+section .data
 
 {{ .StringTable }}
 
