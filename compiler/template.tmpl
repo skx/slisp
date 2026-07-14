@@ -2511,9 +2511,11 @@ heap_end_ref:
 
 ;;; 8. global variables
 section .data
-{{ range .Globals }}
+
 align 16
+globals_start:
+{{ range .Globals }}
 {{ . }}:
         dq 0x0000
-
 {{end}}
+globals_end:
