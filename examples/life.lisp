@@ -73,6 +73,7 @@
         (newline)
         (set! y (+ y 1)))))
   (println "generation " generation " heap size:" (sys-heap-bytes))
+  (sys-gc)
   (print (escape) "[?25h") ; restore cursor
 )
 

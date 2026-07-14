@@ -2659,6 +2659,34 @@ forward:
     UNTAG_REG rax
 
     ;
+    ; Strings may be static literals.
+    ;
+    cmp rbx, TAG_ID_STRING
+    jne .not_string
+
+    mov rcx, rax        ; already untagged
+    cmp rcx, string_literals_start
+    jb .heap_object
+
+    cmp rcx, string_literals_end
+    jb .static_string
+
+.not_string:
+    cmp rbx, TAG_ID_FLOAT
+    jne .not_float
+
+    mov rcx, rax
+
+    cmp rcx, float_literals_start
+    jb .heap_object
+
+    cmp rcx, float_literals_end
+    jb .static_float
+
+.not_float:
+.heap_object:
+
+    ;
     ; payload -> object header
     ;
     OBJ_TO_HEADER rax
@@ -2747,8 +2775,15 @@ forward:
     ; correctly-tagged pointer.
     ;
     mov     rax, rcx
-
 .done:
+    ret
+
+.static_string:
+    TAG_STRING_REG rax
+    ret
+
+.static_float:
+    TAG_FLOAT_REG rax
     ret
 
 ;;
@@ -3050,13 +3085,22 @@ gc_scan_stack:
 
 section .data
 
+
+string_literals_start:
+
 {{ .StringTable }}
 
+string_literals_end:
 
 
 ;;; 8. floating-point literals
 
+
+float_literals_start:
+
 {{ .FloatTable }}
+
+float_literals_end:
 
 ;;; 8. global variables
 section .data
