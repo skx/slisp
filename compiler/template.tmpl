@@ -994,6 +994,13 @@ FUNC fn_sysMINUSheapMINUSallocs
     TAG_INTEGER_REG rax
     ret
 
+
+FUNC fn_sysMINUSheapMINUSbytes
+    mov rax, [alloc_ptr]
+    sub rax, [from_space]
+    TAG_INTEGER_REG rax
+    ret
+
 FUNC fn_sysMINUSheapMINUSobjectMINUScount
     mov rcx, [from_space]   ; rcx = current object
     mov rdx, [alloc_ptr]    ; rdx = end of allocated objects
