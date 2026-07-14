@@ -241,22 +241,24 @@ _start:
 ;; Allocate memory, return address in RAX.
 ;; RAX has size, which is then rounded up to 16 bytes.
 alloc:
-    add rax,15            ; Round up to 16 bytes
+    inc qword [alloc_count]   ; count allocations
+
+    add rax,15                ; Round up requested size to 16 bytes
     and rax,-16
 
     push rcx
     push rdx
 
-    mov rcx,[heap_start]  ; get the current value
+    mov rcx,[heap_start]      ; get the current value
 
     mov rdx,rcx
-    add rdx,rax           ; compute the final size
+    add rdx,rax               ; compute the final size
 
     cmp rdx,[heap_end]
     jae .fail
 
-    mov [heap_start], rdx ; store
-    mov rax, rcx          ; the initial value which is now ours
+    mov [heap_start], rdx     ; store
+    mov rax, rcx              ; the initial value which is now ours
     pop rdx
     pop rcx
     ret
@@ -960,6 +962,12 @@ fn_printstr:
 ;;
 ;; End communique.
 ;;
+
+;; Internal count the allocations.
+FUNC fn_sys_allocs
+    mov rax, [alloc_count]
+    TAG_INTEGER_REG rax
+    ret
 
 ;; Get the first item in the cons cell.
 ;; Note: calling (car nil) will return nil.
@@ -2355,69 +2363,69 @@ type_error:
 section .data
 
 ;; used by fn_string
-align 8
+align 16
 empty_str:
      db 0x00
 
 ;; used by fn_string
-align 8
+align 16
 nil_str:
      db `<nil>`
      db 0x00
 
 ;; error message for setNth
-align 8
+align 16
 out_of_range_msg:
         db `Out of bounds access.  Aborted inside `
         db 00
 
 ;; error message for heap exhaustion
-align 8
+align 16
 heap_error_msg:
         db `Heap exhausted! Aborted inside `
         db 00
 
 ;; error message for type-errors
-align 8
+align 16
 type_error_msg:
         db `Type error! Aborted inside `
         db 00
 
 ;; used by fn_printfloat
-align 8
+align 16
 million:
         dq 1000000.0
 
 ;; used by fn_printfloat
-align 8
+align 16
 minusmask:
         dq 0x8000000000000000
 
 ;; used by fn_printfloat
-align 8
+align 16
 inf_msg:
         db "+Inf"
 inf_msg_end:
 
 ;; used by fn_printfloat
-align 8
+align 16
 minus_inf_msg:
         db "-Inf"
 minus_inf_msg_end:
 
 ;; used by fn_printfloat
-align 8
+align 16
 nan_msg:
         db "NaN"
 nan_msg_end:
 
 ;; Used by sys_run
-align 8
+align 16
 shell_path:
     db "/bin/sh",0
 
 ;; Used by sys_run
-align 8
+align 16
 dash_c:
     db "-c",0
 
@@ -2425,7 +2433,7 @@ dash_c:
 ;; buffer for our random function to read into.
 ;; other functions, such as getc, newline, use it
 ;; too.  Because why not?
-align 8
+align 16
 random_buffer:
     db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -2437,6 +2445,10 @@ random_buffer_end:
 
 ;; zero section
 section .bss
+
+;; how many times was our allocator called?
+alloc_count:
+    resq 1
 
 ;; last function we've called
 last_function:
@@ -2486,7 +2498,8 @@ heap_end_ref:
 ;;; 8. global variables
 section .data
 {{ range .Globals }}
-align 8
+align 16
 {{ . }}:
         dq 0x0000
+
 {{end}}

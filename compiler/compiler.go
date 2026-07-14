@@ -485,7 +485,7 @@ func (c *Compiler) Compile() (string, error) {
 	//
 	c.emitln("section .data")
 	for id, str := range c.strings {
-		c.emitln("align 8")
+		c.emitln("align 16")
 		c.emitln(id + ":")
 
 		// escape the "`" which are wrapped around the string.
@@ -503,7 +503,7 @@ func (c *Compiler) Compile() (string, error) {
 	//
 	c.emitln("section .data")
 	for id, str := range c.floats {
-		c.emitln("align 8")
+		c.emitln("align 16")
 		c.emitln(id + ":")
 		c.emitln(fmt.Sprintf("     dq %f", str))
 	}
