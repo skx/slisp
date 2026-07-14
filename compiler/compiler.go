@@ -915,7 +915,11 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			"     mov rax, %d",
 			size,
 		))
+		c.emitln("    push rbx")
+		c.emitln("    mov rbx, TAG_ID_LAMBDA")
 		c.emitln("    call alloc")
+		c.emitln("    pop rbx")
+
 		c.emitln("    mov rbx, rax")
 
 		// store code pointer
