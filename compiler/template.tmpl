@@ -989,10 +989,27 @@ fn_printstr:
 ;;
 
 ;; Internal count the allocations.
-FUNC fn_sys_allocs
+FUNC fn_sysMINUSheapMINUSallocs
     mov rax, [alloc_count]
     TAG_INTEGER_REG rax
     ret
+
+FUNC fn_sysMINUSheapMINUSobjectMINUScount
+    mov rcx, [from_space]   ; rcx = current object
+    mov rdx, [alloc_ptr]    ; rdx = end of allocated objects
+    xor rax, rax
+.loop:
+    cmp rcx, rdx
+    jae .done
+    inc rax
+    mov rbx, [rcx]          ; object size
+    add rcx, rbx            ; advance to next object
+    jmp .loop
+
+.done:
+    TAG_INTEGER_REG rax
+    ret
+
 
 ;; Get the first item in the cons cell.
 ;; Note: calling (car nil) will return nil.
