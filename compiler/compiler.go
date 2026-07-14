@@ -905,10 +905,11 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 		// Allocate closure:
 		//   +0  code pointer
-		//   +8  capture #1
-		//   +16 capture #2
+		//   +8   n captures
+		//   +16  capture #1
+		//   +24  capture #2
 		//   ...
-		size := 8 * (1 + len(n.Captures))
+		size := 8 * (12 + len(n.Captures))
 
 		c.emitln(fmt.Sprintf(
 			"     mov rax, %d",
@@ -922,6 +923,11 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			"    mov qword [rbx], %s",
 			name,
 		))
+		// store N captures
+		c.emitln(fmt.Sprintf(
+			"    mov qword [rbx+8], %d",
+			len(n.Captures),
+		))
 
 		for i, cap := range n.Captures {
 
@@ -933,7 +939,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			} else if offset, ok := ev.LookupCapture(cap); ok {
 				c.emitln(fmt.Sprintf(
 					"    mov rcx,[r15+%d]",
-					offset,
+					offset+8, // skip over N captures
 				))
 			} else {
 				panic("capture not found: " + cap)
@@ -941,7 +947,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 			c.emitln(fmt.Sprintf(
 				"    mov [rbx+%d], rcx",
-				8*(i+1),
+				8*(i+2),
 			))
 		}
 
@@ -1054,7 +1060,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		if offset, ok := ev.LookupCapture(name); ok {
 			c.emitln(fmt.Sprintf(
 				"    mov [r15+%d], rax",
-				offset,
+				offset+8, // skip over N captures
 			))
 			return nil
 		}
@@ -1082,7 +1088,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		if offset, ok := ev.LookupCapture(n.Name); ok {
 			c.emitln(fmt.Sprintf(
 				"    mov rax, [r15+%d]",
-				offset,
+				offset+8, // skip over N captures
 			))
 			return nil
 		}
