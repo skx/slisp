@@ -240,11 +240,19 @@ _start:
 
 ;; Allocate memory, return address in RAX.
 ;; RAX has size, which is then rounded up to 16 bytes.
+;;
+;; Each object is secretly prefixed by a 16-byte header:
+;;
+;;    SIZE (after rounding, and including the header size)
+;;    FORWARDING (used for GC, initially set to 0x0000000000000000
+;;
 alloc:
     inc qword [alloc_count]   ; count allocations
 
     add rax,15                ; Round up requested size to 16 bytes
     and rax,-16
+
+    add rax, 16               ; Prefix allocation with two words
 
     push rcx
     push rdx
@@ -258,7 +266,13 @@ alloc:
     jae .fail
 
     mov [heap_start], rdx     ; store
+
+                              ; add the header
+    mov       [rcx+0], rax    ; size (after rounding)
+    mov qword [rcx+8], 0      ; forwarding
+
     mov rax, rcx              ; the initial value which is now ours
+    add rax, 16               ; skip past the header when returning to caller
     pop rdx
     pop rcx
     ret
