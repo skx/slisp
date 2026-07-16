@@ -64,8 +64,8 @@ It should be noted that we prepend a standard library of functions to all user p
 * Support for bindings, functions, floating-point numbers, integers, strings, lambdas, lists, etc.
   * The lambdas have support for closures.
   * Run-time type detection via functions such as `int?`, and `cons?`.
-* A rough and ready bump-allocator used for heap-allocated cons-cells.
-  * This is supported by a stop&copy garbage collector, using [Cheney's algorithm](https://en.wikipedia.org/wiki/Cheney%27s_algorithm) - Named after Chris J. Cheney.
+* A rough and ready bump-allocator used heap to allocate memory for heap-allocated objects.
+  * This is supported by a stop&copy garbage collector, using [Cheney's algorithm](https://en.wikipedia.org/wiki/Cheney%27s_algorithm) (which is named after it's inventor Chris J. Cheney).
   * See the [Garbage Collection](#garbage-collection) section below for details.
 * Mathematical operations `+`, `-`, `*`, and `/`.
   * These work against integers, floating point numbers, or combination of the two.
@@ -266,14 +266,17 @@ That said, and as demonstrated above, the interpreter can run many of the same p
 
 ## Garbage Collection
 
-When our project started it used a simple bump-allocator, which simply reserved a block of memory at startup, and on each allocation request would just bump the "current free" pointer which pointed within it.
+When our project started it used a simple bump-allocator, which simply reserved a block of memory at startup, and for each allocation request would just advance a "memory used" pointer, which started at the beginning of the region.   Each allocation would just move forward more and more.
 
-The introduction of the inception-interpreter, and to a lesser extent our brainfuck and nqueens programs, really made it apparent that this wasn't tenable.  Large programs would exhaust the available heap with items that were no longer referenced.
+The introduction of the `inception` lisp-interpreter, and to a lesser extent our brainfuck and nqueens programs, really made it apparent that this wasn't tenable.  Large programs would exhaust the available heap with items that were no longer referenced.
 
-To start with I did the obvious thing, and made the allocation region larger, ignoring the problem.  But eventually that too became too hard to ignore.  So now I've implemented a stop & copy garbage collector.   Every time the `(cons ..)` primitive is called we run the GC process - but you can also trigger it explicitly, and see the stats via these methods:
+To start with I did the obvious thing and made the allocation region larger, ignoring the problem.  But eventually that too became untenable.  So now I've implemented a stop & copy garbage collector, using Cheney's algorithm.   Every time our `(cons ..)` primitive is called we run the GC process if there have been more than 64,000 allocations since the last GC process ran.
+
+The `(cons ..)` primitive is a lisp-fundamental, so I figure that is going to be called pretty often in user-programs, either directly or via the `(list ...)` wrapper.  But if that isn't the case you may also trigger the garbage-collection process explicitly, and see the stats via these methods:
 
 * `(sys-gc)` run the garbage collection process immediately..
-* `(sys-heap-allocs)` -  Return the number of allocations made by our allocator, since the last GC.
+* `(sys-heap-allocs)` -  Return the number of memory allocations made since the last garbage-collection process.
+  * If your program regularly calls `cons` this will never be more than 64,000.
 * `(sys-heap-bytes)` - Return the size of the heap.
 * `(sys-heap-object-count)` - Return the number of objects stored upon the heap.
 
@@ -283,12 +286,10 @@ The stop and copy implementation is pretty simple:
 * One heap is used as the backing-store for all allocations we make.
 * When a `sys-gc` request is made the current heap is inspected and all live items are copied to the other heap.
   * The new heap is then made the active one, which essentially orphans and frees the unreachable entries upon the old heap.
-* The copying process has to deal with internal references and stack-local variables.
-  * We also have to consider global variables too.
-  * And we handle register-roots too, for the `(cons ..)` method at least.  (i.e. We know `cons` can only be called with two arguments, so we only have to consider the two registers RDI & RSI.)
-  * TLDR; Our roots are "globals", "stack-locals", and potentially the registers `rdi` and `rsi`.
-
-So far this _seems_ to be reliable, but because it requires a manual trigger it is not as good as it should be.  Until we can handle register-contents as roots we'll need the manual trigger.
+* The copying process has to deal with global variables, objects held within stack-frames, and those objects which might be held inside registers.
+  * For register contents we cheat a little.
+  * The `(cons ..)` primitive is the only one that is used to trigger "auto GC",  and we know `cons` can only be called with two arguments, so we only have to consider the two registers RDI & RSI.
+  * TLDR; Our roots are "globals", "stack-locals", and potentially the contents of the two registers `rdi` and `rsi`.
 
 
 
