@@ -65,9 +65,8 @@ It should be noted that we prepend a standard library of functions to all user p
   * The lambdas have support for closures.
   * Run-time type detection via functions such as `int?`, and `cons?`.
 * A rough and ready bump-allocator used for heap-allocated cons-cells.
-  * This is supported by a stop&copy garbage collector, using [Cheney's algorithm](https://en.wikipedia.org/wiki/Cheney%27s_algorithm).
-  * Named after Chris J. Cheney.
-  * See [Garbage Collection](#garbage-collection) section below for details.
+  * This is supported by a stop&copy garbage collector, using [Cheney's algorithm](https://en.wikipedia.org/wiki/Cheney%27s_algorithm) - Named after Chris J. Cheney.
+  * See the [Garbage Collection](#garbage-collection) section below for details.
 * Mathematical operations `+`, `-`, `*`, and `/`.
   * These work against integers, floating point numbers, or combination of the two.
 * File I/O operations:
@@ -275,7 +274,7 @@ To start with I did the obvious thing, and made the allocation region larger, ig
 
 * `(sys-gc)` run the garbage collection process now.
 * There are also some diagnostic functions your program may call:
-  * `(sys-heap-allocs)` -  Return the number of allocations made by our allactor.
+  * `(sys-heap-allocs)` -  Return the number of allocations made by our allocator.
   * `(sys-heap-bytes)` - Return the size of the heap.
   * `(sys-heap-object-count)` - Return the number of objects stored upon the heap.
 
@@ -283,7 +282,7 @@ The stop and copy implementation is pretty simple:
 
 * We have *two* heap areas.
   * Both of which are an identical size.
-* One heap is in use for all allocations our internal allocator uses.
+* One heap is used as the backing-store for all allocations we make.
 * When a `sys-gc` request is made:
   * The current heap is inspected and all live items are copied to the new heap.
   * The new heap is then made the active one.
@@ -293,7 +292,7 @@ The stop and copy implementation is pretty simple:
   * But we ignore the prospect of register-stored objects.
   * TLDR; Our roots are "globals", "stack-locals", and nothing else.
 
-So far this _seems_ to be reliable, but because it requires a manual trigger it is not quite automatic.
+So far this _seems_ to be reliable, but because it requires a manual trigger it is not as good as it should be.  Until we can handle register-contents as roots we'll need the manual trigger.
 
 
 
