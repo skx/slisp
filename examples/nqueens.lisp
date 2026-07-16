@@ -1,7 +1,24 @@
 ;; nqueens solver for arbitrary sized boards
 ;;
-;; Deeply recursive using backtracking this dies
-;; with a segfault for me on sizes >= 10.
+;; This solves the 8x8 board by default, but you
+;; may specify a larger sized board via the CLI
+;; arguments.
+;;
+;; In the past this would exhaust our heap memory
+;; on sizes of >= 12, however now we've added an
+;; explicit GC call after printing each solution and
+;; so it can handle a lot larger sizes.
+;;
+;; That said I got bored waiting for the solutions
+;; to be generated for 20x20 - it was enough to show
+;; that it did find a bunch of valid solutions so
+;; I terminated my search after printing out a few
+;; hundred of them!
+;;
+;; And still generating solutions for 22x22 will exhaust
+;; the heap before generating even the first solution.
+;; 21 seems to be about the most I can manage at the moment
+;; but that seems like a reasonable size.
 ;;
 ;; Usage
 ;;
@@ -55,6 +72,7 @@
   (set! solution-count (+ solution-count 1))
   (println "Solution " solution-count " " board ":\n")
   (print-board board)
+  (sys-gc)
   (newline)
   (newline))
 

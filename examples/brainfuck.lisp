@@ -79,11 +79,12 @@ CHARACTERS and our interpreter doesn't understand character types."
         (jumps (buildJumps program)))  ; jumps
 
 
+    ; flush memory before we start our main loop
+    (sys-gc)
 
                                         ; while we've not run off the end of the program
     (while (< i len)
 
-                                        ; get the instruction
       (let ((ins (nth program i)))
 
 
@@ -126,6 +127,9 @@ CHARACTERS and our interpreter doesn't understand character types."
 
           ;; ,
           ((= ins ".") (do
+                        ; Flush again after a print
+                        (sys-gc)
+
                         (print (chr (nth cells ptr)))
                         (set! i (+ i 1))))
 

@@ -113,7 +113,9 @@
     ((= name "car")      (builtin "car"))
     ((= name "cdr")      (builtin "cdr"))
     ((= name "chr")      (builtin "chr"))
+    ((= name "exit")     (builtin "exit"))
     ((= name "getc")     (builtin "getc"))
+    ((= name "length")   (builtin "length"))
     ((= name "list")     (builtin "list"))
     ((= name "map")      (builtin "map"))
     ((= name "nat")      (builtin "nat"))
@@ -130,6 +132,9 @@
     ((= name "seq")      (builtin "seq"))
     ((= name "strlen")   (builtin "strlen"))
     ((= name "substr")   (builtin "substr"))
+    ((= name "sys-heap-bytes")   (builtin "sys-heap-bytes"))
+    ((= name "sys-heap-allocs")   (builtin "sys-heap-allocs"))
+    ((= name "sys-gc")   (builtin "sys-gc"))
     ((= name "nil?")     (builtin "nil?"))
     (t nil)))
 
@@ -237,6 +242,7 @@
       (set! result (eval (car forms) env))
       (set! env (eval-env result))
       (set! forms (cdr forms)))
+    (sys-gc)
     result))
 
 
@@ -498,8 +504,9 @@
     result))
 
 
-;; apply for built-in and user-functoins
+;; apply for built-in and user-functions
 (defun apply (fn args)
+
   (cond
     ;; native builtins
     ((builtin? fn) (apply-builtin fn args))
@@ -569,8 +576,14 @@
       ((= name "chr")
        (chr (car args)))
 
+      ((= name "exit")
+       (exit (car args)))
+
       ((= name "getc")
        (getc))
+
+      ((= name "length")
+       (length (car args)))
 
       ((= name "list")
        args)
@@ -629,11 +642,19 @@
       ((= name "substr")
        (substr (car args) (cadr args) (caddr args)))
 
+      ((= name "sys-heap-allocs")
+       (sys-heap-allocs))
+
+      ((= name "sys-heap-bytes")
+       (sys-heap-bytes))
+
+      ;; GC happens in this interpreter, not in the programs it runs.
+      ((= name "sys-gc") t)
+
       ((= name "nil?")
        (nil? (car args)))
 
-      (t
-       nil))))
+      (t nil))))
 
 
 (defun apply-closure (closure args)
@@ -891,6 +912,8 @@
 (defun run-program (text)
   (reader-init text)
   (let ((forms (reader-parse-program)))
+    ; free up all that list-mess from our reader
+    (sys-gc)
     (if *DEBUG* (println "Parsed: " forms))
     (eval-program forms)))
 
