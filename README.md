@@ -65,6 +65,9 @@ It should be noted that we prepend a standard library of functions to all user p
   * The lambdas have support for closures.
   * Run-time type detection via functions such as `int?`, and `cons?`.
 * A rough and ready bump-allocator used for heap-allocated cons-cells.
+  * This is supported by a stop&copy garbage collector, using [Cheney's algorithm](https://en.wikipedia.org/wiki/Cheney%27s_algorithm).
+  * Named after Chris J. Cheney.
+  * See [Garbage Collection](#garbage-collection) section below for details.
 * Mathematical operations `+`, `-`, `*`, and `/`.
   * These work against integers, floating point numbers, or combination of the two.
 * File I/O operations:
@@ -93,7 +96,6 @@ You can see a complete list of our primitives, and their details in [PRIMITIVES.
 
 Anti-features:
 
-* No garbage collection.
 * No macros.
   * It wouldn't be impossible to add them, but without `quote`, `quasiquote`, etc, it's a lot of work.
 * No `quote`
@@ -245,12 +247,53 @@ Solution 1 (1 5 8 6 3 7 2 4):
 
 So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can print.  But the biggest difference is that the compiler has a significantly larger standard-library.
 
+The biggest downside to the interpreter is obvious speed and CPU load:
+
+* `time ./example` -> 0.006s
+  * `time ./inception example.lisp --main` -> 2.745s
+* `time ./nqueens`  .> 0.043s
+  * `time ./inception nqueens.lisp --main` -> 2.853s
+* `time ./brainfuck` -> 0.014s
+  * `time ./inception brainfuck.lisp --main` -> 27m27.621s (!!!)
+
 The compiler prepends [stdlib.slisp](stdlib.slisp) to all programs, so you always have `map`, `filter`, etc, available.  By contrast the interpreter has a very small standard library - it exposes `print`, `println`, `cons`, `list`, `nth`, `map`, and a few other carefully selected primitives, along with the special forms `do`, `if`, `let`, `while`, etc.  It understands strings, integers, and floating-point numbers but notably it doesn't have a character-type.
 
 That said, and as demonstrated above, the interpreter can run many of the same programs that the compiler can.  The main omissions are mutating captured variables inside closures, and the need to enter functions all on one line if you're using the REPL.
 
 * [examples/inception.in](examples/inception.in) is my test program.
 * [examples/cond.in](examples/cond.in) shows that the in-build `cond` primitive works.
+
+
+
+## Garbage Collection
+
+When our project started it used a simple bump-allocator, which simply reserved a block of memory at startup, and on each allocation request would just bump the "current free" pointer which pointed within it.
+
+The introduction of the inception-interpreter, and to a lesser extent our brainfuck and nqueens programs, really made it apparent that this wasn't tenable.  Large programs would exhaust the available heap with items that were no longer referenced.
+
+To start with I did the obvious thing, and made the allocation region larger, ignoring the problem.  But eventually that too became too hard to ignore.  So now I've implemented a stop & copy garbage collector.  This is very new and so at the moment it is not called by the runtime, instead the user must invoke it if/when they wish:
+
+* `(sys-gc)` run the garbage collection process now.
+* There are also some diagnostic functions your program may call:
+  * `(sys-heap-allocs)` -  Return the number of allocations made by our allactor.
+  * `(sys-heap-bytes)` - Return the size of the heap.
+  * `(sys-heap-object-count)` - Return the number of objects stored upon the heap.
+
+The stop and copy implementation is pretty simple:
+
+* We have *two* heap areas.
+  * Both of which are an identical size.
+* One heap is in use for all allocations our internal allocator uses.
+* When a `sys-gc` request is made:
+  * The current heap is inspected and all live items are copied to the new heap.
+  * The new heap is then made the active one.
+  * Essentially orphanining the unreachable entries upon the old heap.
+* The copying process has to deal with internal references and stack-local variables.
+  * We also have to consider global variables too.
+  * But we ignore the prospect of register-stored objects.
+  * TLDR; Our roots are "globals", "stack-locals", and nothing else.
+
+So far this _seems_ to be reliable, but because it requires a manual trigger it is not quite automatic.
 
 
 
