@@ -1,0 +1,7 @@
+(defun main ()
+  (let ((x (nat 1000)))
+    (repeat 1000 (lambda (n) (sys-gc)))
+    (if (= (length x) 1000)
+        (println "After 1000 GC cycles our list is as expected.")
+        (println "PANIC!  ERROR!  Purple Alert!"))
+    (println x)))
