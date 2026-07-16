@@ -78,7 +78,7 @@ type Compiler struct {
 	source string
 
 	// text stores the text we emit as we compile various things.
-	text strings.Builder
+	text bytes.Buffer
 
 	// labelID is used to give unique labels to if/lambda/etc.
 	labelID int
@@ -1262,14 +1262,15 @@ func (c *Compiler) emitCallable(obj any) error {
 	c.emitln(fmt.Sprintf("section .text.%s,\"ax\",@progbits", nm))
 	c.emitln(nm + ":")
 
-	c.emitln("    push rbp")
-	c.emitln("    mov rbp, rsp")
-	c.emitln(fmt.Sprintf("    push fn_%s_gc", nm))
-	c.emitln("    sub rsp, 256 ;; guess at space for locals")
-
 	if len(d.Params) >= 5 {
 		return fmt.Errorf("%d is more than the maximum number of arguments we support", len(d.Params))
 	}
+
+	// Buffer the function body so we can determine the exact stack frame
+	// size (MaxOffset) before emitting the prologue's sub rsp instruction.
+	// This avoids the over-allocation that caused stack overflows in deeply
+	// recursive functions.
+	savedLen := c.text.Len()
 
 	for i, p := range d.Params {
 
@@ -1305,14 +1306,40 @@ func (c *Compiler) emitCallable(obj any) error {
 
 	}
 
+	// Extract the buffered body, truncate back to before we started,
+	// then emit the prologue with the exact frame size now that we know it.
+	locals := ev.MaxOffset()
+	bodyText := strings.Clone(c.text.String()[savedLen:])
+	c.text.Truncate(savedLen)
+
+	// Frame size = locals (deepest slot offset) rounded up to 16-byte
+	// boundary so the stack stays aligned for nested calls.
+	frameSize := (locals + 15) &^ 15
+
+	c.emitln("    push rbp")
+	c.emitln("    mov rbp, rsp")
+	c.emitln(fmt.Sprintf("    push fn_%s_gc", nm))
+	c.emitln(fmt.Sprintf("    sub rsp, %d", frameSize))
+
+	// Zero-initialize all local slots so the GC always sees valid tagged
+	// values (integer 0) even when sys-gc is called before locals are assigned.
+	for off := 16; off <= locals; off += 8 {
+		c.emitln(fmt.Sprintf("    mov qword [rbp-%d], 0", off))
+	}
+
+	c.text.WriteString(bodyText)
+
 	c.emitln("    leave")
 	c.emitln("    ret")
 
+	localBytes := locals - 8
+	if localBytes < 0 {
+		localBytes = 0
+	}
 	c.emitln("section .data")
-	locals := ev.MaxOffset()
 	c.emitln(fmt.Sprintf("fn_%s_gc:", nm))
 	c.emitln("dq 0x47430001     ; GC01")
-	c.emitln(fmt.Sprintf("dq %d", locals-8))
+	c.emitln(fmt.Sprintf("dq %d", localBytes))
 	c.emitln("section .text")
 
 	return nil
