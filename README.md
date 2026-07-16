@@ -270,27 +270,23 @@ When our project started it used a simple bump-allocator, which simply reserved 
 
 The introduction of the inception-interpreter, and to a lesser extent our brainfuck and nqueens programs, really made it apparent that this wasn't tenable.  Large programs would exhaust the available heap with items that were no longer referenced.
 
-To start with I did the obvious thing, and made the allocation region larger, ignoring the problem.  But eventually that too became too hard to ignore.  So now I've implemented a stop & copy garbage collector.  This is very new and so at the moment it is not called by the runtime, instead the user must invoke it if/when they wish:
+To start with I did the obvious thing, and made the allocation region larger, ignoring the problem.  But eventually that too became too hard to ignore.  So now I've implemented a stop & copy garbage collector.   Every time the `(cons ..)` primitive is called we run the GC process - but you can also trigger it explicitly, and see the stats via these methods:
 
-* `(sys-gc)` run the garbage collection process now.
-* There are also some diagnostic functions your program may call:
-  * `(sys-heap-allocs)` -  Return the number of allocations made by our allocator.
-  * `(sys-heap-bytes)` - Return the size of the heap.
-  * `(sys-heap-object-count)` - Return the number of objects stored upon the heap.
+* `(sys-gc)` run the garbage collection process immediately..
+* `(sys-heap-allocs)` -  Return the number of allocations made by our allocator, since the last GC.
+* `(sys-heap-bytes)` - Return the size of the heap.
+* `(sys-heap-object-count)` - Return the number of objects stored upon the heap.
 
 The stop and copy implementation is pretty simple:
 
-* We have *two* heap areas.
-  * Both of which are an identical size.
+* We have *two* heap areas, each of which are an identical size.
 * One heap is used as the backing-store for all allocations we make.
-* When a `sys-gc` request is made:
-  * The current heap is inspected and all live items are copied to the new heap.
-  * The new heap is then made the active one.
-  * Essentially orphanining the unreachable entries upon the old heap.
+* When a `sys-gc` request is made the current heap is inspected and all live items are copied to the other heap.
+  * The new heap is then made the active one, which essentially orphans and frees the unreachable entries upon the old heap.
 * The copying process has to deal with internal references and stack-local variables.
   * We also have to consider global variables too.
-  * But we ignore the prospect of register-stored objects.
-  * TLDR; Our roots are "globals", "stack-locals", and nothing else.
+  * And we handle register-roots too, for the `(cons ..)` method at least.  (i.e. We know `cons` can only be called with two arguments, so we only have to consider the two registers RDI & RSI.)
+  * TLDR; Our roots are "globals", "stack-locals", and potentially the registers `rdi` and `rsi`.
 
 So far this _seems_ to be reliable, but because it requires a manual trigger it is not as good as it should be.  Until we can handle register-contents as roots we'll need the manual trigger.
 

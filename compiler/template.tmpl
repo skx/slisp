@@ -1126,6 +1126,7 @@ FUNC fn_sysMINUSheapMINUSobjectMINUScount
 
 FUNC fn_sysMINUSgc
      mov [gc_stack_base], rbp    ; save caller's rbp (we have no prologue, so rbp is still theirs)
+     mov qword [gc_forward_regs], 0
      call gc_collect
      TAG_NIL_REG rax
      ret
@@ -1187,6 +1188,33 @@ FUNC fn_sys_chr
 ;;
 ;; 16-bytes; first has the CAR, second the CDR.
 FUNC fn_sys_cons
+
+    push rsi
+    push rdi
+    push rax
+
+    mov rax, [alloc_count]
+    cmp rax, 64000                  ; Bill Gate's constant
+
+    jle .ignore_gc
+    mov [gc_stack_base], rbp        ; save caller's rbp (we have no prologue, so rbp is still theirs)
+    mov qword [gc_forward_regs], 1  ; forward RSI and RDI
+    mov [gc_saved_rdi],rdi          ; register value to be forwarded
+    mov [gc_saved_rsi],rsi          ; register value to be forwarded.
+
+    call gc_collect
+
+    pop rax
+    pop rdi
+    pop rsi
+    mov rdi, [gc_saved_rdi]   ; updated value
+    mov rsi, [gc_saved_rsi]   ; updated value
+    jmp .gc_over
+.ignore_gc:
+    pop rax
+    pop rdi
+    pop rsi
+.gc_over:
     mov rax, 16              ; size to allocate
     push rbx
     mov rbx, TAG_ID_CONS
@@ -1399,6 +1427,7 @@ FUNC fn_sys_fclose
 .fclose_return_nil:
     TAG_NIL_REG rax
     ret
+
 
 
 
@@ -2644,6 +2673,19 @@ last_function:
 gc_stack_base:
     resq 1
 
+;; should we consider the two registers RSI and RDI when running GC?
+gc_forward_regs:
+    resq 1
+
+;; When GC must consider register contents - only RSI & RDI
+;; then we save their updated contents here.
+gc_saved_rdi:
+    resq 1
+
+;; When GC must consider register contents - only RSI & RDI
+;; then we save their updated contents here.
+gc_saved_rsi:
+    resq 1
 ;;
 ;; Active heap (allocator uses these)
 ;;
@@ -2680,17 +2722,13 @@ gc_scan:
 gc_free:
     resq 1
 
-section .bss
-
 ;;
 ;; Two heaps
 ;;
-align 16
 heap_a:
     resb 8 * 1024 * 1024 * 1024  ; 8 Gb
 heap_a_end:
 
-align 16
 heap_b:
     resb 8 * 1024 * 1024 * 1024  ; 8 Gb
 heap_b_end:
@@ -2943,6 +2981,8 @@ scan_object:
 ;;
 gc_collect:
 
+    mov qword [alloc_count], 0      ; reset the count of allocations now GC is running/has run.
+
     ;; Initialise the destination heap.
     mov     rax, [to_space]
     mov     [gc_scan], rax
@@ -2969,6 +3009,29 @@ gc_collect:
     ;; copy stack roots
     call gc_scan_stack
 
+    ;; treat registers as roots?
+    mov rax, [gc_forward_regs]
+    cmp rax, 0
+    jz .ignore_regs
+
+    ;;
+    ;; we assume only two registers need to be dealt with
+    ;; RDI and RSI
+    ;;
+    ;; These are the first two arguments in the SysV ABI
+    ;; and since we only get auto-invoked in this way via
+    ;; fn_sys_cons (i.e. calls to "cons a b") this is safe
+    ;; and valid
+    ;;
+    mov rax, [gc_saved_rdi]
+    call forward
+    mov [gc_saved_rdi], rax
+
+    mov rax, [gc_saved_rsi]
+    call forward
+    mov [gc_saved_rsi], rax
+
+.ignore_regs:
     ;; Process copied objects.
     call gc_scan_loop
 
