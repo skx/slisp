@@ -115,6 +115,7 @@
     ((= name "chr")      (builtin "chr"))
     ((= name "exit")     (builtin "exit"))
     ((= name "getc")     (builtin "getc"))
+    ((= name "getenv")   (builtin "getenv"))
     ((= name "length")   (builtin "length"))
     ((= name "list")     (builtin "list"))
     ((= name "map")      (builtin "map"))
@@ -584,6 +585,9 @@
       ((= name "getc")
        (getc))
 
+      ((= name "getenv")
+       (getenv (car args)))
+
       ((= name "length")
        (length (car args)))
 
@@ -920,8 +924,6 @@
 (defun run-program (text)
   (reader-init text)
   (let ((forms (reader-parse-program)))
-    ; free up all that list-mess from our reader
-    (sys-gc)
     (if *DEBUG* (println "Parsed: " forms))
     (eval-program forms)))
 
