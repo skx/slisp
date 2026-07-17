@@ -20,8 +20,9 @@
 ;; 5.2.1 comparison functions
 ;; 5.3 printing functions
 ;; 5.4 fn_XXX
-;; 6. string literals
-;; 7. floating-point literals
+;; 6. GC machinery
+;; 7. string literals
+;; 8. floating-point literals
 
 
 
@@ -65,7 +66,6 @@ S_IFIFO         equ 0010000o
 
 
 
-
 ;;; 1. macros
 
 ;;
@@ -75,8 +75,9 @@ S_IFIFO         equ 0010000o
 ;; Without it defined we'll just return Nil on all failures which
 ;; is what we document, and what the user will expect.
 ;;
-%define DEBUG 1
+%define DEBUG    1
 %undef  DEBUG     ;; Comment out this line to enable debugging.
+
 
 ;;
 ;; We use the lower three bits of values to denote their type,
@@ -137,6 +138,53 @@ S_IFIFO         equ 0010000o
     and %1, 7
 %endmacro
 
+; Is this value an immediate?
+;
+; We use this for GC purposes - because immediate objects are stored
+; alongside their tagged-type and they contain nothing we need to recurse
+; into they can be handled easily.
+%macro IS_IMMEDIATE 1
+    mov r11, %1
+    GET_TAG_BITS r11
+    cmp r11, TAG_ID_INTEGER
+    je %%yes
+    cmp r11, TAG_ID_CHAR
+    je %%yes
+    cmp r11, TAG_ID_NIL
+    je %%yes
+    xor r11, r11
+    jmp %%done
+%%yes:
+    mov r11, 1
+%%done:
+%endmacro
+
+; Our memory allocator secretly prefixes all allocation-requests with a small
+; header - the header contains some extra fields which ease the handling of the
+; GC process.
+;
+; The first field is the size of the object which was returned (including the header).
+; The second field is a free qword which will be used for forwarding.
+; The third field stores the type of the allocation, which is used for our GC scanner.
+;
+; Finally after this 24 byte header we have the payload itself.
+;
+%define OBJ_SIZE      0
+%define OBJ_FORWARD   8
+%define OBJ_TYPE      16
+%define OBJ_PAYLOAD   24
+
+; Given an object get a pointer to the header.
+%macro OBJ_TO_HEADER 1
+    sub %1, OBJ_PAYLOAD
+%endmacro
+
+; Given a pointer to the prefix'd memory return the start of the payload.
+%macro HEADER_TO_OBJ 1
+    add %1, OBJ_PAYLOAD
+%endmacro
+
+
 ; The value of the tag-bits we use to denote types.
 ;
 ; All the values are chosen "randomly", but int is special because we
@@ -158,6 +206,7 @@ TAG_ID_CHAR    equ 0b100  ; 4
 TAG_ID_FLOAT   equ 0b101  ; 5
 TAG_ID_UNUSED  equ 0b110  ; 6 - boolean? error?
 TAG_ID_NIL     equ 0b111  ; 7
+
 
 
 ;;
@@ -196,33 +245,96 @@ TAG_ID_NIL     equ 0b111  ; 7
 
 
 ;;; 4. entry-point
+;;
+;; This is where the execution will start.
+;;
+;; We need to setup the heap, create a slisp list of CLI arguments, save the pointer to the
+;; processs' environmental variables, and then jump to the users' (defun main(args ...)) code.
+;;
 global _start
 section .text
 
 _start:
-    mov rax, heap
-    mov [heap_ptr], rax
+    ; Heap A is initially active
+    mov rax, heap_a
+    mov [from_space], rax
+    mov [alloc_ptr], rax
+
+    mov rax, heap_a_end
+    mov [from_limit], rax
+    mov [alloc_limit], rax
+
+    ; Heap B is initially empty
+    mov rax, heap_b
+    mov [to_space], rax
+
+    mov rax, heap_b_end
+    mov [to_limit], rax
+
 
     mov rcx, [rsp]             ; argc
     lea rbx, [rsp+8]           ; argv
 
     lea rdx, [rbx + rcx*8 + 8] ; start of environmental variables
     mov [envp_ptr], rdx        ; save that
-    xor rsi, rsi               ; Start with NIL
-    TAG_NIL_REG rsi
-.loop:                         ; build up a list of cli arguments in a list
+
+    ;
+    ; Build up a (list) of all command line arguments
+    ;
+    ; This is a bit horrid but what we're trying to do is build a list
+    ; of heap-allocated strings.  In the past we built a list of the
+    ; strings we got in the environment, but they were neither heap
+    ; allocated nor static.
+    ;
+    ; The end result was that our GC code was getting confused and didn't
+    ; know what to do when processing the stack-local variables which
+    ; were "args"
+    ;
+    ; So here we have to essentially call "strdup" on each arg.  But we
+    ; don't have strdup as a primitive.  So instead we call '(strcat arg "")'
+    ; which has the side-effect of returning a heap-allocated copy of the
+    ; OS-provided argv[i] entry.
+    ;
+    ; Life is hard.
+    ;
+    xor r12, r12
+    TAG_NIL_REG r12          ; r12 = accumulated list - starts with NIL
+
+.loop:
     test rcx, rcx
     jz .done
+
     dec rcx
-    mov rdi, [rbx + rcx*8]     ; argv[rcx]
-    TAG_STRING_REG rdi         ; Tag as Lisp string
-    call fn_sys_cons           ; cons(string, list)
-    mov rsi, rax               ; result becomes next list
+
+    ; rdi = ""
+    mov rdi, empty_str
+    TAG_STRING_REG rdi
+
+    ; rsi = argv[i]
+    mov rsi, [rbx + rcx*8]
+    TAG_STRING_REG rsi
+
+    push rbx
+    push rsi
+    push rdi
+    push rcx
+    call fn_sys_strcat        ; RAX = heap copy
+    pop rcx
+    pop rdi
+    pop rsi
+    pop rbx
+
+    mov rdi, rax              ; CAR
+    mov rsi, r12              ; CDR
+    call fn_sys_cons
+
+    mov r12, rax
     jmp .loop
+
 .done:
-    mov rdi, rsi               ; first SysV argument
-    {{ .InitGlobals }}
-    call fn_main
+    mov rdi, r12               ; args list is passed as argument
+    {{ .InitGlobals }}         ; setup global variables
+    call fn_main               ; call the users main function.
     mov rdi, rax               ; exit code is the last expression
     UNTAG_REG rdi
     mov rax, SYS_exit
@@ -236,18 +348,63 @@ _start:
 ;;; 5.0. common routines
 
 
+;; Allocate memory, return address in RAX.
+;; RAX has size, which is then rounded up to 16 bytes.
+;; RBX has the type "TAG_ID_CONS", "TAG_ID_FLOAT", etc.
+;;
+;; Each object is secretly prefixed by a 24-byte header:
+;;
+;;  +0   SIZE (after rounding, and including the header size).
+;;  +8   FORWARDING (used for GC, initially set to 0x0000000000000000).
+;; +16   TYPE which is one of the TAG_ID_XXX values - wasteful.
+;; +24   payload contents will be populated here.
+;;       This is the address we return to the caller, the prefixed header is only relevant to us and GC machinery.
+;;
+alloc:
+    inc qword [alloc_count]   ; count allocations
+
+    add rax, 24               ; Prefix allocation with the header size
+
+    add rax,15                ; Round up requested size to 16 byte alignment.
+    and rax,-16
+
+    push rcx
+    push rdx
+
+    mov rcx,[alloc_ptr]       ; get the current value
+
+    mov rdx,rcx
+    add rdx,rax               ; compute the final size
+
+    cmp rdx,[alloc_limit]
+    jae .fail
+
+    mov [alloc_ptr], rdx     ; store
+
+                                     ; add the header details
+    mov       [rcx+OBJ_SIZE], rax    ; size (after rounding)
+    mov qword [rcx+OBJ_FORWARD], 0   ; forwarding
+    mov       [rcx+OBJ_TYPE], rbx    ; type
+
+    mov rax, rcx                     ; the initial value which is now ours
+    add rax, 24                      ; skip past the header when returning to caller
+    pop rdx
+    pop rcx
+    ret
+.fail:
+    pop rdx
+    pop rcx
+    jmp heap_exhausted
+
+
 ;; xmm0 contains a float, store it on the heap and return it
 return_float:
-   mov rax, [heap_ptr]     ; allocate
-    push rbx
-    mov rbx, heap_end        ; we allocate 8Mb. but we abort if we go past 7Mb.
-    cmp rax, rbx
-    pop rbx
-    jge heap_exhausted       ; then abort
-   add qword [heap_ptr],8
-   movq [rax], xmm0        ; store
-   TAG_FLOAT_REG rax       ; type
-   ret                     ; return
+    mov rax, 8              ; size to allocate
+    mov rbx, TAG_ID_FLOAT
+    call alloc              ; Allocate memory, result in RAX
+    movq [rax], xmm0        ; store
+    TAG_FLOAT_REG rax       ; type
+    ret                     ; return
 
 ;; rdi points to string, return result in rax
 strlen:
@@ -259,6 +416,9 @@ strlen:
     jmp .loop
 .done:
     ret
+
+
+
 
 ;;; 5.1 type-checking utilities
 
@@ -582,6 +742,7 @@ FUNC fn_sys_EQUALS
 ;; Note: The result of this function is inverted for ">".
 ;;
 FUNC fn_sys_LTEQUALS
+
    call are_both_integers
    jz lte_integer
 
@@ -881,7 +1042,7 @@ fn_printstr:
     UNTAG_REG rdi
 
     call strlen               ; string in rdi will stay unmodified
-    mov rdx, rax              ; lengh goes to rdx
+    mov rdx, rax              ; length goes to rdx
 
     mov rsi,rdi
     mov rax, SYS_write
@@ -935,6 +1096,165 @@ fn_printstr:
 ;;
 ;; End communique.
 ;;
+
+;; Return the internal count the allocations.
+FUNC fn_sysMINUSheapMINUSallocs
+    mov rax, [alloc_count]
+    TAG_INTEGER_REG rax
+    ret
+
+;; return the size of the current heap, in bytes.
+FUNC fn_sysMINUSheapMINUSbytes
+    mov rax, [alloc_ptr]
+    sub rax, [from_space]
+    TAG_INTEGER_REG rax
+    ret
+
+;; Dump heap contents.
+FUNC fn_sysMINUSheapMINUSdump
+    mov     rcx, [from_space]      ; current object
+    mov     rdx, [alloc_ptr]       ; end of allocated objects
+
+.loop:
+    cmp     rcx, rdx
+    jae     .done
+
+    mov     rax, rcx                      ; get offset
+    sub     rax, [from_space]
+    TAG_INTEGER_REG rax
+
+    push    rcx                           ; print offset
+    push    rdx
+    mov     rdi, rax
+    call    fn_printint
+    pop     rdx
+    pop     rcx
+
+    push rcx
+    push rdx
+    mov     eax, 1                        ; tab
+    mov     edi, 1
+    lea     rsi, [tab_char]
+    mov     edx, 1
+    syscall
+    pop rdx
+    pop rcx
+
+    mov     rax, [rcx + OBJ_SIZE]         ; get size
+    TAG_INTEGER_REG rax
+
+    push    rcx                           ; print size
+    push    rdx
+    mov     rdi, rax
+    call    fn_printint
+    pop     rdx
+    pop     rcx
+
+    push    rcx
+    push    rdx
+    mov     eax, 1                        ; tab
+    mov     edi, 1
+    lea     rsi, [tab_char]
+    mov     edx, 1
+    syscall
+    pop     rdx
+    pop     rcx
+
+    mov     eax, [rcx + OBJ_TYPE]         ; get type
+    movzx   eax, byte [type_table + rax]
+    mov     [type_char], al
+
+    push    rcx
+    push    rdx
+    mov     eax, 1                ; print type
+    mov     edi, 1
+    lea     rsi, [type_char]
+    mov     edx, 1
+    syscall
+    pop rdx
+    pop rcx
+
+
+    push    rcx                      ; tab
+    push    rdx
+    mov     eax, 1
+    mov     edi, 1
+    lea     rsi, [tab_char]
+    mov     edx, 1
+    syscall
+    pop     rdx
+    pop     rcx
+
+    mov     eax, [rcx + OBJ_TYPE]      ; is it a string?
+    cmp     eax, TAG_ID_STRING
+    jne     .not_string
+
+    push    rcx                        ; then print the string
+    push    rdx
+    lea     rdi, [rcx + OBJ_PAYLOAD]
+    TAG_STRING_REG rdi
+;   call    fn_printstr
+    pop     rdx
+    pop     rcx
+
+.not_string:
+
+    cmp     eax, TAG_ID_FLOAT          ; is it a float?
+    jne     .not_float
+
+    push    rcx                        ; now print the float
+    push    rdx
+    lea     rdi, [rcx + OBJ_PAYLOAD]
+    TAG_FLOAT_REG rdi
+    call    fn_printfloat
+    pop     rdx
+    pop     rcx
+
+.not_float:                            ; lambda/cons - neither of which are printable
+    push rcx
+    push rdx
+    mov     eax, 1                     ; newline
+    mov     edi, 1
+    lea     rsi, [newline]
+    mov     edx, 1
+    syscall
+    pop rdx
+    pop rcx
+
+    mov     r8, [rcx + OBJ_SIZE]  ; repeat
+    add     rcx, r8
+
+    jmp     .loop
+
+.done:
+    TAG_NIL_REG rax
+    ret
+
+
+;; Return the number of objects stored upon our heap.
+FUNC fn_sysMINUSheapMINUSobjects
+    mov rcx, [from_space]   ; rcx = current object
+    mov rdx, [alloc_ptr]    ; rdx = end of allocated objects
+    xor rax, rax
+.loop:
+    cmp rcx, rdx
+    jae .done
+    inc rax
+    mov rbx, [rcx]          ; object size
+    add rcx, rbx            ; advance to next object
+    jmp .loop
+.done:
+    TAG_INTEGER_REG rax
+    ret
+
+;; Force a garbage-collection to happen.
+FUNC fn_sysMINUSgc
+     mov [gc_stack_base], rbp    ; save caller's rbp (we have no prologue, so rbp is still theirs)
+     mov qword [gc_forward_regs], 0
+     call gc_collect
+     TAG_NIL_REG rax
+     ret
+
 
 ;; Get the first item in the cons cell.
 ;; Note: calling (car nil) will return nil.
@@ -991,14 +1311,60 @@ FUNC fn_sys_chr
 ;; Allocate space for a new cons cell, return it in RAX.
 ;;
 ;; 16-bytes; first has the CAR, second the CDR.
+;;
+;; NOTE: This function is a little special, if more than XXX memory
+;; allocations have been made this function will trigger a GC cycle.
+;;
+;; This _should_ be safe as we mark and forward the contents of the
+;; two registers which are used.  However this function is also called
+;; internally by "environment", "explode", and similar code.
+;;
+;; If called by them it is possible there will be some issues and we
+;; need to be careful of that.
+;;
 FUNC fn_sys_cons
-    mov rax, [heap_ptr]      ; get the value of the heap pointer
+
+    push rsi                        ; Preserve these registers so "(explode..)" "(environment .." etc
+    push rdi                        ; are safe when we sometimes call GC
+    push rdx
+    push rcx
     push rbx
-    mov rbx, heap_end        ; we allocate 8Mb. but we abort if we go past 7Mb.
-    cmp rax, rbx
+    push rax
+
+    mov rax, [alloc_count]
+    cmp rax, 64000                  ; Bill Gate's constant
+
+    jle .ignore_gc
+    mov [gc_stack_base], rbp        ; save caller's rbp (we have no prologue, so rbp is still theirs)
+    mov qword [gc_forward_regs], 1  ; forward RSI and RDI
+    mov [gc_saved_rdi],rdi          ; register value to be forwarded
+    mov [gc_saved_rsi],rsi          ; register value to be forwarded.
+
+    call gc_collect
+
+    pop rax                         ; restore registers but ensure we have
+    pop rbx                         ; updated forwarded registers for arg 1&2.
+    pop rcx
+    pop rdx
+    pop rdi
+    pop rsi
+    mov rdi, [gc_saved_rdi]         ; updated value
+    mov rsi, [gc_saved_rsi]         ; updated value
+    jmp .gc_over
+
+.ignore_gc:
+    pop rax
     pop rbx
-    jge heap_exhausted       ; then abort
-    add qword [heap_ptr], 16 ; bump it by 2x ptrs
+    pop rcx
+    pop rdx
+    pop rdi
+    pop rsi
+.gc_over:
+    mov rax, 16              ; size to allocate
+    push rbx
+    mov rbx, TAG_ID_CONS
+    call alloc               ; Allocate memory, result in RAX
+    pop rbx
     mov [rax], rdi           ; store first item
     mov [rax+8], rsi         ; second item
     TAG_CONS_REG rax         ; return the tagged allocation
@@ -1059,10 +1425,15 @@ FUNC fn_sys_entries
 .length_done:
     mov r10, r9                             ; Allocate length+1 (rounded)
     inc r10
-    add r10, 7
-    and r10, -8
-    mov r11, [heap_ptr]
-    add [heap_ptr], r10
+
+    push rax         ; alloc save
+    mov rax, r10     ; length
+    push rbx
+    mov rbx, TAG_ID_STRING
+    call alloc       ; allocate
+    pop rbx
+    mov r11, rax     ; into reg
+    pop rax          ; restore
 
     mov rdi, r11                            ; Copy string into newly allocated memory in R11
     mov rsi, r8
@@ -1204,6 +1575,7 @@ FUNC fn_sys_fclose
 
 
 
+
 ;; Open a file handle, modes are "r", "w", or "a"
 FUNC fn_sys_fopen
     mov rbx, rdi             ; type-check arg1 (path)
@@ -1291,8 +1663,9 @@ FUNC fn_sys_fread
         mov rdi, rbx
         inc rdi
 
-        mov rax, [heap_ptr]       ; rax contains allocated storage
-        add qword [heap_ptr], rdi
+        mov rax, rdi              ; size to allocate
+        mov rbx, TAG_ID_STRING
+        call alloc                ; Allocate memory, result in RAX
 
         pop rbx                   ; restore size
         mov r12, rax              ; data pointer in r12.
@@ -1458,10 +1831,11 @@ FUNC fn_sys_implode
     jmp .count
 
 .have_len:
-    mov rax,[heap_ptr]
-    mov rdx,rcx
-    inc rdx
-    add [heap_ptr],rdx
+    mov rdx,rcx     ; rdx has length
+    inc rdx         ; add one for null
+    mov rax, rdx    ; size to allocate
+    mov rbx, TAG_ID_STRING
+    call alloc      ; allocate
     mov r8,rax
 
     mov rbx,rdi
@@ -1710,7 +2084,7 @@ FUNC fn_sys_random
     push rdi                        ; push the limit
 
     mov rax, SYS_getrandom
-    lea rdi, [ random_buffer]  ; random value location
+    lea rdi, [random_buffer]   ; random value location
     mov rsi, 4                 ; number of bytes
     xor rdx, rdx               ; flags = 0
     syscall
@@ -1782,12 +2156,12 @@ FUNC fn_sys_split
     ret
 
 .found:
-    mov r10, [heap_ptr]       ; allocate left
-    mov r11, r10
-
-    mov rax, rcx
-    inc rax
-    add [heap_ptr], rax
+    mov rax, rcx    ; length
+    inc rax         ; plus nill
+    mov rbx, TAG_ID_STRING
+    call alloc      ; allocate
+    mov r11, rax    ; save
+    mov r10, rax    ; save
 
     mov rsi, rcx
     mov rdx, r8
@@ -1820,11 +2194,12 @@ FUNC fn_sys_split
     jmp .count_right
 
 .alloc_right:
-    mov r11, [heap_ptr]   ; allocate
-    mov r12, r11
-    mov rax, rcx
-    inc rax
-    add [heap_ptr], rax
+    mov rax, rcx         ; size
+    inc rax              ; plus null
+    mov rbx, TAG_ID_STRING
+    call alloc           ; allocate
+    mov r11, rax         ; save
+    mov r12, rax         ; save
 
     lea rdx, [rdi+1]
     mov rsi, rcx
@@ -1844,17 +2219,25 @@ FUNC fn_sys_split
     TAG_STRING_REG rax
     mov r11, rax
 
-    xor rax, rax                    ; right
+    xor rax, rax                ; right
     TAG_NIL_REG rax
-    mov rbx, [heap_ptr]
-    add qword [heap_ptr],16
+    push rax
+    mov rax, 16                 ; allocate 16 bytes
+    mov rbx, TAG_ID_CONS
+    call alloc                  ; allocate
+    mov rbx, rax                ; rbx has the address
+    pop rax                     ; restore reg
     mov [rbx], r11
     mov [rbx+8], rax
     mov rax, rbx
     TAG_CONS_REG rax
 
-    mov rbx, [heap_ptr]
-    add qword [heap_ptr],16
+    push rax
+    mov rax, 16                 ; allocate 16 bytes
+    mov rbx, TAG_ID_CONS
+    call alloc                  ; allocate
+    mov rbx, rax                ; rbx has the address
+    pop rax                     ; restore reg
     mov [rbx], r10
     mov [rbx+8], rax
     mov rax, rbx
@@ -2014,11 +2397,12 @@ FUNC fn_sys_strcat
     mov r9,rax         ; r9 to save strlen(b)
 
     ; allocate
-    mov rax,[heap_ptr]
     mov rcx,r8
     add rcx,r9
     inc rcx                  ; +1 for '\0'
-    add [heap_ptr],rcx
+    mov rax, rcx             ; size in rax
+    mov rbx, TAG_ID_STRING
+    call alloc               ; make the allocation
 
     mov rdx,rax              ; destination
     pop rsi                  ; restore strings
@@ -2109,8 +2493,10 @@ FUNC fn_sys_string
     ret
 .from_char:
     ; two bytes of memory
-    mov rsi, [heap_ptr]       ; allocate two bytes
-    add qword [heap_ptr],2
+    mov rax, 2   ; two bytes
+    mov rbx, TAG_ID_STRING
+    call alloc   ; RAX has result
+    mov rsi, rax
     mov rax, rdi
     UNTAG_REG rax
     mov byte [rsi], al       ; char
@@ -2126,9 +2512,13 @@ FUNC fn_sys_string
     ; RSI has the start
     ; RCX has the length
     inc rcx
-    mov rdi, [heap_ptr]       ; allocate length
+    push rax           ; alloc save
+    mov rax, rcx       ; size
+    mov rbx, TAG_ID_STRING
+    call alloc         ; allocate
+    mov rdi, rax       ; in the reg
+    pop rax            ; restore
     push rdi
-    add qword [heap_ptr], rcx
     ; copy bytes
 .copy_loop:
     mov al, [rsi]
@@ -2323,70 +2713,90 @@ type_error:
 
 section .data
 
+;; used by sys-heap-dump
+type_table:
+    db 'I'        ; TAG_ID_INTEGER
+    db 'S'        ; TAG_ID_STRING
+    db 'C'        ; TAG_ID_CONS
+    db 'L'        ; TAG_ID_LAMBDA
+    db 'c'        ; TAG_ID_CHAR (shouldn't appear)
+    db 'F'        ; TAG_ID_FLOAT
+    db 'x'        ; unused
+    db 'N'        ; TAG_ID_NIL
+
+;; Also used by gc-heap-dump
+tab_char:
+   db 9
+newline:
+   db 10
+type_char:
+   db '?'
+
+
 ;; used by fn_string
-align 8
+align 16
 empty_str:
      db 0x00
 
 ;; used by fn_string
-align 8
+align 16
 nil_str:
      db `<nil>`
      db 0x00
 
 ;; error message for setNth
-align 8
+align 16
 out_of_range_msg:
         db `Out of bounds access.  Aborted inside `
         db 00
 
 ;; error message for heap exhaustion
-align 8
+align 16
 heap_error_msg:
         db `Heap exhausted! Aborted inside `
         db 00
 
 ;; error message for type-errors
-align 8
+align 16
 type_error_msg:
         db `Type error! Aborted inside `
         db 00
 
 ;; used by fn_printfloat
-align 8
+align 16
 million:
         dq 1000000.0
 
 ;; used by fn_printfloat
-align 8
+align 16
 minusmask:
         dq 0x8000000000000000
 
 ;; used by fn_printfloat
-align 8
+align 16
 inf_msg:
         db "+Inf"
 inf_msg_end:
 
 ;; used by fn_printfloat
-align 8
+align 16
 minus_inf_msg:
         db "-Inf"
 minus_inf_msg_end:
 
 ;; used by fn_printfloat
-align 8
+align 16
 nan_msg:
         db "NaN"
 nan_msg_end:
 
 ;; Used by sys_run
-align 8
+align 16
 shell_path:
     db "/bin/sh",0
 
 ;; Used by sys_run
-align 8
+align 16
 dash_c:
     db "-c",0
 
@@ -2394,7 +2804,7 @@ dash_c:
 ;; buffer for our random function to read into.
 ;; other functions, such as getc, newline, use it
 ;; too.  Because why not?
-align 8
+align 16
 random_buffer:
     db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -2407,16 +2817,8 @@ random_buffer_end:
 ;; zero section
 section .bss
 
-;; last function we've called
-last_function:
-    resq 1
-
-;; offset used of our heap area.
-heap_ptr:
-    resq 1
-
-;; start of the environmental variable array
-envp_ptr:
+;; how many times was our allocator called?
+alloc_count:
     resq 1
 
 ;; buffer for reading directory entries
@@ -2424,34 +2826,526 @@ dir_buffer:
     resb 1024 * 1024
 dir_buffer_end:
 
-;; heap storage
-heap:
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
-heap_end:
-    resb 1 * 1024 * 1024 * 1024  ; 1 Mb
+;; start of the environmental variable array
+envp_ptr:
+    resq 1
+
+;; last function we've called
+last_function:
+    resq 1
+
+;; current stack frame for GC
+gc_stack_base:
+    resq 1
+
+;; should we consider the two registers RSI and RDI when running GC?
+gc_forward_regs:
+    resq 1
+
+;; When GC must consider register contents - only RSI & RDI
+;; then we save their updated contents here.
+gc_saved_rdi:
+    resq 1
+
+;; When GC must consider register contents - only RSI & RDI
+;; then we save their updated contents here.
+gc_saved_rsi:
+    resq 1
+;;
+;; Active heap (allocator uses these)
+;;
+alloc_ptr:
+    resq 1          ; next free byte
+
+alloc_limit:
+    resq 1          ; end of current heap
+
+;;
+;; Heap descriptors used by the GC
+;;
+from_space:
+    resq 1          ; base of current heap
+
+from_limit:
+    resq 1          ; end of current heap
+
+to_space:
+    resq 1          ; base of spare heap
+
+to_limit:
+    resq 1          ; end of spare heap
+
+;;
+;; Scan/free pointers used only during GC
+;;
+gc_scan:
+    resq 1
+
+;;
+;; Second heap
+;;
+gc_free:
+    resq 1
+
+;;
+;; Two heaps
+;;
+heap_a:
+    resb 8 * 1024 * 1024 * 1024  ; 8 Gb
+heap_a_end:
+
+heap_b:
+    resb 8 * 1024 * 1024 * 1024  ; 8 Gb
+heap_b_end:
+
+
+section .text
+
+;;; 6. GC machinery
+;;
+;; We're using Cheney's "stop and copy" approach for our garbage collection.
+;;
+;; This uses two backing stores, all allocations happen from one and when garbage collection
+;; is invoked we identify roots which might contain valid/in-use objects.  Those are then
+;; copied from their location in the old-heap into a new location in the new store.
+;;
+;; The roots we care about are "global variables" and "stack-local objects" which are live
+;; within the frame/RBP of the calling function.
+;;
+;; The copy happens recursively, so we copy the containers "cons" and "lambda", then ensure
+;; that we copy their contents - "car" and "cdr" in the case of cons-pairs, and captured arguments
+;; in the case of lambdas.
+;;
+;; Objects which are literal such as integers, characters, and nil, don't need that recursion
+;; those are identified by our "IS_IMMEDIATE" macro.
+;;
+;; Once we've copied everything we flip from allocation from the old store to the new one.
+;; After the copy we've basically copied everything which is reachable from one of our roots,
+;; and that means that any orphaned data is lost, and the new heap is "smaller" than the old
+;; one.
+;;
+;; The next time we do GC we repeat the projects, constantly flip-flopping between the two available
+;; backing stores and leaving orphaned objects in the other heap.
+;;
+;; There are some niggles, and details about using "forwarding" pointers, but in-brief that's how
+;; it works.
+;;
+
+
+;;
+;; Forward a Lisp value into the to-space (i.e. "the other heap").
+;;
+forward:
+
+    ; Immediate values never move.
+    IS_IMMEDIATE rax
+    test r11,r11
+    jnz .done
+
+    ; Save original tag bits.
+    mov     rbx, rax
+    GET_TAG_BITS rbx
+
+    ; Convert tagged pointer -> payload pointer.
+    UNTAG_REG rax
+
+    ; Strings may be static literals.
+    cmp rbx, TAG_ID_STRING
+    jne .not_string
+
+    mov rcx, rax                        ; already untagged
+    cmp rcx, string_literals_start
+    jb .heap_object
+
+    cmp rcx, string_literals_end
+    jb .static_string
+
+.not_string:
+    cmp rbx, TAG_ID_FLOAT
+    jne .not_float
+
+    mov rcx, rax
+
+    cmp rcx, float_literals_start
+    jb .heap_object
+
+    cmp rcx, float_literals_end
+    jb .static_float
+
+.not_float:
+.heap_object:
+
+    ; payload -> object header
+    OBJ_TO_HEADER rax
+
+    ; r10 = old object header
+    mov     r10, rax
+
+    ; Already forwarded?
+    mov     rcx, [r10 + OBJ_FORWARD]
+    test    rcx, rcx
+    jnz     .already_forwarded
+
+    ; Object size (includes header)
+    mov     rcx, [r10 + OBJ_SIZE]
+
+    ; Allocate in to-space.
+    mov     r11, [gc_free]       ; destination header
+
+    ; Advance free pointer.
+    mov     rdx, r11
+    add     rdx, rcx
+    mov     [gc_free], rdx
+
+    ; Copy the object.
+    mov     rsi, r10             ; source header
+    mov     rdi, r11             ; destination header
+    mov     rdx, rcx
+.copy:
+    test    rdx, rdx
+    jz      .copied
+    mov     r8, [rsi]
+    mov     [rdi], r8
+    add     rsi, 8
+    add     rdi, 8
+    sub     rdx, 8
+    jmp     .copy
+
+.copied:
+    ; The new copy has never been forwarded.
+    mov qword [r11 + OBJ_FORWARD], 0
+
+    ; Compute tagged pointer to copied PAYLOAD.
+    lea     rax, [r11 + OBJ_PAYLOAD]
+
+    ; Reapply original tag.
+    sal     rax, 3
+    or      rax, rbx
+
+    ; Store forwarding pointer in old object.
+    mov     [r10 + OBJ_FORWARD], rax
+    ret
+
+
+.already_forwarded:
+
+    ; Forwarding slot already contains the
+    ; correctly-tagged pointer.
+    mov     rax, rcx
+.done:
+    ret
+
+.static_string:
+    TAG_STRING_REG rax
+    ret
+
+.static_float:
+    TAG_FLOAT_REG rax
+    ret
 
 
 
-;;; 6. string literals
+;;
+;; Scan copied objects until we've reached gc_free.
+;;
+gc_scan_loop:
+.loop:
+    mov     rsi, [gc_scan]
+    cmp     rsi, [gc_free]
+    jae     .done
+    call    scan_object
+    jmp     .loop
+
+.done:
+    ret
+
+
+;;
+;; Scan an individual object, pointed to by RSI
+;;
+scan_object:
+    mov     rax, [rsi + OBJ_TYPE]
+
+    cmp     rax, TAG_ID_STRING
+    je      .scan_string
+
+    cmp     rax, TAG_ID_FLOAT
+    je      .scan_float
+
+    cmp     rax, TAG_ID_CONS
+    je      .scan_cons
+
+    cmp     rax, TAG_ID_LAMBDA
+    je      .scan_lambda
+
+    ;; Unknown object - this shouldn't happen
+    jmp type_error
+
+
+;; both of these are identical, because no pointers or
+;; child objects are contained within them.
+.scan_string:
+.scan_float:
+    mov     rax, [rsi + OBJ_SIZE]
+    add     rsi, rax
+    mov     [gc_scan], rsi
+    ret
+
+
+;; scan a cons cell - forwarding both contents.
+.scan_cons:
+    mov     rax, [rsi + OBJ_PAYLOAD]    ; forward CAR
+    push rsi
+    call    forward
+    pop rsi
+    mov     [rsi + OBJ_PAYLOAD], rax
+
+    mov     rax, [rsi + OBJ_PAYLOAD + 8]   ; forward CDR
+    push rsi
+    call    forward
+    pop rsi
+    mov     [rsi + OBJ_PAYLOAD + 8], rax
+    mov     rax, [rsi + OBJ_SIZE]
+    add     rsi, rax
+    mov     [gc_scan], rsi
+    ret
+
+;; forward copied values.
+.scan_lambda:
+    mov     rcx, [rsi + OBJ_PAYLOAD + 8]
+    lea     rdx, [rsi + OBJ_PAYLOAD + 16]
+
+.loop:
+    test    rcx, rcx
+    jz      .advance
+
+    mov     rax, [rdx]
+    push    rcx
+    push    rdx
+    push    rsi
+    call    forward
+    pop     rsi
+    pop     rdx
+    pop     rcx
+
+    mov     [rdx], rax
+    add     rdx, 8
+    dec     rcx
+    jmp     .loop
+.advance:
+    mov     rax, [rsi + OBJ_SIZE]
+    add     rsi, rax
+    mov     [gc_scan], rsi
+    ret
+
+
+;;
+;; Minimal garbage collector.
+;;
+;; Copies only objects directly referenced by globals.
+;;
+gc_collect:
+    mov qword [alloc_count], 0      ; reset the count of allocations now GC is running/has run.
+
+    ;; Initialise the destination heap.
+    mov     rax, [to_space]
+    mov     [gc_scan], rax
+    mov     [gc_free], rax
+
+    ;; Walk all globals.
+    mov     rsi, globals_start
+
+.copy_globals:
+    cmp     rsi, globals_end
+    jae     .done_globals
+
+    mov     rax, [rsi]
+    push    rsi          ; forward() trashes rsi (uses it as source ptr in copy loop)
+    call    forward
+    pop     rsi          ; restore current global slot pointer
+
+    mov     [rsi], rax
+    add     rsi, 8
+    jmp     .copy_globals
+
+.done_globals:
+
+    ;; copy stack roots
+    call gc_scan_stack
+
+    ;; treat registers as roots?
+    mov rax, [gc_forward_regs]
+    cmp rax, 0
+    jz .ignore_regs
+
+    ;;
+    ;; we assume only two registers need to be dealt with
+    ;; RDI and RSI
+    ;;
+    ;; These are the first two arguments in the SysV ABI
+    ;; and since we only get auto-invoked in this way via
+    ;; fn_sys_cons (i.e. calls to "cons a b") this is safe
+    ;; and valid
+    ;;
+    mov rax, [gc_saved_rdi]
+    call forward
+    mov [gc_saved_rdi], rax
+
+    mov rax, [gc_saved_rsi]
+    call forward
+    mov [gc_saved_rsi], rax
+
+.ignore_regs:
+    ;; Process copied objects.
+    call gc_scan_loop
+
+.swap_heaps:
+
+    ;; Swap heap bases.
+    mov     rax, [from_space]
+    mov     rbx, [to_space]
+
+    mov     [from_space], rbx
+    mov     [to_space], rax
+
+    ;; Swap heap limits.
+    mov     rax, [from_limit]
+    mov     rbx, [to_limit]
+    mov     [from_limit], rbx
+    mov     [to_limit], rax
+
+    ;; Continue allocating after the copied objects.
+    mov     rax, [gc_free]
+    mov     [alloc_ptr], rax
+    mov     rax, [from_limit]
+    mov     [alloc_limit], rax
+    ret
+
+
+;;
+;; Scan all active Lisp stack frames.
+;;
+;; Registers:
+;;
+;; r12 = current frame rbp
+;; r13 = current slot address
+;; r14 = remaining bytes to scan
+;;
+;; Frame layout:
+;;
+;; rbp+8    return address
+;; rbp      previous rbp
+;;
+;; rbp-8    GC descriptor
+;; rbp-16   local/argument 0
+;; rbp-24   local/argument 1
+;; ...
+;;
+
+gc_scan_stack:
+    ;; Preserve traversal registers
+    push r12
+    push r13
+    push r14
+
+    ;; Start from Lisp frame captured by sys-gc
+    mov r12, [gc_stack_base]
+
+
+.next_frame:
+    test r12, r12
+    jz .done
+
+    ;; Load descriptor
+    mov rax, [r12-8]
+
+    ;; Look for magic marker
+    cmp qword [rax],0x47430001
+    jne .done
+
+    ;; Number of bytes containing Lisp roots
+    mov r14, [rax+8]
+
+    ;; First slot is rbp-16
+    lea r13, [r12-16]
+
+.scan_slots:
+    test r14, r14
+    jz .next_parent
+
+    ;; Load possible Lisp value
+    mov rax, [r13]
+
+    ;; Immediates never move
+    IS_IMMEDIATE rax
+    test r11,r11
+    jnz .slot_done
+
+    ;; Forward heap object
+    push r12
+    push r13
+    push r14
+    push rcx
+    push rdx
+    push rsi
+    call forward
+    pop rsi
+    pop rdx
+    pop rcx
+    pop r14
+    pop r13
+    pop r12
+
+    ;; Store updated pointer
+    mov [r13], rax
+
+.slot_done:
+    sub r13, 8
+    sub r14, 8
+    jmp .scan_slots
+
+.next_parent:
+    ;; Follow saved rbp
+    mov r12, [r12]
+    jmp .next_frame
+
+.done:
+    pop r14
+    pop r13
+    pop r12
+    ret
+
+
+
+
+;;; 7. string literals
+
+section .data
+
+
+string_literals_start:
 
 {{ .StringTable }}
 
+string_literals_end:
 
 
-;;; 7. floating-point literals
+;;; 8. floating-point literals
+
+
+float_literals_start:
 
 {{ .FloatTable }}
 
+float_literals_end:
+
 ;;; 8. global variables
 section .data
+
+align 16
+globals_start:
 {{ range .Globals }}
-align 8
 {{ . }}:
         dq 0x0000
 {{end}}
+globals_end:

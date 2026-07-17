@@ -21,6 +21,14 @@
 ;;
 (defvar next-board nil)
 
+;;
+;; Stop the processing after the given number of generations.
+;;
+;; If the arguments are "nil" then we set this to ten, and that
+;; covers the case where we're launched by inception.
+;;
+(defvar limit 100)
+
 
 ;; Print an escape character
 ;;
@@ -72,7 +80,12 @@
           (set! x (+ x 1)))
         (newline)
         (set! y (+ y 1)))))
-  (println "generation " generation)
+  (println "generation " generation " heap size:" (sys-heap-bytes))
+
+  ;; allow execution to terminate when testing
+  (if (> generation limit)
+      (exit 0))
+
   (print (escape) "[?25h") ; restore cursor
 )
 
@@ -226,7 +239,10 @@
   ;; no arguments? then random display
   ;; otherwise gliders
   (if (nil? args)
-      (seed 1) ; glider
+      (do
+       (set! limit 10)
+       (seed 1) ; glider
+        )
       (if (> (length args) 1)
           (seed 1) ; glider
           (seed nil))) ; random

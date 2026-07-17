@@ -78,7 +78,7 @@ type Compiler struct {
 	source string
 
 	// text stores the text we emit as we compile various things.
-	text strings.Builder
+	text bytes.Buffer
 
 	// labelID is used to give unique labels to if/lambda/etc.
 	labelID int
@@ -485,7 +485,7 @@ func (c *Compiler) Compile() (string, error) {
 	//
 	c.emitln("section .data")
 	for id, str := range c.strings {
-		c.emitln("align 8")
+		c.emitln("align 16")
 		c.emitln(id + ":")
 
 		// escape the "`" which are wrapped around the string.
@@ -503,7 +503,7 @@ func (c *Compiler) Compile() (string, error) {
 	//
 	c.emitln("section .data")
 	for id, str := range c.floats {
-		c.emitln("align 8")
+		c.emitln("align 16")
 		c.emitln(id + ":")
 		c.emitln(fmt.Sprintf("     dq %f", str))
 	}
@@ -682,18 +682,29 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				return fmt.Errorf("%d is more than the maximum number of arguments we support", len(n.Args))
 			}
 
-			for _, a := range n.Args {
+			//
+			// Evaluate each argument and stash them on the frame.
+			//
+			// In the past we pushed to the stack, but that meant that the values
+			// were invisible to our GC process and we'd inevitably die with some
+			// corruption in the future.
+			//
+			argTmp := make([]int, len(n.Args))
+			for i, a := range n.Args {
 				err := c.emitExpr(a, ev)
 				if err != nil {
 					return err
 				}
-				c.emitln("    push rax")
+				argTmp[i] = ev.NewTemp()
+				c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", argTmp[i]))
 			}
 
-			for i := len(n.Args) - 1; i >= 0; i-- {
+			// Load them up.
+			for i := range n.Args {
 				c.emitln(fmt.Sprintf(
-					"    pop %s",
+					"    mov %s, [rbp-%d]",
 					registerArguments[i],
+					argTmp[i],
 				))
 			}
 
@@ -757,20 +768,22 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			return fmt.Errorf("%d is more than the maximum number of arguments we support", len(n.Args))
 		}
 
-		for _, a := range n.Args {
+		//
+		// Here we go again.
+		//
+		// I don't love the duplication we have here.
+		//
+		// Stash args on the frame, not on the stack, so they are visible to GC.
+		//
+		argTmp := make([]int, len(n.Args))
+		for i, a := range n.Args {
 			err := c.emitExpr(a, ev)
 			if err != nil {
 				return err
 			}
 
-			c.emitln("    push rax")
-		}
-
-		for i := len(n.Args) - 1; i >= 0; i-- {
-			c.emitln(fmt.Sprintf(
-				"    pop %s",
-				registerArguments[i],
-			))
+			argTmp[i] = ev.NewTemp()
+			c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", argTmp[i]))
 		}
 
 		// evaluate callable expression
@@ -778,6 +791,21 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		if err != nil {
 			return err
 		}
+
+		// The callable might itself be a heap-allocated (lambda) value,
+		// so it also needs to stay in a tracked slot while we load the
+		// argument registers below.
+		fnTmp := ev.NewTemp()
+		c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", fnTmp))
+
+		for i := range n.Args {
+			c.emitln(fmt.Sprintf(
+				"    mov %s, [rbp-%d]",
+				registerArguments[i],
+				argTmp[i],
+			))
+		}
+		c.emitln(fmt.Sprintf("    mov rax, [rbp-%d]", fnTmp))
 
 		// check if it is a lambda
 		c.emitln("mov rbx,rax")
@@ -905,22 +933,32 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 		// Allocate closure:
 		//   +0  code pointer
-		//   +8  capture #1
-		//   +16 capture #2
+		//   +8   n captures
+		//   +16  capture #1
+		//   +24  capture #2
 		//   ...
-		size := 8 * (1 + len(n.Captures))
+		size := 8 * (12 + len(n.Captures))
 
-		c.emitln("    mov rax, [heap_ptr]")
 		c.emitln(fmt.Sprintf(
-			"    add qword [heap_ptr], %d",
+			"     mov rax, %d",
 			size,
 		))
+		c.emitln("    push rbx")
+		c.emitln("    mov rbx, TAG_ID_LAMBDA")
+		c.emitln("    call alloc")
+		c.emitln("    pop rbx")
+
 		c.emitln("    mov rbx, rax")
 
 		// store code pointer
 		c.emitln(fmt.Sprintf(
 			"    mov qword [rbx], %s",
 			name,
+		))
+		// store N captures
+		c.emitln(fmt.Sprintf(
+			"    mov qword [rbx+8], %d",
+			len(n.Captures),
 		))
 
 		for i, cap := range n.Captures {
@@ -933,7 +971,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			} else if offset, ok := ev.LookupCapture(cap); ok {
 				c.emitln(fmt.Sprintf(
 					"    mov rcx,[r15+%d]",
-					offset,
+					offset+8, // skip over N captures
 				))
 			} else {
 				panic("capture not found: " + cap)
@@ -941,7 +979,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 			c.emitln(fmt.Sprintf(
 				"    mov [rbx+%d], rcx",
-				8*(i+1),
+				8*(i+2),
 			))
 		}
 
@@ -1054,7 +1092,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		if offset, ok := ev.LookupCapture(name); ok {
 			c.emitln(fmt.Sprintf(
 				"    mov [r15+%d], rax",
-				offset,
+				offset+8, // skip over N captures
 			))
 			return nil
 		}
@@ -1082,7 +1120,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		if offset, ok := ev.LookupCapture(n.Name); ok {
 			c.emitln(fmt.Sprintf(
 				"    mov rax, [r15+%d]",
-				offset,
+				offset+8, // skip over N captures
 			))
 			return nil
 		}
@@ -1158,43 +1196,56 @@ func (c *Compiler) emitVariadicCall(name string, expected int, args []parser.Exp
 		fixed = expected - 1
 	}
 
-	// evaluate fixed args
+	//
+	// Evaluate each argument and stash them on the frame.
+	//
+	// In the past we pushed to the stack, but that meant that the values
+	// were invisible to our GC process and we'd inevitably die with some
+	// corruption in the future.
+	//
+	fixedTmp := make([]int, fixed)
 	for i := 0; i < fixed; i++ {
 		if err := c.emitExpr(args[i], ev); err != nil {
 			return err
 		}
-		c.emitln("    push rax")
+		fixedTmp[i] = ev.NewTemp()
+		c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", fixedTmp[i]))
 	}
 
 	//
 	// Build a list for all the additional arguments.
 	//
-
 	c.emitln("    xor rax,rax")
 	c.emitln("    TAG_NIL_REG rax")
 
-	for i := len(args) - 1; i >= fixed; i-- {
+	//
+	// Now build the list for the variadic arguments, once again
+	// these must be stored within the frame via RBP, not the
+	// stack otherwise GC will ignore them - which means after
+	// GC has finished we'll have bogus values.
+	//
+	listTmp := ev.NewTemp()
+	c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", listTmp))
 
-		c.emitln("    push rax")
+	for i := len(args) - 1; i >= fixed; i-- {
 
 		if err := c.emitExpr(args[i], ev); err != nil {
 			return err
 		}
 
 		c.emitln("    mov rdi,rax")
-		c.emitln("    pop rsi")
+		c.emitln(fmt.Sprintf("    mov rsi, [rbp-%d]", listTmp))
 		c.emitln("    call fn_cons")
+		c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", listTmp))
 	}
 
-	// Push resulting list.
-	c.emitln("    push rax")
-
 	//
-	// Pop registers.
+	// Load the register values via the frame pointer we setup above.
 	//
-	for i := fixed; i >= 0; i-- {
-		c.emitln(fmt.Sprintf("    pop %s", registerArguments[i]))
+	for i := 0; i < fixed; i++ {
+		c.emitln(fmt.Sprintf("    mov %s, [rbp-%d]", registerArguments[i], fixedTmp[i]))
 	}
+	c.emitln(fmt.Sprintf("    mov %s, [rbp-%d]", registerArguments[fixed], listTmp))
 
 	c.emitln("    call " + c.asmName(name))
 	return nil
@@ -1252,13 +1303,15 @@ func (c *Compiler) emitCallable(obj any) error {
 	c.emitln(fmt.Sprintf("section .text.%s,\"ax\",@progbits", nm))
 	c.emitln(nm + ":")
 
-	c.emitln("    push rbp")
-	c.emitln("    mov rbp, rsp")
-	c.emitln("    sub rsp, 256 ;; guess at space for locals")
-
 	if len(d.Params) >= 5 {
 		return fmt.Errorf("%d is more than the maximum number of arguments we support", len(d.Params))
 	}
+
+	// Buffer the function body so we can determine the exact stack frame
+	// size (MaxOffset) before emitting the prologue's sub rsp instruction.
+	// This avoids the over-allocation that caused stack overflows in deeply
+	// recursive functions.
+	savedLen := c.text.Len()
 
 	for i, p := range d.Params {
 
@@ -1286,7 +1339,6 @@ func (c *Compiler) emitCallable(obj any) error {
 	//
 	// Now back to the shared/defun-related epilogue.
 	//
-
 	for _, xpr := range d.Exprs {
 		err := c.emitExpr(xpr, ev)
 		if err != nil {
@@ -1295,7 +1347,41 @@ func (c *Compiler) emitCallable(obj any) error {
 
 	}
 
+	// Extract the buffered body, truncate back to before we started,
+	// then emit the prologue with the exact frame size now that we know it.
+	locals := ev.MaxOffset()
+	bodyText := strings.Clone(c.text.String()[savedLen:])
+	c.text.Truncate(savedLen)
+
+	// Frame size = locals (deepest slot offset) rounded up to 16-byte
+	// boundary so the stack stays aligned for nested calls.
+	frameSize := (locals + 15) &^ 15
+
+	c.emitln("    push rbp")
+	c.emitln("    mov rbp, rsp")
+	c.emitln(fmt.Sprintf("    push fn_%s_gc", nm))
+	c.emitln(fmt.Sprintf("    sub rsp, %d", frameSize))
+
+	// Zero-initialize all local slots so the GC always sees valid tagged
+	// values (integer 0) even when sys-gc is called before locals are assigned.
+	for off := 16; off <= locals; off += 8 {
+		c.emitln(fmt.Sprintf("    mov qword [rbp-%d], 0", off))
+	}
+
+	c.text.WriteString(bodyText)
+
 	c.emitln("    leave")
 	c.emitln("    ret")
+
+	localBytes := locals - 8
+	if localBytes < 0 {
+		localBytes = 0
+	}
+	c.emitln("section .data")
+	c.emitln(fmt.Sprintf("fn_%s_gc:", nm))
+	c.emitln("dq 0x47430001     ; GC01")
+	c.emitln(fmt.Sprintf("dq %d", localBytes))
+	c.emitln("section .text")
+
 	return nil
 }

@@ -39,5 +39,6 @@ endif
 
 # Run functional tests
 test:
-	cd examples/ && make test
-	cd test/     && make test
+	cd examples/    && make test
+	cd examples/bf/ && make test
+	cd test/        && make test

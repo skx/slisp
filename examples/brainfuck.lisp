@@ -79,15 +79,14 @@ CHARACTERS and our interpreter doesn't understand character types."
         (jumps (buildJumps program)))  ; jumps
 
 
-
-                                        ; while we've not run off the end of the program
+    ; while we've not run off the end of the program
     (while (< i len)
 
-                                        ; get the instruction
+      ; get the next instruction
       (let ((ins (nth program i)))
 
 
-                                        ; handle it
+        ; handle it
         (cond
 
           ;; +

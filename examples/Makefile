@@ -10,6 +10,7 @@ all: $(PROGRAMS)
 
 clean:
 	@rm -f *.s *.o *.out *.test tmp.asm $(PROGRAMS)
+	@cd bf/ && make clean
 
 test: $(TESTS)
 
