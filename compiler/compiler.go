@@ -682,18 +682,29 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				return fmt.Errorf("%d is more than the maximum number of arguments we support", len(n.Args))
 			}
 
-			for _, a := range n.Args {
+			//
+			// Evaluate each argument and stash them on the frame.
+			//
+			// In the past we pushed to the stack, but that meant that the values
+			// were invisible to our GC process and we'd inevitably die with some
+			// corruption in the future.
+			//
+			argTmp := make([]int, len(n.Args))
+			for i, a := range n.Args {
 				err := c.emitExpr(a, ev)
 				if err != nil {
 					return err
 				}
-				c.emitln("    push rax")
+				argTmp[i] = ev.NewTemp()
+				c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", argTmp[i]))
 			}
 
-			for i := len(n.Args) - 1; i >= 0; i-- {
+			// Load them up.
+			for i := range n.Args {
 				c.emitln(fmt.Sprintf(
-					"    pop %s",
+					"    mov %s, [rbp-%d]",
 					registerArguments[i],
+					argTmp[i],
 				))
 			}
 
@@ -757,20 +768,22 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			return fmt.Errorf("%d is more than the maximum number of arguments we support", len(n.Args))
 		}
 
-		for _, a := range n.Args {
+		//
+		// Here we go again.
+		//
+		// I don't love the duplication we have here.
+		//
+		// Stash args on the frame, not on the stack, so they are visible to GC.
+		//
+		argTmp := make([]int, len(n.Args))
+		for i, a := range n.Args {
 			err := c.emitExpr(a, ev)
 			if err != nil {
 				return err
 			}
 
-			c.emitln("    push rax")
-		}
-
-		for i := len(n.Args) - 1; i >= 0; i-- {
-			c.emitln(fmt.Sprintf(
-				"    pop %s",
-				registerArguments[i],
-			))
+			argTmp[i] = ev.NewTemp()
+			c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", argTmp[i]))
 		}
 
 		// evaluate callable expression
@@ -778,6 +791,21 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		if err != nil {
 			return err
 		}
+
+		// The callable might itself be a heap-allocated (lambda) value,
+		// so it also needs to stay in a tracked slot while we load the
+		// argument registers below.
+		fnTmp := ev.NewTemp()
+		c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", fnTmp))
+
+		for i := range n.Args {
+			c.emitln(fmt.Sprintf(
+				"    mov %s, [rbp-%d]",
+				registerArguments[i],
+				argTmp[i],
+			))
+		}
+		c.emitln(fmt.Sprintf("    mov rax, [rbp-%d]", fnTmp))
 
 		// check if it is a lambda
 		c.emitln("mov rbx,rax")
@@ -1168,43 +1196,56 @@ func (c *Compiler) emitVariadicCall(name string, expected int, args []parser.Exp
 		fixed = expected - 1
 	}
 
-	// evaluate fixed args
+	//
+	// Evaluate each argument and stash them on the frame.
+	//
+	// In the past we pushed to the stack, but that meant that the values
+	// were invisible to our GC process and we'd inevitably die with some
+	// corruption in the future.
+	//
+	fixedTmp := make([]int, fixed)
 	for i := 0; i < fixed; i++ {
 		if err := c.emitExpr(args[i], ev); err != nil {
 			return err
 		}
-		c.emitln("    push rax")
+		fixedTmp[i] = ev.NewTemp()
+		c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", fixedTmp[i]))
 	}
 
 	//
 	// Build a list for all the additional arguments.
 	//
-
 	c.emitln("    xor rax,rax")
 	c.emitln("    TAG_NIL_REG rax")
 
-	for i := len(args) - 1; i >= fixed; i-- {
+	//
+	// Now build the list for the variadic arguments, once again
+	// these must be stored within the frame via RBP, not the
+	// stack otherwise GC will ignore them - which means after
+	// GC has finished we'll have bogus values.
+	//
+	listTmp := ev.NewTemp()
+	c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", listTmp))
 
-		c.emitln("    push rax")
+	for i := len(args) - 1; i >= fixed; i-- {
 
 		if err := c.emitExpr(args[i], ev); err != nil {
 			return err
 		}
 
 		c.emitln("    mov rdi,rax")
-		c.emitln("    pop rsi")
+		c.emitln(fmt.Sprintf("    mov rsi, [rbp-%d]", listTmp))
 		c.emitln("    call fn_cons")
+		c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", listTmp))
 	}
 
-	// Push resulting list.
-	c.emitln("    push rax")
-
 	//
-	// Pop registers.
+	// Load the register values via the frame pointer we setup above.
 	//
-	for i := fixed; i >= 0; i-- {
-		c.emitln(fmt.Sprintf("    pop %s", registerArguments[i]))
+	for i := 0; i < fixed; i++ {
+		c.emitln(fmt.Sprintf("    mov %s, [rbp-%d]", registerArguments[i], fixedTmp[i]))
 	}
+	c.emitln(fmt.Sprintf("    mov %s, [rbp-%d]", registerArguments[fixed], listTmp))
 
 	c.emitln("    call " + c.asmName(name))
 	return nil
