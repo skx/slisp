@@ -251,9 +251,9 @@ The biggest downside to the interpreter is obvious speed and CPU load:
 * `time ./example` -> 0.006s
   * `time ./inception example.lisp --main` -> 2.745s
 * `time ./nqueens`  .> 0.043s
-  * `time ./inception nqueens.lisp --main` -> 2.853s
-* `time ./brainfuck` -> 0.014s
-  * `time ./inception brainfuck.lisp --main` -> 11s.
+  * `time ./inception nqueens.lisp --main` -> 18.241s
+* `time ./brainfuck` -> 0.010s
+  * `time ./inception brainfuck.lisp --main` -> 15.575s
 
 The compiler prepends [stdlib.slisp](stdlib.slisp) to all programs, so you always have `map`, `filter`, etc, available.  By contrast the interpreter has a very small standard library - it exposes `print`, `println`, `cons`, `list`, `nth`, `map`, and a few other carefully selected primitives, along with the special forms `do`, `if`, `let`, `while`, etc.  It understands strings, integers, and floating-point numbers but notably it doesn't have a character-type.
 
@@ -279,6 +279,8 @@ The `(cons ..)` primitive is a lisp-fundamental, so I figure that is going to be
   * If your program regularly calls `cons` this will never be more than 64,000.
 * `(sys-heap-bytes)` - Return the size of the heap.
 * `(sys-heap-dump)` - Dump a summary of the heap to the console.
+  * This is implemented in assembly and literally writes to STDOUT.  There is no control over the formatting.
+  * I wanted to write a function that would return a list of heap entries, but that might trigger a GC process.  Which would invalidate the results mid-traversal, so this is my compromise solution.
 * `(sys-heap-objects)` - Return the number of objects stored upon the heap.
 
 The stop and copy implementation is pretty simple:
