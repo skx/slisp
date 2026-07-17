@@ -1103,13 +1103,15 @@ FUNC fn_sysMINUSheapMINUSallocs
     TAG_INTEGER_REG rax
     ret
 
+;; return the size of the current heap, in bytes.
 FUNC fn_sysMINUSheapMINUSbytes
     mov rax, [alloc_ptr]
     sub rax, [from_space]
     TAG_INTEGER_REG rax
     ret
 
-FUNC fn_sysMINUSheapMINUSobjectMINUScount
+;; Return the number of objects stored upon our heap.
+FUNC fn_sysMINUSheapMINUSobjects
     mov rcx, [from_space]   ; rcx = current object
     mov rdx, [alloc_ptr]    ; rdx = end of allocated objects
     xor rax, rax
@@ -1124,6 +1126,7 @@ FUNC fn_sysMINUSheapMINUSobjectMINUScount
     TAG_INTEGER_REG rax
     ret
 
+;; Force a garbage-collection to happen.
 FUNC fn_sysMINUSgc
      mov [gc_stack_base], rbp    ; save caller's rbp (we have no prologue, so rbp is still theirs)
      mov qword [gc_forward_regs], 0

@@ -132,8 +132,9 @@
     ((= name "seq")      (builtin "seq"))
     ((= name "strlen")   (builtin "strlen"))
     ((= name "substr")   (builtin "substr"))
+    ((= name "sys-heap-allocs")  (builtin "sys-heap-allocs"))
     ((= name "sys-heap-bytes")   (builtin "sys-heap-bytes"))
-    ((= name "sys-heap-allocs")   (builtin "sys-heap-allocs"))
+    ((= name "sys-heap-objects") (builtin "sys-heap-objects"))
     ((= name "sys-gc")   (builtin "sys-gc"))
     ((= name "nil?")     (builtin "nil?"))
     (t nil)))
@@ -647,6 +648,9 @@
 
       ((= name "sys-heap-bytes")
        (sys-heap-bytes))
+
+      ((= name "sys-heap-objects")
+       (sys-heap-objects))
 
       ;; GC happens in this interpreter, not in the programs it runs.
       ((= name "sys-gc") t)

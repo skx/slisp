@@ -278,7 +278,7 @@ The `(cons ..)` primitive is a lisp-fundamental, so I figure that is going to be
 * `(sys-heap-allocs)` -  Return the number of memory allocations made since the last garbage-collection process.
   * If your program regularly calls `cons` this will never be more than 64,000.
 * `(sys-heap-bytes)` - Return the size of the heap.
-* `(sys-heap-object-count)` - Return the number of objects stored upon the heap.
+* `(sys-heap-objects)` - Return the number of objects stored upon the heap.
 
 The stop and copy implementation is pretty simple:
 

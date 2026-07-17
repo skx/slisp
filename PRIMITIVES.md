@@ -168,6 +168,14 @@ added to them too.
      * Everything else returns an empty string.
   * `strlen`
     * Return the length of the given string.
+  * `sys-gc`
+    * Force our garbage collector to run.
+  * `sys-heap-allocs`
+    * Return the number of memory allocations that have been completed since our last GC.
+  * `sys-heap-bytes`
+    * Return the size of the heap, in bytes.
+  * `sys-heap-objects`
+    * Return the number of objects stored within our heap.
   * `sys_run`
     * Helper for command execution.
   * `unlink`
