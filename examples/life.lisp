@@ -252,5 +252,4 @@
     (draw-board board)
     (step-board board next-board)
     (swap-boards)
-    (sys-gc)
     (system "sleep 0.1")))

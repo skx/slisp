@@ -72,7 +72,6 @@
   (set! solution-count (+ solution-count 1))
   (println "Solution " solution-count " " board ":\n")
   (print-board board)
-  (sys-gc)
   (newline)
   (newline))
 

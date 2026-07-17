@@ -652,8 +652,8 @@
       ((= name "sys-heap-objects")
        (sys-heap-objects))
 
-      ;; GC happens in this interpreter, not in the programs it runs.
-      ((= name "sys-gc") t)
+      ((= name "sys-gc")
+       (sys-gc))
 
       ((= name "nil?")
        (nil? (car args)))
