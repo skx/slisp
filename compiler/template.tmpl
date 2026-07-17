@@ -255,6 +255,9 @@ global _start
 section .text
 
 _start:
+    ; setup initial frame
+    mov rbp, rsp
+
     ; Heap A is initially active
     mov rax, heap_a
     mov [from_space], rax
@@ -340,6 +343,8 @@ _start:
     mov rax, SYS_exit
     syscall
 
+    leave                      ; never reached
+    ret
 
 
 ;;; 5. stdlib
