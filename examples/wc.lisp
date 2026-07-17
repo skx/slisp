@@ -54,6 +54,7 @@
           (cons 0 nil)))
 
 (defun file-stats (data)
+  "Get the statistics for a given piece of data."
   (let ((size  (length data))
         (chars (explode data))
         (lines (length (filter chars (lambda (x) (= x #\Newline)))))
@@ -86,9 +87,10 @@
         (discard (fclose handle)))
 
     (if data
+        ;; get the stats
         (let ((stats (file-stats data)))
 
-          ;; update totals
+          ;; update the global totals
           (set! total-lines (+ total-lines (first stats)))
           (set! total-words (+ total-words (second stats)))
           (set! total-bytes (+ total-bytes (third stats)))
@@ -98,6 +100,17 @@
 
           t)
         nil)))
+
+(defun help ()
+  (println "Usage:")
+  (println "\twc [flags] file1 file2 .. fileN\n")
+  (println "Flags:")
+  (println "\t -l, --lines - Show line counts.")
+  (println "\t -c, --bytes - Show byte counts.")
+  (println "\t -m, --chars - Show char counts.")
+  (println "\t -w, --words - Show word counts.")
+
+  (exit 1))
 
 (defun main (args)
   "Produce char/line/word stats for each named file."
@@ -111,10 +124,9 @@
              ((or (= arg "-c") (= arg "--bytes")) (set! show-bytes t))
              ((or (= arg "-m") (= arg "--chars")) (set! show-bytes t))
              ((or (= arg "-w") (= arg "--words")) (set! show-words t))
-             ((= arg "--help") (println "help"))
-             (t                (do
-                                (println "unknown arg '" arg "'")
-                                (exit 1)))))
+             ((or (= arg "--help") (= arg "-?"))  (help))
+             ((or (= arg "-h") (= arg "-?"))      (help))
+             (t                                   (do (println "Unknown argument: " arg "\n") (help)))))
          (parser :flags))
 
     ;; No options?  Behave like wc and show "everything"
