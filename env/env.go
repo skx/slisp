@@ -3,6 +3,8 @@
 // lambdas.
 package env
 
+import "fmt"
+
 // Env holds our state
 type Env struct {
 	// parent, if any
@@ -19,26 +21,43 @@ type Env struct {
 	// variables inside closures.
 	captures map[string]int
 
-	// shared by all child environments in a function
+	// shared by all child environments in a function, used to denote the
+	// number of stack locals for arguments.
 	maxOffset *int
+
+	// shared by all child environments in a function; used to
+	// generate unique names for compiler-generated temporary slots.
+	tempCounter *int
 }
 
 // New creates a new environment, with an optional parent.
 func New(parent *Env) *Env {
 	var maxOffset *int
+	var tempCounter *int
 
 	if parent != nil {
 		maxOffset = parent.maxOffset
+		tempCounter = parent.tempCounter
 	} else {
 		maxOffset = new(int)
+		tempCounter = new(int)
 	}
 
 	return &Env{
-		parent:    parent,
-		slots:     map[string]int{},
-		captures:  map[string]int{},
-		maxOffset: maxOffset,
+		parent:      parent,
+		slots:       map[string]int{},
+		captures:    map[string]int{},
+		maxOffset:   maxOffset,
+		tempCounter: tempCounter,
 	}
+}
+
+// NewTemp reserves a stack slot for a compiler-generated temporary value
+// relative to RBP, exactly like Define.
+func (e *Env) NewTemp() int {
+	name := fmt.Sprintf(" tmp%d", *e.tempCounter)
+	*e.tempCounter++
+	return e.Define(name)
 }
 
 // Define defines a local variable, and returns the offset relative to the RBP register.
@@ -54,6 +73,7 @@ func (e *Env) Define(name string) int {
 	return offset
 }
 
+// MaxOffset returns the maximum offset for a stack-local argument.
 func (e *Env) MaxOffset() int {
 	return *e.maxOffset
 }
