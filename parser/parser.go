@@ -410,7 +410,7 @@ func (p *Parser) parseList() (Expr, error) {
 				Cases: cases,
 			}, nil
 
-		case "do":
+		case "do", "progn":
 
 			var exprs []Expr
 
