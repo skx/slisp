@@ -253,7 +253,7 @@ The biggest downside to the interpreter is obvious speed and CPU load:
 * `time ./nqueens`  .> 0.043s
   * `time ./inception nqueens.lisp --main` -> 2.853s
 * `time ./brainfuck` -> 0.014s
-  * `time ./inception brainfuck.lisp --main` -> 27m27.621s (!!!)
+  * `time ./inception brainfuck.lisp --main` -> 11s.
 
 The compiler prepends [stdlib.slisp](stdlib.slisp) to all programs, so you always have `map`, `filter`, etc, available.  By contrast the interpreter has a very small standard library - it exposes `print`, `println`, `cons`, `list`, `nth`, `map`, and a few other carefully selected primitives, along with the special forms `do`, `if`, `let`, `while`, etc.  It understands strings, integers, and floating-point numbers but notably it doesn't have a character-type.
 
@@ -266,7 +266,7 @@ That said, and as demonstrated above, the interpreter can run many of the same p
 
 ## Garbage Collection
 
-When our project started it used a simple bump-allocator, which simply reserved a block of memory at startup, and for each allocation request would just advance a "memory used" pointer, which started at the beginning of the region.   Each allocation would just move forward more and more.
+When our project started it used a simple bump-allocator.  That just meant reserving a huge contiguous chunk of memory and maintaining a simple count of memory used.  Every request would just advance the "used" pointer by the size requested, and return the previous value.  This was fast and simple, but meant there was no possibility to free memory.
 
 The introduction of the `inception` lisp-interpreter, and to a lesser extent our brainfuck and nqueens programs, really made it apparent that this wasn't tenable.  Large programs would exhaust the available heap with items that were no longer referenced.
 

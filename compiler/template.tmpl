@@ -1187,10 +1187,24 @@ FUNC fn_sys_chr
 ;; Allocate space for a new cons cell, return it in RAX.
 ;;
 ;; 16-bytes; first has the CAR, second the CDR.
+;;
+;; NOTE: This function is a little special, if more than XXX memory
+;; allocations have been made this function will trigger a GC cycle.
+;;
+;; This _should_ be safe as we mark and forward the contents of the
+;; two registers which are used.  However this function is also called
+;; internally by "environment", "explode", and similar code.
+;;
+;; If called by them it is possible there will be some issues and we
+;; need to be careful of that.
+;;
 FUNC fn_sys_cons
 
-    push rsi
-    push rdi
+    push rsi                        ; Preserve these registers so "(explode..)" "(environment .." etc
+    push rdi                        ; are safe when we sometimes call GC
+    push rdx
+    push rcx
+    push rbx
     push rax
 
     mov rax, [alloc_count]
@@ -1204,14 +1218,21 @@ FUNC fn_sys_cons
 
     call gc_collect
 
-    pop rax
+    pop rax                         ; restore registers but ensure we have
+    pop rbx                         ; updated forwarded registers for arg 1&2.
+    pop rcx
+    pop rdx
     pop rdi
     pop rsi
-    mov rdi, [gc_saved_rdi]   ; updated value
-    mov rsi, [gc_saved_rsi]   ; updated value
+    mov rdi, [gc_saved_rdi]         ; updated value
+    mov rsi, [gc_saved_rsi]         ; updated value
     jmp .gc_over
+
 .ignore_gc:
     pop rax
+    pop rbx
+    pop rcx
+    pop rdx
     pop rdi
     pop rsi
 .gc_over:
