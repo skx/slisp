@@ -270,7 +270,7 @@ When our project started it used a simple bump-allocator.  That just meant reser
 
 The introduction of the `inception` lisp-interpreter, and to a lesser extent our brainfuck and nqueens programs, really made it apparent that this wasn't tenable.  Large programs would exhaust the available heap with items that were no longer referenced.
 
-To start with I did the obvious thing and made the allocation region larger, ignoring the problem.  But eventually that too became untenable.  So now I've implemented a stop & copy garbage collector, using Cheney's algorithm.   Every time our `(cons ..)` primitive is called we run the GC process if there have been more than 64,000 allocations since the last GC process ran.
+To start with I did the obvious thing and made the allocation region larger, ignoring the problem.  But eventually that too became untenable.  So now I've implemented a stop & copy garbage collector, using Cheney's algorithm.   Every time our `(cons ..)` primitive is called we run the GC process if there have been more than 64,000 allocations since the previous garbage-collection ran.
 
 The `(cons ..)` primitive is a lisp-fundamental, so I figure that is going to be called pretty often in user-programs, either directly or via the `(list ...)` wrapper.  But if that isn't the case you may also trigger the garbage-collection process explicitly, and see the stats via these methods:
 
@@ -278,6 +278,7 @@ The `(cons ..)` primitive is a lisp-fundamental, so I figure that is going to be
 * `(sys-heap-allocs)` -  Return the number of memory allocations made since the last garbage-collection process.
   * If your program regularly calls `cons` this will never be more than 64,000.
 * `(sys-heap-bytes)` - Return the size of the heap.
+* `(sys-heap-dump)` - Dump a summary of the heap to the console.
 * `(sys-heap-objects)` - Return the number of objects stored upon the heap.
 
 The stop and copy implementation is pretty simple:

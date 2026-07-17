@@ -1110,6 +1110,126 @@ FUNC fn_sysMINUSheapMINUSbytes
     TAG_INTEGER_REG rax
     ret
 
+;; Dump heap contents.
+FUNC fn_sysMINUSheapMINUSdump
+    mov     rcx, [from_space]      ; current object
+    mov     rdx, [alloc_ptr]       ; end of allocated objects
+
+.loop:
+    cmp     rcx, rdx
+    jae     .done
+
+    mov     rax, rcx                      ; get offset
+    sub     rax, [from_space]
+    TAG_INTEGER_REG rax
+
+    push    rcx                           ; print offset
+    push    rdx
+    mov     rdi, rax
+    call    fn_printint
+    pop     rdx
+    pop     rcx
+
+    push rcx
+    push rdx
+    mov     eax, 1                        ; tab
+    mov     edi, 1
+    lea     rsi, [tab_char]
+    mov     edx, 1
+    syscall
+    pop rdx
+    pop rcx
+
+    mov     rax, [rcx + OBJ_SIZE]         ; get size
+    TAG_INTEGER_REG rax
+
+    push    rcx                           ; print size
+    push    rdx
+    mov     rdi, rax
+    call    fn_printint
+    pop     rdx
+    pop     rcx
+
+    push    rcx
+    push    rdx
+    mov     eax, 1                        ; tab
+    mov     edi, 1
+    lea     rsi, [tab_char]
+    mov     edx, 1
+    syscall
+    pop     rdx
+    pop     rcx
+
+    mov     eax, [rcx + OBJ_TYPE]         ; get type
+    movzx   eax, byte [type_table + rax]
+    mov     [type_char], al
+
+    push    rcx
+    push    rdx
+    mov     eax, 1                ; print type
+    mov     edi, 1
+    lea     rsi, [type_char]
+    mov     edx, 1
+    syscall
+    pop rdx
+    pop rcx
+
+
+    push    rcx                      ; tab
+    push    rdx
+    mov     eax, 1
+    mov     edi, 1
+    lea     rsi, [tab_char]
+    mov     edx, 1
+    syscall
+    pop     rdx
+    pop     rcx
+
+    mov     eax, [rcx + OBJ_TYPE]      ; is it a string?
+    cmp     eax, TAG_ID_STRING
+    jne     .not_string
+
+    push    rcx                        ; then print the string
+    push    rdx
+    lea     rdi, [rcx + OBJ_PAYLOAD]
+    TAG_STRING_REG rdi
+    call    fn_printstr
+    pop     rdx
+    pop     rcx
+
+.not_string:
+
+    cmp     eax, TAG_ID_FLOAT          ; is it a float?
+    jne     .not_float
+
+    push    rcx                        ; now print the float
+    push    rdx
+    lea     rdi, [rcx + OBJ_PAYLOAD]
+    TAG_FLOAT_REG rdi
+    call    fn_printfloat
+    pop     rdx
+    pop     rcx
+
+.not_float:                            ; lambda/cons - neither of which are printable
+    push rcx
+    push rdx
+    mov     eax, 1                     ; newline
+    mov     edi, 1
+    lea     rsi, [newline]
+    mov     edx, 1
+    syscall
+    pop rdx
+    pop rcx
+
+    mov     r8, [rcx + OBJ_SIZE]  ; repeat
+    add     rcx, r8
+
+    jmp     .loop
+
+.done:
+    ret
+
+
 ;; Return the number of objects stored upon our heap.
 FUNC fn_sysMINUSheapMINUSobjects
     mov rcx, [from_space]   ; rcx = current object
@@ -1963,7 +2083,7 @@ FUNC fn_sys_random
     push rdi                        ; push the limit
 
     mov rax, SYS_getrandom
-    lea rdi, [ random_buffer]  ; random value location
+    lea rdi, [random_buffer]   ; random value location
     mov rsi, 4                 ; number of bytes
     xor rdx, rdx               ; flags = 0
     syscall
@@ -2592,6 +2712,26 @@ type_error:
 
 section .data
 
+;; used by sys-heap-dump
+type_table:
+    db 'I'        ; TAG_ID_INTEGER
+    db 'S'        ; TAG_ID_STRING
+    db 'C'        ; TAG_ID_CONS
+    db 'L'        ; TAG_ID_LAMBDA
+    db 'c'        ; TAG_ID_CHAR (shouldn't appear)
+    db 'F'        ; TAG_ID_FLOAT
+    db 'x'        ; unused
+    db 'N'        ; TAG_ID_NIL
+
+;; Also used by gc-heap-dump
+tab_char:
+   db 9
+newline:
+   db 10
+type_char:
+   db '?'
+
+
 ;; used by fn_string
 align 16
 empty_str:
@@ -3004,7 +3144,6 @@ scan_object:
 ;; Copies only objects directly referenced by globals.
 ;;
 gc_collect:
-
     mov qword [alloc_count], 0      ; reset the count of allocations now GC is running/has run.
 
     ;; Initialise the destination heap.
