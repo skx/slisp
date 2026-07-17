@@ -11,7 +11,7 @@
   ;; which will thus indirectly invoke "cons" and trigger GC
   (let ((x (nat 5000))
         (y "TEST"))
-    (repeat 5000 (lambda (n) (environment)))
+    (repeat 250000 (lambda (n) (environment)))
     (if (= 0 (strcmp y "TEST"))
         (println "After 1000 GC cycles our string is as expected.")
         (println "PANIC!  ERROR!  Purple Alert!  String changed: '" y "'"))
