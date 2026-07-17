@@ -256,7 +256,10 @@ section .text
 
 _start:
     ; setup initial frame
+    push rbp
     mov rbp, rsp
+    push fn_fn_start_gc
+    sub rsp, 256   ; space in the initial frame
 
     ; Heap A is initially active
     mov rax, heap_a
@@ -346,6 +349,11 @@ _start:
     leave                      ; never reached
     ret
 
+section .data
+fn_fn_start_gc:
+dq 0x47430001     ; GC01
+dq 256
+section .text
 
 ;;; 5. stdlib
 
