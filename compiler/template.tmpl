@@ -255,11 +255,6 @@ global _start
 section .text
 
 _start:
-    ; setup initial frame
-    push rbp
-    mov rbp, rsp
-    push fn_fn_start_gc
-    sub rsp, 256   ; space in the initial frame
 
     ; Heap A is initially active
     mov rax, heap_a
@@ -338,9 +333,10 @@ _start:
     jmp .loop
 
 .done:
-    mov rdi, r12               ; args list is passed as argument
-    {{ .InitGlobals }}         ; setup global variables
-    call fn_main               ; call the users main function.
+    mov rdi, r12               ; args list
+    call fn_init_globals
+    mov rdi, r12               ; args again if main takes it
+    call fn_main
     mov rdi, rax               ; exit code is the last expression
     UNTAG_REG rdi
     mov rax, SYS_exit
@@ -349,10 +345,22 @@ _start:
     leave                      ; never reached
     ret
 
+section .text.fn_init_globals,"ax",@progbits
+
+fn_init_globals:
+    push rbp
+    mov rbp, rsp
+    push fn_fn_init_globals_gc
+    sub rsp, 64
+    {{ .InitGlobals }}
+    leave
+    ret
+
 section .data
-fn_fn_start_gc:
-dq 0x47430001     ; GC01
-dq 256
+fn_fn_init_globals_gc:
+    dq 0x47430001
+    dq 48        ; root bytes
+
 section .text
 
 ;;; 5. stdlib
