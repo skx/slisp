@@ -1,15 +1,36 @@
 ;; wc.lisp - Word Count clone
 ;;
-;; NOTE: "./wc *.lisp" does NOT produce a "total" line, which is an obvious omission.
-
 
 ;; Load our argument-parsing package.
 (require arg-parser)
+
+;; formatting width for the numbers
+(defconst field-width 5)
 
 ;; variables set by CLI parser.
 (defvar show-lines nil)
 (defvar show-words nil)
 (defvar show-bytes nil)
+
+;; global totals, for when he handle multiple files.
+(defvar total-lines 0)
+(defvar total-words 0)
+(defvar total-bytes 0)
+
+;; helpers
+(defun first (xs)
+  (nth xs 0))
+
+(defun second (xs)
+  (nth xs 1))
+
+(defun third (xs)
+  (nth xs 2))
+
+(defun leftpad (str n)
+  (if (< (length str) n)
+      (leftpad (strcat " " str) n)
+      str))
 
 
 (defun whitespace?(ch)
@@ -22,40 +43,61 @@
 (defun words (chars)
   "Use reduce to sum up words, which is basically a matter of matching boundaries."
   (reduce chars
-        (lambda (state ch)
-          (let ((count (car state))
-                (in-word (cdr state)))
-            (if (whitespace? ch)
-                (cons count nil)
-                (if in-word
-                    state
-                    (cons (+ count 1) t)))))
-        (cons 0 nil)))
+          (lambda (state ch)
+            (let ((count (car state))
+                  (in-word (cdr state)))
+              (if (whitespace? ch)
+                  (cons count nil)
+                  (if in-word
+                      state
+                      (cons (+ count 1) t)))))
+          (cons 0 nil)))
 
-(defun show-data (data filename)
-  "Show lines/chars/words from the data alongside the filename"
+(defun file-stats (data)
   (let ((size  (length data))
         (chars (explode data))
-        (lines (filter chars (lambda (x) (= x #\Newline)))))
+        (lines (length (filter chars (lambda (x) (= x #\Newline)))))
+        (wds (car (words chars))))
+    (list lines wds size)))
+
+(defun show-data (stats filename)
+  "Show lines/chars/words from the data alongside the filename"
+  (let ((lines (first stats))
+        (words (second stats))
+        (bytes (third stats)))
+
     (if show-lines
-        (print (length lines) " "))
+        (print (leftpad (string lines) field-width) " "))
 
     (if show-words
-        (print (car (words chars)) " "))
+        (print (leftpad (string words) field-width) " "))
 
     (if show-bytes
-        (print size " "))
+        (print (leftpad (string bytes) field-width) " "))
 
     (println filename)))
 
 
 (defun process (file)
   "If we can open the file, read it and start processing."
-  (let ((handle  (fopen file "r")) ; open
-        (data    (fread handle))   ; read
-        (discard (fclose handle))) ; close
+
+  (let ((handle  (fopen file "r"))
+        (data    (fread handle))
+        (discard (fclose handle)))
+
     (if data
-        (show-data data file))))
+        (let ((stats (file-stats data)))
+
+          ;; update totals
+          (set! total-lines (+ total-lines (first stats)))
+          (set! total-words (+ total-words (second stats)))
+          (set! total-bytes (+ total-bytes (third stats)))
+
+          ;; print this file
+          (show-data stats file)
+
+          t)
+        nil)))
 
 (defun main (args)
   "Produce char/line/word stats for each named file."
@@ -84,5 +126,21 @@
           (set! show-words t)
           (set! show-bytes t)))
 
-    ;; now process files
-    (map (lambda (x) (process x)) files)))
+
+    ; For each file process them in order
+    (map (lambda (file) (process file)) files)
+
+    ; more than one file?  Then show the totals
+    (if (> (length (parser :files)) 1)
+        (do
+
+         (if show-lines
+             (print (leftpad (string total-lines) field-width) " "))
+
+         (if show-words
+             (print (leftpad (string total-words) field-width) " "))
+
+          (if show-bytes
+              (print (leftpad (string total-bytes) field-width) " "))
+
+          (println "total")))))
