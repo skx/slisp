@@ -134,6 +134,7 @@
     ((= name "substr")   (builtin "substr"))
     ((= name "sys-heap-allocs")  (builtin "sys-heap-allocs"))
     ((= name "sys-heap-bytes")   (builtin "sys-heap-bytes"))
+    ((= name "sys-heap-dump")   (builtin "sys-heap-dump"))
     ((= name "sys-heap-objects") (builtin "sys-heap-objects"))
     ((= name "sys-gc")   (builtin "sys-gc"))
     ((= name "nil?")     (builtin "nil?"))
@@ -648,6 +649,9 @@
 
       ((= name "sys-heap-bytes")
        (sys-heap-bytes))
+
+      ((= name "sys-heap-dump")
+       (sys-heap-dump))
 
       ((= name "sys-heap-objects")
        (sys-heap-objects))

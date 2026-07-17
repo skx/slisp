@@ -1193,7 +1193,7 @@ FUNC fn_sysMINUSheapMINUSdump
     push    rdx
     lea     rdi, [rcx + OBJ_PAYLOAD]
     TAG_STRING_REG rdi
-    call    fn_printstr
+;   call    fn_printstr
     pop     rdx
     pop     rcx
 
@@ -1227,6 +1227,7 @@ FUNC fn_sysMINUSheapMINUSdump
     jmp     .loop
 
 .done:
+    TAG_NIL_REG rax
     ret
 
 
