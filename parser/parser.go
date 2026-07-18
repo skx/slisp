@@ -595,6 +595,30 @@ func (p *Parser) parseList() (Expr, error) {
 				Expr: expr,
 			}, nil
 
+		case "unless":
+			cond, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+
+			var exprs []Expr
+
+			for p.peek() != ")" && p.peek() != "" {
+				x, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				exprs = append(exprs, x)
+			}
+
+			if !p.expectNext(")") {
+				return nil, fmt.Errorf("expected ')' after unless-expressions")
+			}
+
+			return &Unless{Cond: cond,
+				Exprs: exprs,
+			}, nil
+
 		case "when":
 			cond, err := p.parseExpr()
 			if err != nil {
@@ -612,7 +636,7 @@ func (p *Parser) parseList() (Expr, error) {
 			}
 
 			if !p.expectNext(")") {
-				return nil, fmt.Errorf("expected ')' after while-expressions")
+				return nil, fmt.Errorf("expected ')' after when-expressions")
 			}
 
 			return &When{Cond: cond,

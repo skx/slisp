@@ -23,6 +23,7 @@
 ;;   OR
 ;;   QUOTE
 ;;   SET!
+;;   UNLESS
 ;;   WHEN
 ;;   WHILE
 ;;
@@ -408,6 +409,8 @@
        (eval-quote expr env))
       ((= op "set!")
        (eval-set expr env))
+      ((= op "unless")
+       (eval-unless expr env))
       ((= op "when")
        (eval-when expr env))
       ((= op "while")
@@ -491,6 +494,13 @@
   (list
    (cadr expr)
    env))
+
+;; special form: unless
+(defun eval-unless (expr env)
+  (let ((r (eval (cadr expr) env)))
+    (if (eval-value r)
+        nil
+        (eval-body (cdr expr) env))))
 
 ;; special form: while
 (defun eval-when (expr env)
@@ -634,19 +644,17 @@
        (reverse (car args)))
 
       ((= name "print")
-       (do
         (while args
           (print (car args))
           (set! args (cdr args)))
-        nil))
+        nil)
 
       ((= name "println")
-       (do
         (while args
           (print (car args))
           (set! args (cdr args)))
         (print "\n")
-        nil))
+        nil)
 
       ((= name "seq")
        (seq (car args)))

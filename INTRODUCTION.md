@@ -94,6 +94,24 @@ If you want to run multiple expressions in either the "true" or "false" branch u
         (print "Multiple expressions can happen here..")
         ))
 
+As noted you can use `do` to execute multiple blocks, but a simpler alternative is to use `when` and `unless`.  These are conditionals which allow running a block of code when a condition is true, or false.  The difference here is that you cannot have both a TRUE and FALSE block at the same time, only one or the other:
+
+    ; When the condition is true, run the expressions.
+    (when (< i 10)
+      (println "This is an expression")
+      (println "This is an expression")
+      (println "This is an expression")
+      )
+
+    ; When the condition is false, run the expressions.
+    (unless nil
+      (println "This is an expression")
+      (println "This is an expression")
+      (println "This is an expression")
+      )
+
+There
+
 
 
 ## Functions

@@ -1140,8 +1140,30 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 		return fmt.Errorf("unknown variable: %s [package '%s']", n.Name, c.inPackage)
 
+	case *parser.Unless:
+		endLbl := c.label("unless")
+
+		err := c.emitExpr(n.Cond, ev)
+		if err != nil {
+			return err
+		}
+
+		c.emitln("    GET_TAG_BITS rax     ; get type bits")
+		c.emitln("    cmp rax, TAG_ID_NIL  ; is this a nil?")
+		c.emitln("    jnz " + endLbl)
+
+		// assemble the body
+		for _, expr := range n.Exprs {
+			err := c.emitExpr(expr, ev)
+			if err != nil {
+				return err
+			}
+		}
+
+		c.emitln(endLbl + ":")
+
 	case *parser.When:
-		endLbl := c.label("endwhen")
+		endLbl := c.label("when")
 
 		err := c.emitExpr(n.Cond, ev)
 		if err != nil {
