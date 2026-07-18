@@ -8,3 +8,6 @@ test/*.test
 test/*.out
 test/*.s
 test/*.o
+examples/bf/*.out
+examples/bf/*.o
+examples/bf/*.asm
