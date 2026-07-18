@@ -27,7 +27,7 @@ We don't have symbols as a specific type, but anything prefixed with a ":" will 
 * We don't have a boolean type, but `nil` (or the empty list) is false.
   * Anything else is true, and we have a `t` symbol for when you want to show that explicitly.
 * Strings are encoded literally, and escaped characters are honored:
-  * `(print "I say \"Hello, world\".\n")` has a trailing newline, as you would expect.
+  * `(print "I say \"Hello, world\".\n")` has embedded quotes and a trailing newline, as you would expect.
 * Character-literals are specified with a `#\` prefix:
   * `(print #\*)`
 * Lists are written using parenthesis to group them:
@@ -62,12 +62,16 @@ Special forms are things that are built into the compiler core, and handled spec
   * Create a new scope, with locally bound variables.
 * `list`
   * Create a list.
-* `package`
-  * Define a new package.  See [INTRODUCTION.md](INTRODUCTION.md) for details.
 * `require`
   * Load a new package, inline.  See [INTRODUCTION.md](INTRODUCTION.md) for details.
 * `set!`
   * Set the value of a variable.
+* `unless`
+  * Run an unlimited number of expressions when the given condition is false
+  * `(unless x (expression1) (expression2) ..)` is the same as `(if x nil (do (expression1) (expression2) ..))`
+* `when`
+  * Run an unlimited number of expressions when the given condition is true.
+  * `(when x (expression1) (expression2) ..)` is the same as `(if x (do (expression1) (expression2) ..))`
 * `while`
   * Run the given body for as long as the specified condition is non-nil.
 
@@ -191,17 +195,17 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
 
 * `abs`
   * Return the absolute value of the given integer.  (e.g. 3 -> 3, and -3 -> 3).
-* `alist-new`
+* `alist:new`
   * Create a new alist.
-* `alist-get`
+* `alist:get`
   * Get an item from an alist.
-* `alist-keys`
+* `alist:keys`
   * Return all known keys from the given alist.
-* `alist-remove`
+* `alist:remove`
   * Remove an item, by key, from an alist.
-* `alist-set`
+* `alist:set`
   * Add the given key/value to an alist.
-* `alist-values`
+* `alist:values`
   * Return all known values from the given alist.
 * `and`
   * Test if every item in a list is true.
@@ -258,17 +262,17 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return true if the number is one.
 * `or`
   * Is any value in the given list non-nil?
-* `plist-new`
+* `plist:new`
   * Create a new property-list
-* `plist-get`
+* `plist:get`
   * Get an item from a property-list.
-* `plist-keys`
+* `plist:keys`
   * Return all known keys from the given plist.
-* `plist-remove`
+* `plist:remove`
   * Remove an item, by key, from a property-list.
-* `plist-set`
+* `plist:set`
   * Set a given key/value in a property-list.
-* `plist-values`
+* `plist:values`
   * Return all known values from the given plist.
 * `pos?`
   * Return true if the number is positive.

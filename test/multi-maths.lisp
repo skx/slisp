@@ -1,4 +1,4 @@
-(require variadic-maths)
+(require maths)
 
 (defun main ()
   ;; +

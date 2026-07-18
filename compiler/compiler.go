@@ -50,7 +50,7 @@ var labelRemapping = map[string]string{
 	"/": "DIVIDE",
 }
 
-// FunctionArgs records the functions that defuns accept.
+// FunctionArgs records the arguments which a given defun accepts.
 //
 // We need this because we need to discover how many arguments
 // each function expects - so we can abort if a function is
@@ -71,7 +71,7 @@ type Compiler struct {
 	// assembly routines
 	aliases map[string]string
 
-	// fs is the internal filesystem from which packages are loaded
+	// fs is the internal filesystem from which packages are loaded.
 	fs embed.FS
 
 	// source stores the program we're parsing.
@@ -83,7 +83,7 @@ type Compiler struct {
 	// labelID is used to give unique labels to if/lambda/etc.
 	labelID int
 
-	// loaded contains packages we've already loaded
+	// loaded contains packages we've already loaded.
 	loaded map[string]bool
 
 	// strings holds the strings we've encountered, indexed
@@ -103,9 +103,6 @@ type Compiler struct {
 
 	// globals stores details of top-level global variables
 	globals map[string]parser.Global
-
-	// inPackage stores the name of the package we're currently inside, if any
-	inPackage string
 }
 
 // New is our constructor
@@ -227,38 +224,19 @@ func (c *Compiler) expandRequires(defs []parser.TopLevel) ([]parser.TopLevel, er
 }
 
 // walkTopLevel is a utility function which makes it possible to iterate over
-// top-level objects - included those nested inside Package definitions.
+// top-level objects.
 //
 // We walk over the top-level functions a lot, to generate symbols, compile
 // defuns & etc, so this abstraction helps a lot.
 func (c *Compiler) walkTopLevel(
 	defs []parser.TopLevel,
-	fn func(pkg string, tl parser.TopLevel) error,
+	fn func(tl parser.TopLevel) error,
 ) error {
-
-	old := c.inPackage
-	defer func() {
-		c.inPackage = old
-	}()
 
 	for _, tl := range defs {
 
-		switch n := tl.(type) {
-
-		case parser.Package:
-			prev := c.inPackage
-			c.inPackage = n.Name
-			for _, inner := range n.Contents {
-				if err := fn(n.Name, inner); err != nil {
-					return err
-				}
-			}
-			c.inPackage = prev
-
-		default:
-			if err := fn("", tl); err != nil {
-				return err
-			}
+		if err := fn(tl); err != nil {
+			return err
 		}
 	}
 
@@ -293,25 +271,18 @@ func (c *Compiler) Compile() (string, error) {
 	// of arguments they request, and whether the last argument should
 	// be treated as variadic.
 	//
-	err = c.walkTopLevel(defs, func(pkg string, tl parser.TopLevel) error {
+	err = c.walkTopLevel(defs, func(tl parser.TopLevel) error {
 
 		switch n := tl.(type) {
 
 		case parser.Global:
 
 			name := n.Name
-			if pkg != "" {
-				name = pkg + ":" + name
-			}
-
 			c.globals[name] = n
 
 		case parser.Defun:
 
 			name := n.Name
-			if pkg != "" {
-				name = pkg + ":" + name
-			}
 
 			c.functions[name] = &FunctionArgs{
 				Arguments: len(n.Params),
@@ -333,7 +304,7 @@ func (c *Compiler) Compile() (string, error) {
 	// This has to happen after functons have been recorded, and parameters
 	// recorded.
 	//
-	err = c.walkTopLevel(defs, func(pkg string, tl parser.TopLevel) error {
+	err = c.walkTopLevel(defs, func(tl parser.TopLevel) error {
 
 		switch n := tl.(type) {
 
@@ -384,7 +355,7 @@ func (c *Compiler) Compile() (string, error) {
 	//
 	// Walk over all top-level expressions, and handle the setup of global variables.
 	//
-	err = c.walkTopLevel(defs, func(pkg string, tl parser.TopLevel) error {
+	err = c.walkTopLevel(defs, func(tl parser.TopLevel) error {
 		g, ok := tl.(parser.Global)
 		if !ok {
 			return nil
@@ -395,9 +366,6 @@ func (c *Compiler) Compile() (string, error) {
 		}
 
 		name := g.Name
-		if pkg != "" {
-			name = pkg + ":" + name
-		}
 
 		x := c.globals[name]
 		x.Init = true
@@ -432,14 +400,14 @@ func (c *Compiler) Compile() (string, error) {
 	// Generate the assembly for each known user-defined
 	// function to our internal buffer.
 	//
-	err = c.walkTopLevel(defs, func(pkg string, tl parser.TopLevel) error {
+	err = c.walkTopLevel(defs, func(tl parser.TopLevel) error {
 
 		d, ok := tl.(parser.Defun)
 		if !ok {
 			return nil
 		}
 
-		if d.Name == "main" && pkg == "" {
+		if d.Name == "main" {
 			main = true
 		}
 
@@ -650,19 +618,6 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			// is this variadic?
 			name := symbol.Name
 			v, ok := c.functions[name]
-
-			// Failed to lookup - look for the package-local function
-			if !ok {
-				nm := c.inPackage + ":" + symbol.Name
-				vv, ok2 := c.functions[nm]
-
-				// Okay that worked.  Rename
-				if ok2 {
-					v = vv
-					ok = ok2
-					name = nm
-				}
-			}
 
 			if ok && v.Variadic {
 
@@ -1035,25 +990,6 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		c.emitln("    xor rax, rax     ; NIL")
 		c.emitln("    TAG_NIL_REG rax  ; Tagged")
 
-	case parser.Package:
-		if c.inPackage != "" {
-			return fmt.Errorf("nested packages are illegal, in package %s new package %s", c.inPackage, n.Name)
-		}
-
-		// store the package
-		c.inPackage = n.Name
-
-		// emit all the expressions
-		for _, expr := range n.Contents {
-			err := c.emitExpr(expr, ev)
-			if err != nil {
-				return err
-			}
-		}
-
-		// clear the package
-		c.inPackage = ""
-
 	case *parser.String:
 		// create a label, based on the hash of the content.
 		// This has the side-effect of interning.
@@ -1070,11 +1006,6 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 	case *parser.Set:
 		name := n.Name
-
-		// If we're in a package the name changes
-		if c.inPackage != "" {
-			name = c.inPackage + ":" + n.Name
-		}
 
 		err := c.emitExpr(n.Expr, ev)
 		if err != nil {
@@ -1105,7 +1036,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			c.emitln(fmt.Sprintf("    mov [%s], rax  ; %s", c.addThing("global", name), global.Name))
 			return nil
 		}
-		return fmt.Errorf("unknown variable: %s [package '%s']", n.Name, c.inPackage)
+		return fmt.Errorf("unknown variable: %s", n.Name)
 
 	case *parser.Symbol:
 
@@ -1130,15 +1061,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			return nil
 		}
 
-		if c.inPackage != "" {
-			nm := c.inPackage + ":" + n.Name
-			if _, ok := c.globals[nm]; ok {
-				c.emitln(fmt.Sprintf("    mov rax, [%s]  ; package %s %s", c.addThing("global", nm), c.inPackage, n.Name))
-				return nil
-			}
-		}
-
-		return fmt.Errorf("unknown variable: %s [package '%s']", n.Name, c.inPackage)
+		return fmt.Errorf("unknown variable: %s", n.Name)
 
 	case *parser.Unless:
 		endLbl := c.label("unless")
@@ -1324,11 +1247,7 @@ func (c *Compiler) emitCallable(obj any) error {
 		return fmt.Errorf("invalid type %T", obj)
 	}
 
-	// Name might need to be package-qualified
 	name := d.Name
-	if c.inPackage != "" {
-		name = c.inPackage + ":" + d.Name
-	}
 
 	//
 	// Code that is common, and Defun-related

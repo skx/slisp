@@ -17,7 +17,7 @@
 * We don't have a boolean type, but `nil` (or the empty list) is false.
   * Anything else is true, and we have a `t` symbol for when you want to show that explicitly.
 * Strings are encoded literally, and escaped characters are honored:
-  * `(print "I say \"Hello, world\".\n")` has a trailing newline, as you would expect.
+  * `(print "I say \"Hello, world\".\n")` has embedded quotes and a trailing newline, as you would expect.
 * Character-literals are specified with a `#\` prefix:
   * `(print #\*)`
 * Lists are written using parenthesis to group them:
@@ -109,8 +109,6 @@ As noted you can use `do` to execute multiple blocks, but a simpler alternative 
       (println "This is an expression")
       (println "This is an expression")
       )
-
-There
 
 
 
@@ -211,13 +209,13 @@ Imagine you wanted to store details about a person you might use something like 
 
 Here's how you might use the functions:
 
-    (let ((a (alist-new)))
-       (set! a (alist-set :name   "Steve"))
-       (set! a (alist-set :enmail "steve@example.com"))
-       (set! a (alist-set :hair   "Red"))
+    (let ((a (alist:new)))
+       (set! a (alist:set :name   "Steve"))
+       (set! a (alist:set :enmail "steve@example.com"))
+       (set! a (alist:set :hair   "Red"))
 
        ;; Do stuff
-       (println "Person name " (alist-get a :name)))
+       (println "Person name " (alist:get a :name)))
 
 See [test/alist.lisp](test/alist.lisp) for an example of use.
 
@@ -234,16 +232,33 @@ Compared to an alist the list is flat, so an example might look like this:
 
 Here's how you might use the functions:
 
-    (let ((p (plist-new)))
-       (set! p (plist-set :name   "Steve"))
-       (set! p (plist-set :enmail "steve@example.com"))
-       (set! p (plist-set :hair   "Red"))
+    (let ((p (plist:new)))
+       (set! p (plist:set :name   "Steve"))
+       (set! p (plist:set :enmail "steve@example.com"))
+       (set! p (plist:set :hair   "Red"))
 
        ;; Do stuff
 
-       (println "Person name " (plist-get p :name)))
+       (println "Person name " (plist:get p :name)))
 
 See [test/plist.lisp](test/plist.lisp) for an example of use.
+
+
+
+## Embedded Packages
+
+You'll note that plist and alist functionality we documented above is implemented in a pair of files within our [packages/](packages/) directory:
+
+* [packages/alist.lisp](package/alist.lisp)
+* [packages/plist.lisp](package/plist.lisp)
+
+By convention every package will prefix its functions, and variables, with the package name.  This is why we have `alist:new` and `plist:new`.  This is partly to avoid naming collisions, and partly to make it explicit these are things that were included externally.
+
+Usually you'd need to run `(require alist)` to load such an external package, however these two libraries are included by default via our standard library.
+
+You **do** need to `(require arg-parser)` if you wish to use that as that package is **not** loaded by default.  Similarly you must `(require maths)` if you wish to load our enhanced mathematical primitives which allow arbitrary argument counts (e.g. To permit `(+ 1 2 3 4)` instead of the two arguments our default `+` routine permits).
+
+Over time the packages we bundle might change, but you can of course create your own packages.
 
 
 
@@ -262,7 +277,7 @@ You can see this demonstrated in the [brainfuck.lisp](brainfuck.lisp) program.
 
 ## File inclusion
 
-We have the ability to include other files, literally, via `(require name)`, by default this will look for `name.lisp` within the current directory.
+We have the ability to include other files, literally, via `(require name)`, by default this will look for `name.lisp` contained within our compiler itself, otherwise from within the  current directory.
 
 You can specify a list of directories to search with the `LISP_PATH` environmental variable.  For example:
 
@@ -270,57 +285,11 @@ You can specify a list of directories to search with the `LISP_PATH` environment
 
 Then `(require foo)` will attempt to load, in order:
 
+* The embedded file-system created when the compiler is built.
+  * This will contain `packages/*.lisp`.
 * `./foo.lisp`
 * `/usr/share/slisp/foo.lisp`
 * `./lib/foo.lisp`
-
-We also embed some packages from the contents of the [packages/](package/) directory.
-
-
-
-## Packages
-
-We also have rudimentary support for packages, which allows pieces of code to be reused across projects - when combined with file inclusion.
-
-[examples/packages.lisp](examples/packages.lisp) contains a good example of how these work, but essentially packages scope defuns/defvar/defconst with an implicit prefix based on the package name, however their contents may also refer to their siblings without the need for explicit qualification.  Here's a brief example:
-
-     ; declare a package named foo
-     (package foo
-
-        ; inside a package we can have any top-level forms
-
-        (defun foo()
-           (println "package:foo function:foo"))
-
-        (defun bar()
-           (println "package:foo function:bar"))
-
-        ; calling package-local things doesn't need anything special
-        (defun test()
-            (foo)
-            (bar))
-
-      ) ;; end of package
-
-      ;; outside the package we can call functions within it by qualifying them.
-      (foo:foo)
-      (foo:bar)
-
-You don't need to wrap the contents of included files within packages, but you might choose to do so for isolation and clarity.
-
-Our core mathematical primitives (`+`, `-`, `*`, and `/`) work on only two arguments, for example `(+ 3 4)` (trying to call `(+ 3 4 5)` will give an error because the argument count is wrong.  There is an included package to convert mathematical primitives into into variadic functions, this package can be found in [packages/variadic-maths.lisp](packages/variadic-maths.lisp).
-
-Here's how it might be used:
-
-```lisp
-;; Allow maths operations to work with an arbitrary number of operands.
-(require variadic-maths)
-
-;; Show it works.
-(println (+ 3 4 5 6 7))
-```
-
-We have a simple argument-parser located in [packages/arg-parser.lisp](packages/arg-parser.lisp) which you can see demonstrated in the [examples/wc.lisp](examples/wc.lisp) sample program.
 
 
 
