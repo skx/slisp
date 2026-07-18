@@ -89,6 +89,7 @@ It should be noted that we prepend a standard library of functions to all user p
   * `(require ..)` - `*` - Include other source files.
   * `(package ..)` - `*` - Declare a package-scope.
   * `(set! ..)`
+  * `(unless ..)`
   * `(when ..)`
   * `(while ..)`
 
