@@ -164,6 +164,11 @@ type Set struct {
 	Expr Expr
 }
 
+type Unless struct {
+	Cond  Expr
+	Exprs []Expr
+}
+
 type When struct {
 	Cond  Expr
 	Exprs []Expr
