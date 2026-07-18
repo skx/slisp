@@ -89,6 +89,7 @@ It should be noted that we prepend a standard library of functions to all user p
   * `(require ..)` - `*` - Include other source files.
   * `(package ..)` - `*` - Declare a package-scope.
   * `(set! ..)`
+  * `(when ..)`
   * `(while ..)`
 
 You can see a complete list of our primitives, and their details in [PRIMITIVES.md](PRIMITIVES.md) - documenting both the built-in special-forms, and the parts of the standard library which are implemented in assembly, or `slisp` itself.
