@@ -23,6 +23,7 @@
 ;;   OR
 ;;   QUOTE
 ;;   SET!
+;;   WHEN
 ;;   WHILE
 ;;
 ;; We have a couple of builtin-functions we handle specially, but most are deferred to the
@@ -407,6 +408,8 @@
        (eval-quote expr env))
       ((= op "set!")
        (eval-set expr env))
+      ((= op "when")
+       (eval-when expr env))
       ((= op "while")
        (eval-while expr env))
       (t
@@ -488,6 +491,12 @@
   (list
    (cadr expr)
    env))
+
+;; special form: while
+(defun eval-when (expr env)
+  (let ((r (eval (cadr expr) env)))
+    (if (eval-value r)
+        (eval-body (cdr expr) env))))
 
 ;; special form: while
 (defun eval-while (expr env)
