@@ -133,6 +133,7 @@
     ((= name "repeated") (builtin "repeated"))
     ((= name "reverse")  (builtin "reverse"))
     ((= name "seq")      (builtin "seq"))
+    ((= name "strcmp")   (builtin "strcmp"))
     ((= name "strlen")   (builtin "strlen"))
     ((= name "substr")   (builtin "substr"))
     ((= name "sys-heap-allocs")  (builtin "sys-heap-allocs"))
@@ -659,6 +660,9 @@
       ((= name "seq")
        (seq (car args)))
 
+      ((= name "strcmp")
+       (strcmp (car args) (cadr args)))
+
       ((= name "strlen")
        (strlen (car args)))
 
@@ -691,19 +695,21 @@
         (body   (caddr closure))
         (env    (cadddr closure)))
 
-    ;; extend the captured environment
+    ;; Extend the captured environment with arguments.
     (while params
       (set! env
-            (env-set
-             env
-             (car params)
-             (car args)))
-
+            (env-set env
+                     (car params)
+                     (car args)))
       (set! params (cdr params))
       (set! args   (cdr args)))
 
-    ;; Now execute all the statements in the body
-    (car (eval-body body env))))
+    (let ((result (eval-body body env)))
+
+      ;; Save the updated environment back into the closure.
+      (nth! closure 3 (eval-env result))
+
+      (eval-value result))))
 
 
 ;;
