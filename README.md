@@ -86,7 +86,6 @@ It should be noted that we prepend a standard library of functions to all user p
   * `(let ..)`
   * `(list ..)`
   * `(require ..)` - `*` - Include other source files.
-  * `(package ..)` - `*` - Declare a package-scope.
   * `(set! ..)`
   * `(unless ..)`
   * `(when ..)`
@@ -113,11 +112,11 @@ Build the compiler:
 
 Then use it to compile and link a program:
 
-    ./slisp -compile example.lisp
+    ./slisp -compile example/example.lisp
 
-That will create "example.asm", and "example.o", before creating "example".  If you prefer to run the commands manually you can do it this way:
+That will generate "example.asm", compile it to "example.o", and then invoke the linker to generate the executable "example".  If you prefer to run the commands manually you may do it this way:
 
-    ./slisp example.lisp  > example.s
+    ./slisp example/example.lisp  > example.s
     nasm -f elf64 example.s
     ld -o example example.o
 
@@ -168,10 +167,10 @@ Build the compiler, and build the interpreter:
 ```
 go build .
 cd examples/
-make
+make inception
 ```
 
-Now you should find, amongst other binaries, you have the executable `inception` which is an interpreter.  Fire it up:
+Now you should have the executable `inception` present, which is the lisp-interpreter.  Fire it up:
 
 ```
 $ ./inception --repl
@@ -184,7 +183,7 @@ Enter :quit to exit.
 (closure (x) (((symbol *) (symbol x) (symbol x))) <nil>)
 > (square 3)
 9
-> (square (square (square 3) ) )
+> (square (square (square 3)))
 6561
 > :quit
 ```
@@ -225,7 +224,7 @@ Enter :quit to exit.
 40
 ```
 
-Perhaps more interesting is that we can execute the [examples/nqueens.lisp](examples/nqueens.lisp) example, with no changes:
+Perhaps more impressive is that we can execute the [examples/nqueens.lisp](examples/nqueens.lisp) example, with no changes:
 
 ```
 $ ./inception nqueens.lisp  --main
@@ -244,9 +243,9 @@ Solution 1 (1 5 8 6 3 7 2 4):
 
 > Here you'll see we added `--main` which automatically runs the `(main)` function our examples define.
 
-So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can print.  But the biggest difference is that the compiler has a significantly larger standard-library.
+So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can also print.  But the biggest difference is that the compiler has a significantly larger standard-library.
 
-The biggest downside to the interpreter is obvious speed and CPU load:
+That said the interpreter is obviously and more CPU-intensive:
 
 * `time ./example` -> 0.006s
   * `time ./inception example.lisp --main` -> 2.745s
@@ -274,7 +273,7 @@ To start with I did the obvious thing and made the allocation region larger, ign
 
 The `(cons ..)` primitive is a lisp-fundamental, so I figure that is going to be called pretty often in user-programs, either directly or via the `(list ...)` wrapper.  But if that isn't the case you may also trigger the garbage-collection process explicitly, and see the stats via these methods:
 
-* `(sys-gc)` run the garbage collection process immediately..
+* `(sys-gc)` run the garbage collection process immediately.
 * `(sys-heap-allocs)` -  Return the number of memory allocations made since the last garbage-collection process.
   * If your program regularly calls `cons` this will never be more than 64,000.
 * `(sys-heap-bytes)` - Return the size of the heap.
