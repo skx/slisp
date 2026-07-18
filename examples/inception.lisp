@@ -644,19 +644,17 @@
        (reverse (car args)))
 
       ((= name "print")
-       (do
         (while args
           (print (car args))
           (set! args (cdr args)))
-        nil))
+        nil)
 
       ((= name "println")
-       (do
         (while args
           (print (car args))
           (set! args (cdr args)))
         (print "\n")
-        nil))
+        nil)
 
       ((= name "seq")
        (seq (car args)))

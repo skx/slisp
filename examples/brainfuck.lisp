@@ -90,26 +90,26 @@ CHARACTERS and our interpreter doesn't understand character types."
         (cond
 
           ;; +
-          ((= ins "+") (do
+          ((= ins "+")
                         (let ((v (nth cells ptr)))
                           (nth! cells ptr (% (+ v 1) 256)))
-                        (set! i (+ i 1))))
+                        (set! i (+ i 1)))
 
           ;; -
-          ((= ins "-") (do
+          ((= ins "-")
                         (let ((v (nth cells ptr)))
                           (nth! cells ptr (% (- v 1) 256)))
-                        (set! i (+ i 1))))
+                        (set! i (+ i 1)))
 
           ;; >
-          ((= ins ">") (do
+          ((= ins ">")
                         (set! ptr (+ ptr 1))
-                        (set! i (+ i 1))))
+                        (set! i (+ i 1)))
 
           ;; <
-          ((= ins "<") (do
+          ((= ins "<")
                         (set! ptr (- ptr 1))
-                        (set! i (+ i 1))))
+                        (set! i (+ i 1)))
 
           ;; [
           ((= ins "[")
@@ -124,14 +124,14 @@ CHARACTERS and our interpreter doesn't understand character types."
                (set! i (+ (nth jumps i) 1))))
 
           ;; ,
-          ((= ins ".") (do
+          ((= ins ".")
                         (print (chr (nth cells ptr)))
-                        (set! i (+ i 1))))
+                        (set! i (+ i 1)))
 
           ;; ,
-          ((= ins ",") (do
+          ((= ins ",")
                         (nth! cells ptr (getc))
-                        (set! i (+ i 1))))
+                        (set! i (+ i 1)))
 
           ;; skip over unknown instructions
           (t (set! i (+ i 1))))))))
