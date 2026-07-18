@@ -278,52 +278,6 @@ We also embed some packages from the contents of the [packages/](package/) direc
 
 
 
-## Packages
-
-We also have rudimentary support for packages, which allows pieces of code to be reused across projects - when combined with file inclusion.
-
-[examples/packages.lisp](examples/packages.lisp) contains a good example of how these work, but essentially packages scope defuns/defvar/defconst with an implicit prefix based on the package name, however their contents may also refer to their siblings without the need for explicit qualification.  Here's a brief example:
-
-     ; declare a package named foo
-     (package foo
-
-        ; inside a package we can have any top-level forms
-
-        (defun foo()
-           (println "package:foo function:foo"))
-
-        (defun bar()
-           (println "package:foo function:bar"))
-
-        ; calling package-local things doesn't need anything special
-        (defun test()
-            (foo)
-            (bar))
-
-      ) ;; end of package
-
-      ;; outside the package we can call functions within it by qualifying them.
-      (foo:foo)
-      (foo:bar)
-
-You don't need to wrap the contents of included files within packages, but you might choose to do so for isolation and clarity.
-
-Our core mathematical primitives (`+`, `-`, `*`, and `/`) work on only two arguments, for example `(+ 3 4)` (trying to call `(+ 3 4 5)` will give an error because the argument count is wrong.  There is an included package to convert mathematical primitives into into variadic functions, this package can be found in [packages/variadic-maths.lisp](packages/variadic-maths.lisp).
-
-Here's how it might be used:
-
-```lisp
-;; Allow maths operations to work with an arbitrary number of operands.
-(require variadic-maths)
-
-;; Show it works.
-(println (+ 3 4 5 6 7))
-```
-
-We have a simple argument-parser located in [packages/arg-parser.lisp](packages/arg-parser.lisp) which you can see demonstrated in the [examples/wc.lisp](examples/wc.lisp) sample program.
-
-
-
 ## See Also
 
 * [README.md](README.md)

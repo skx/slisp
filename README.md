@@ -39,7 +39,6 @@ You can find bigger examples beneath [examples/](examples/), and our [test/](tes
   * [examples/brainfuck.lisp](examples/brainfuck.lisp) contains a useful/working brainfuck interpreter.
   * [examples/example.lisp](examples/example.lisp) has other misc. snippets.
   * [examples/life.lisp](examples/life.lisp) - Game of Life.
-  * [examples/packages.lisp](examples/packages.lisp) demonstrates how our packaging system works - more details in [INTRODUCTION.md](INTRODUCTION.md).
   * [examples/globals.lisp](examples/globals.lisp) - Explicit demonstration of scopes, showing that local variables always take precedence over global ones.
   * [examples/nqueens.lisp](examples/nqueens.lisp) is a solver for the N Queens problem, defaults to solving the 8x8 grid but you may specify different sizes via a CLI argument.
   * [examples/wc.lisp](examples/wc.lisp) is a clone of the standard `wc` utility, which demonstrates our included argument-parser [packages/](package/).
@@ -103,7 +102,6 @@ Anti-features:
   * Only really useful if you can call `eval` and as a compiler?  That's not going to happen easily.
 * We don't have "symbols" exposed to the language, but if you prefix a variable with "`:`" it will become visually distinct, and this is useful when working with alists, or plists.
   * Internally that is actually translated to a stringified version of the variable name (So `(print :name)` becomes `(print "name")` - that might seem weird but it works for alist/plist usage, etc.)
-* Packages are bespoke, and not like lisp/common-lisp/scheme.
 
 
 
