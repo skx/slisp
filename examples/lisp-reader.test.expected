@@ -1,0 +1,2 @@
+args.lisp:
+(((symbol require) (symbol arg-parser)) ((symbol defun) (symbol main) ((symbol args)) ((symbol let) (((symbol parser) ((symbol arg-parser:new) ((symbol cdr) (symbol args))))) ((symbol println) Flags  ((symbol parser) (symbol :flags))) ((symbol println) Files  ((symbol parser) (symbol :files))))))

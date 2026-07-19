@@ -172,6 +172,8 @@ added to them too.
      * Everything else returns an empty string.
   * `strlen`
     * Return the length of the given string.
+  * `substr`
+    * Return a substring from a given string.
   * `sys-gc`
     * Force our garbage collector to run.
   * `sys-heap-allocs`
@@ -298,8 +300,6 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return the first non-nil result of calling the given function against each item of the specified list.
 * `strstr`
   * Find a string within another.
-* `substr`
-  * Return a substring from a given string.
 * `sum`
   * Sum the values in the given list.
 * `system`

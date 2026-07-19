@@ -397,6 +397,20 @@ func (c *Compiler) Compile() (string, error) {
 	main := false
 
 	//
+	// We want to allow later functions to override earlier
+	// ones.
+	//
+	// So we iterate over our functions and save them in
+	// a hash - before processing that.
+	//
+	// This way:
+	//   (defun foo () (print "OK"))
+	//   (defun foo () (print "Hello, World"))
+	//
+	// Will mean "(foo) -> Hello, World"
+	tmp := make(map[string]parser.Defun)
+
+	//
 	// Generate the assembly for each known user-defined
 	// function to our internal buffer.
 	//
@@ -406,21 +420,26 @@ func (c *Compiler) Compile() (string, error) {
 		if !ok {
 			return nil
 		}
-
-		if d.Name == "main" {
-			main = true
-		}
-
-		err = c.emitCallable(d)
-		if err != nil {
-			return err
-		}
-		c.emitln("")
-
+		tmp[d.Name] = d
 		return nil
 	})
 	if err != nil {
 		return "", err
+	}
+
+	//
+	// Now emit them for real
+	//
+	for name, ent := range tmp {
+		if name == "main" {
+			main = true
+		}
+
+		err = c.emitCallable(ent)
+		if err != nil {
+			return "", err
+		}
+		c.emitln("")
 	}
 	if !main {
 		return "", fmt.Errorf("there is no entry-point defined; we need a defun named 'main'")
