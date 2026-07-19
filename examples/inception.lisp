@@ -257,7 +257,6 @@
   (register-builtin "lambda?" (lambda (args) (lambda? (car args))))
   (register-builtin "length" (lambda (args) (length (car args))))
   (register-builtin "list" (lambda (args) args))
-  (register-builtin "map" (lambda (args)  (builtin-map (car args) (cadr args))))
   (register-builtin "mkdir" (lambda (args) (mkdir (car args))))
   (register-builtin "nat" (lambda (args) (nat (car args))))
   (register-builtin "newline" (lambda (args) (newline)))
@@ -613,14 +612,6 @@
     (t nil)))
 
 
-(defun builtin-map (fn lst)
-  (if (nil? lst)
-      nil
-      (cons
-       (apply fn (list (car lst)))
-       (builtin-map fn (cdr lst)))))
-
-
 (defun apply-closure (closure args)
   (let ((params (cadr closure))
         (body   (caddr closure))
@@ -663,7 +654,10 @@
     (eval-program forms)))
 
 
+
+;;
 ;; REPL code
+;;
 (defun repl ()
   (println "Welcome to lisp in slisp!")
   (println "Enter :quit to exit.")
@@ -687,6 +681,19 @@
 
 
 ;;
+;; Load File code
+;;
+(defun execute-file(name)
+  (println "Loading .. " name)
+  (let ((handle (fopen name "r"))  ; open
+        (data   (fread handle))    ; read
+        (res    (fclose handle)))  ; close
+    (if data
+        (run-program data)
+        (println "Failed to read file"))))
+
+
+;;
 ;; Entry point.
 ;;
 (defun main (args)
@@ -702,13 +709,7 @@
   (map (lambda (name)
          (if (and (!= name "--repl")
                   (!= name "--main"))
-             (do
-              (println "Loading .. " name)
-              (let ((handle (fopen name "r"))  ; open
-                    (data   (fread handle))    ; read
-                    (res    (fclose handle)))  ; close
-                (if data
-                    (run-program data))))))
+             (execute-file name)))
        (cdr args))
 
   ;; Should we auto-run (defun main) ..?
