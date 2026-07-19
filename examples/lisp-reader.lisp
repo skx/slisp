@@ -182,23 +182,6 @@
     (reader-next)    ; closing "
     text))
 
-(defun reader-read-string-old ()
-  ;; consume opening "
-  (reader-next)
-  (let ((text ""))
-    (while
-        (and
-         (!= (reader-peek) "")
-         (!= (reader-peek) "\""))
-      (set! text
-            (strcat
-             text
-             (reader-next))))
-
-    ;; consume closing "
-    (if (= (reader-peek) "\"")
-        (reader-next))
-    text))
 
 (defun reader-read-atom ()
   (let ((token ""))
