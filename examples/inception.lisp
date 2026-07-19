@@ -230,7 +230,7 @@
   (cadr x))
 
 (defun init-builtins ()
-
+  (set! *builtins* nil)
   (register-builtin "%" (lambda (args) (% (car args) (cadr args))))
   (register-builtin "*" (lambda (args) (* (car args) (cadr args))))
   (register-builtin "+" (lambda (args) (+ (car args) (cadr args))))
