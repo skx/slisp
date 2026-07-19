@@ -2586,6 +2586,14 @@ FUNC fn_sys_substr
     cmp rsi, rax           ; bounds check
     ja out_of_range
 
+    mov rcx, rax           ; remaining
+    sub rcx, rsi
+
+    cmp rdx, rcx           ; clamp against length
+    jbe .length_ok
+    mov rdx, rcx
+.length_ok:
+
     push rdi               ; Allocate length
     push rsi
     push rdx
