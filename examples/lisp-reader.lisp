@@ -9,26 +9,33 @@
 ;; their own main functions will override the one here.
 ;;
 
-;; The source we parse goes here.
-(defvar *reader-text* "")
+;; The length of the program.
+(defvar *reader-length* 0)
 
 ;; The position we're at goes here.
-(defvar *reader-pos* 0)
+(defvar *reader-pos*    0)
+
+;; The source we parse goes here.
+(defvar *reader-text*   "")
 
 ;; Helper.
 (defun symbol (name)
   (list "symbol" name))
 
 
+;; constructor
 (defun reader-init (text)
-  (set! *reader-text* text)
-  (set! *reader-pos* 0))
+  "Setup state for processing the given text input."
+  (set! *reader-length* (strlen text))
+  (set! *reader-pos* 0)
+  (set! *reader-text* text))
 
 (defun reader-eof ()
-  (>= *reader-pos*
-      (strlen *reader-text*)))
+  "Have we reached the end of our input?"
+  (>= *reader-pos* *reader-length*))
 
 (defun reader-peek ()
+  "Look at the next character, without consuming it"
   (if (reader-eof)
       ""
       (substr
@@ -37,6 +44,7 @@
        1)))
 
 (defun reader-next ()
+  "Return the next character"
   (let ((ch (reader-peek)))
     (set! *reader-pos* (+ *reader-pos* 1))
     ch))
