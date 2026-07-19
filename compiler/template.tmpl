@@ -2560,6 +2560,65 @@ FUNC fn_sys_string
     jmp .copy_str_return       ; copy the resulting string into a new allocation
 
 
+FUNC fn_sys_substr
+    mov rbx, rdi            ; type-check arg1
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    mov rbx, rsi            ; type-check offset
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+
+    mov rbx, rdx            ; type-check length
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    UNTAG_REG rdx
+
+    push rdi                ; get length
+    call strlen
+    pop rdi
+
+    cmp rsi, rax           ; bounds check
+    ja out_of_range
+
+    push rdi               ; Allocate length
+    push rsi
+    push rdx
+    mov rax, rdx
+    inc rax                 ; +1 for null
+    mov rbx, TAG_ID_STRING
+    call alloc
+    mov rcx, rax           ; destination
+    mov r8,  rax      ; save original allocation pointer
+    pop rdx
+    pop rsi
+    pop rdi
+
+    add rdi, rsi           ; bump past the start
+
+.copy:
+    test rdx, rdx
+    jz .done
+
+    mov al, [rdi]
+    test al, al
+    jz .done
+    mov [rcx], al
+    inc rdi
+    inc rcx
+    dec rdx
+    jmp .copy
+
+.done:
+    mov byte [rcx], 0
+    mov rax, r8            ; restore pointer to string
+    TAG_STRING_REG rax
+    ret
 
 ;; Find the length of the given string.
 FUNC fn_sys_strlen
