@@ -88,6 +88,8 @@
       (exit 1)))
     ((= (reader-peek) "\"")
      (reader-read-string))
+    ((= (reader-peek) "#")
+       (list "character" (reader-read-dispatch)))
     ((= (reader-peek) "'")
      (reader-next)
      (list
@@ -114,6 +116,70 @@
     ;; consume the newline if present
     (if (= ch "\n")
         (reader-next))))
+
+(defun reader-read-dispatch ()
+  ;; consume '#'
+  (reader-next)
+  (cond
+    ((= (reader-peek) "\\")
+     (reader-read-char-literal))
+    (t
+     (println "Unknown reader dispatch")
+     (exit 1))))
+
+
+(defun alpha? (ch)
+  "Is the given STRING character an alphabetical one?"
+  (let ((c (car (explode ch))))
+    (or (and (>= (ord c) (ord #\a)) (<= (ord c) (ord #\z)))
+        (and (>= (ord c) (ord #\A)) (<= (ord c) (ord #\Z))))))
+
+
+(defun reader-read-char-literal ()
+  ;; consume '\'
+  (reader-next)
+
+  ;; read first character
+  (let ((token (reader-next))
+        (ch "")
+        (reading t))
+
+    (if (= token "")
+        (do
+          (println "Unexpected EOF in character literal")
+          (exit 1)))
+
+    ;; If the first character is alphabetic, continue
+    ;; reading alphabetic characters.
+    (if (alpha? token)
+        (do
+          (set! ch (reader-peek))
+
+          (while reading
+            (if (= ch "")
+                (set! reading nil)
+                (if (alpha? ch)
+                    (do
+                      (reader-next)
+                      (set! token (strcat token ch))
+                      (set! ch (reader-peek)))
+                    (set! reading nil))))))
+
+    (cond
+      ;; named characters
+      ((= token "Space")   " ")
+      ((= token "Newline") "\n")
+      ((= token "Tab")     "\t")
+
+      ;; single-character literals
+      ((= (strlen token) 1)
+       token)
+
+      (t
+       (do
+         (println "Unknown character literal:")
+         (println token)
+         (exit 1))))))
 
 (defun reader-read-list ()
   ;; consume '('

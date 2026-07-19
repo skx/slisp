@@ -100,6 +100,10 @@
   (and (cons? x)
        (= (car x) "builtin")))
 
+(defun character? (x)
+  (and (cons? x)
+       (= (car x) "character")))
+
 (defun closure? (x)
   (and (cons? x)
        (= (car x) "closure")))
@@ -113,6 +117,11 @@
 ;; And some type-specific helpers.
 (defun symbol-name (x)
   (cadr x))
+
+;; we tag characters with "character", but the content is actually a string.
+;; get the first character and print it.
+(defun character-value (x)
+  (car (explode (cadr x)))) ; horrid
 
 (defun builtin-fn (x)
   (cadr x))
@@ -267,7 +276,7 @@
   (register-builtin "ord" (lambda (args) (ord (car args))))
   (register-builtin "print" (lambda (args) (while args (print (car args)) (set! args (cdr args)))))
   (register-builtin "println" (lambda (args) (while args (print (car args)) (set! args (cdr args))) (newline)))
-  (register-builtin "putc" (lambda (args) (not (putc args))))
+  (register-builtin "putc" (lambda (args) (not (putc (car args)))))
   (register-builtin "random" (lambda (args) (random (car args))))
   (register-builtin "repeated" (lambda (args) (repeated (car args) (cadr args))))
   (register-builtin "reverse" (lambda (args) (reverse (car args))))
@@ -305,6 +314,9 @@
 
     ;; strings are self-evaluating too.
     ((str? expr) (list expr env))
+
+    ;; characters are self-evaluating too - but in this case they look like strings
+    ((character? expr) (list (character-value expr) env))
 
     ;; symbols will be looked up
     ((symbol? expr) (list (eval-symbol expr env) env))
