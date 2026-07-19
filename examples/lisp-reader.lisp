@@ -49,64 +49,31 @@
     (set! *reader-pos* (+ *reader-pos* 1))
     ch))
 
+;; is the character whitespace?
+(defun whitespace? (ch)
+  (or (= ch " ")
+      (= ch "\t")
+      (= ch "\n")
+      (= ch "\r")))
 
-;; Is the given value a number component "-", ".", and "0-9"
-(defun numeric-char? (ch)
-  (or
-   (= ch "-")
-   (= ch ".")
-   (= ch "0")
-   (= ch "1")
-   (= ch "2")
-   (= ch "3")
-   (= ch "4")
-   (= ch "5")
-   (= ch "6")
-   (= ch "7")
-   (= ch "8")
-   (= ch "9")))
-
-;; Is the given string 100% numeric-plausible?
-(defun number-string? (s)
-  (cond
-    ((= s "") nil)
-    ((= (substr s 0 1) "-")
-     (and
-      (> (strlen s) 1)
-      (number-string-aux s 1)))
-    (t
-     (number-string-aux s 0))))
-
-;; helper
-(defun number-string-aux (s pos)
-  (if (>= pos (strlen s))
-      t
-      (if (numeric-char?
-           (substr s pos 1))
-          (number-string-aux
-           s
-           (+ pos 1))
-          nil)))
-
-
-;; skip over whitespace and comments
+;; Skip to the next token
 (defun reader-skip ()
-  (let ((again t))
+  (let ((again t)
+        (ch ""))
+
     (while again
       (set! again nil)
 
+      (set! ch (reader-peek))
+
       ;; Skip whitespace
-      (while
-          (or
-           (= (reader-peek) " ")
-           (= (reader-peek) "\t")
-           (= (reader-peek) "\n")
-           (= (reader-peek) "\r"))
-        (reader-next))
+      (while (whitespace? ch)
+        (reader-next)
+        (set! ch (reader-peek)))
 
       ;; Skip a comment
-      (if (= (reader-peek) ";")
-          (let ()
+      (if (= ch ";")
+          (do
             (reader-skip-comment)
             (set! again t))))))
 
@@ -133,15 +100,20 @@
   ;; consume the ';'
   (reader-next)
 
-  ;; skip until newline or EOF
-  (while
-      (and
-       (!= (reader-peek) "")
-       (!= (reader-peek) "\n"))
-    (reader-next))
-  ;; consume the newline if present
-  (if (= (reader-peek) "\n")
-      (reader-next)))
+  (let ((ch (reader-peek)))
+
+    ;; skip until newline or EOF
+    (while
+        (and
+         (!= ch "")
+         (!= ch "\n"))
+
+      (reader-next)
+      (set! ch (reader-peek)))
+
+    ;; consume the newline if present
+    (if (= ch "\n")
+        (reader-next))))
 
 (defun reader-read-list ()
   ;; consume '('
@@ -159,60 +131,115 @@
     (reverse items)))
 
 (defun reader-read-string ()
-  (reader-next)   ; consume opening "
+  ;; consume opening "
+  (reader-next)
 
-  (let ((text ""))
+  (let ((text "")
+        (ch (reader-peek)))
 
     (while
         (and
-         (!= (reader-peek) "")
-         (!= (reader-peek) "\""))
+         (!= ch "")
+         (!= ch "\""))
 
-      (if (= (reader-peek) "\\")
+      (if (= ch "\\")
           (do
-           (reader-next)     ; consume '\'
+            ;; consume '\'
+            (reader-next)
 
-           (let ((ch (reader-next)))
-             (set! text
-                   (strcat
-                    text
-                    (cond
-                      ((= ch "n") "\n")
-                      ((= ch "t") "\t")
-                      ((= ch "\"") "\"")
-                      ((= ch "\\") "\\")
-                      (t ch))))))
-          (set! text
-                (strcat
-                 text
-                 (reader-next)))))
+            ;; read escaped character
+            (set! ch (reader-next))
 
-    (reader-next)    ; closing "
+            (set! text
+                  (strcat
+                   text
+                   (cond
+                     ((= ch "n") "\n")
+                     ((= ch "t") "\t")
+                     ((= ch "\"") "\"")
+                     ((= ch "\\") "\\")
+                     (t ch))))
+
+            ;; peek next character
+            (set! ch (reader-peek)))
+
+          (do
+            ;; consume ordinary character
+            (reader-next)
+
+            (set! text
+                  (strcat text ch))
+
+            ;; peek next character
+            (set! ch (reader-peek)))))
+
+    ;; consume closing quote
+    (if (= ch "\"")
+        (reader-next))
+
     text))
 
+(defun digit? (ch)
+  (or (= ch "0")
+      (= ch "1")
+      (= ch "2")
+      (= ch "3")
+      (= ch "4")
+      (= ch "5")
+      (= ch "6")
+      (= ch "7")
+      (= ch "8")
+      (= ch "9")))
 
 (defun reader-read-atom ()
-  (let ((token ""))
+  (let ((token "")
+        (numeric t)
+        (seen-digit nil)
+        (seen-dot nil)
+        (pos 0)
+        (ch (reader-peek)))
+
     (while
         (and
-         (!= (reader-peek) "")
-         (!= (reader-peek) " ")
-         (!= (reader-peek) "\t")
-         (!= (reader-peek) "\r")
-         (!= (reader-peek) "\n")
-         (!= (reader-peek) "(")
-         (!= (reader-peek) ")"))
+         (!= ch "")
+         (!= ch " ")
+         (!= ch "\t")
+         (!= ch "\r")
+         (!= ch "\n")
+         (!= ch "(")
+         (!= ch ")"))
 
-      (set! token
-            (strcat
-             token
-             (reader-next))))
+      ;; consume the character we've already peeked
+      (reader-next)
 
-    ;; Is this a number?
-    (if (number-string? token)
+      (set! token (strcat token ch))
+
+      ;; Update numeric state
+      (if numeric
+          (cond
+            ((digit? ch)
+             (set! seen-digit t))
+
+            ((= ch ".")
+             (if seen-dot
+                 (set! numeric nil)
+                 (set! seen-dot t)))
+
+            ((= ch "-")
+             (if (!= pos 0)
+                 (set! numeric nil)))
+
+            (t
+             (set! numeric nil))))
+
+      (set! pos (+ pos 1))
+
+      ;; Peek once for the next iteration
+      (set! ch (reader-peek)))
+
+    (if (and numeric seen-digit)
         (atof token)
         (symbol token))))
-
 
 ;; parse a complete program and return all the expressions within it.
 (defun reader-parse-program ()
