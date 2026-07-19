@@ -287,7 +287,7 @@
   (register-builtin "sys-heap-bytes" (lambda (args) (sys-heap-bytes)))
   (register-builtin "sys-heap-dump" (lambda (args) (sys-heap-dump)))
   (register-builtin "sys-heap-objects" (lambda (args) (sys-heap-objects)))
-  (register-builtin "sys_run" (lambda (args) (sys_run (car args))))
+  (register-builtin "sys_run" (lambda (args) (sys_run (car args) (cadr args))))
   (register-builtin "unlink" (lambda (args) (unlink (car args))))
 )
 
@@ -482,6 +482,8 @@
        (eval-or expr env))
       ((= op "quote")
        (eval-quote expr env))
+      ((= op "require")
+       (eval-require expr env))
       ((= op "set!")
        (eval-set expr env))
       ((= op "unless")
@@ -566,6 +568,12 @@
 (defun eval-quote (expr env)
   (list
    (cadr expr)
+   env))
+
+;; special form: require
+(defun eval-require (expr env)
+  (list
+   nil
    env))
 
 ;; special form: unless
