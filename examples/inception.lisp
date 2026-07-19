@@ -32,6 +32,40 @@
 ;;
 
 
+
+;; Our standard-library provides "(read-line)" but that
+;; terminates on newline.  We want to read a complete
+;; multi-line sexp for REPL usage.
+(defun read-line-sexp ()
+  "Read a complete SEXP from STDIN."
+  (let ((text (read-line))
+        (depth 0)
+        (line ""))
+
+    (set! depth (paren-depth text))
+
+    (while (> depth 0)
+      (set! line (read-line))
+      (set! text (strcat text line))
+      (set! depth (+ depth (paren-depth line))))
+
+    text))
+
+;; Count depth for our read-line-sexp helper
+(defun paren-depth (text)
+  "Get the depth of the given text, by counting '(' and ')'."
+  (let ((depth 0)
+        (chars (explode text))
+        (len   (length text))
+        (i     0))
+    (while (< i len)
+      (let ((ch (nth chars i)))
+        (cond
+          ((= ch #\() (set! depth (+ depth 1)))
+          ((= ch #\)) (set! depth (- depth 1))))
+        (set! i (+ i 1))))
+    depth))
+
 (defvar *DEBUG* nil)
 
 
@@ -960,7 +994,7 @@
   (let ((run t))
     (while run
       (print "> ")
-      (let ((line (read-line)))
+      (let ((line (read-line-sexp)))
         (if (= line ":quit")
             (set! run nil)
             (let ((result
