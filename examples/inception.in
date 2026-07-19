@@ -1,6 +1,13 @@
 ;;; inception.in - Test file for lisp interpreter
 
 
+(defun map (fn xs)
+  "Create a new list by calling the given function for every list element."
+  (if (nil? xs)
+      nil
+      (cons (fn (car xs)) (map fn (cdr xs)))))
+
+
 ;; global variable
 (defvar x 7)
 

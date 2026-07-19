@@ -69,7 +69,17 @@
         (set! i (+ i 1))))
     depth))
 
+;; Should we show debug output?
 (defvar *DEBUG* nil)
+
+;; Contains references to built-in functions
+(defvar *builtins* nil)
+
+
+;; Register a new built-in
+(defun register-builtin (name fn)
+  (set! *builtins*
+        (env-set *builtins* name (builtin fn))))
 
 
 ;; Since we don't "tag" types as we do in our compiler instead we wrap them in lists, and identify
@@ -104,7 +114,7 @@
 (defun symbol-name (x)
   (cadr x))
 
-(defun builtin-name (x)
+(defun builtin-fn (x)
   (cadr x))
 
 ;; get the names of parameters
@@ -137,50 +147,7 @@
 
 ;; Lookup a builtin function.
 (defun lookup-builtin (name)
-  (cond
-    ((= name "+")        (builtin "+"))
-    ((= name "%")        (builtin "%"))
-    ((= name "-")        (builtin "-"))
-    ((= name "*")        (builtin "*"))
-    ((= name "/")        (builtin "/"))
-    ((= name "<")        (builtin "<"))
-    ((= name "<=")       (builtin "<="))
-    ((= name ">")        (builtin ">"))
-    ((= name ">=")       (builtin ">="))
-    ((= name "=")        (builtin "="))
-    ((= name "abs")      (builtin "abs"))
-    ((= name "cons")     (builtin "cons"))
-    ((= name "car")      (builtin "car"))
-    ((= name "cdr")      (builtin "cdr"))
-    ((= name "chr")      (builtin "chr"))
-    ((= name "exit")     (builtin "exit"))
-    ((= name "getc")     (builtin "getc"))
-    ((= name "getenv")   (builtin "getenv"))
-    ((= name "length")   (builtin "length"))
-    ((= name "list")     (builtin "list"))
-    ((= name "map")      (builtin "map"))
-    ((= name "nat")      (builtin "nat"))
-    ((= name "newline")  (builtin "newline"))
-    ((= name "not")      (builtin "not"))
-    ((= name "nth")      (builtin "nth"))
-    ((= name "nth!")     (builtin "nth!"))
-    ((= name "ord")      (builtin "ord"))
-    ((= name "print")    (builtin "print"))
-    ((= name "println")  (builtin "println"))
-    ((= name "random")   (builtin "random"))
-    ((= name "repeated") (builtin "repeated"))
-    ((= name "reverse")  (builtin "reverse"))
-    ((= name "seq")      (builtin "seq"))
-    ((= name "strcmp")   (builtin "strcmp"))
-    ((= name "strlen")   (builtin "strlen"))
-    ((= name "substr")   (builtin "substr"))
-    ((= name "sys-heap-allocs")  (builtin "sys-heap-allocs"))
-    ((= name "sys-heap-bytes")   (builtin "sys-heap-bytes"))
-    ((= name "sys-heap-dump")   (builtin "sys-heap-dump"))
-    ((= name "sys-heap-objects") (builtin "sys-heap-objects"))
-    ((= name "sys-gc")   (builtin "sys-gc"))
-    ((= name "nil?")     (builtin "nil?"))
-    (t nil)))
+  (env-get *builtins* name))
 
 ;; add a function
 (defun add-function (name params body)
@@ -220,9 +187,7 @@
 (defun env-bound? (env name)
   (cond
     ((nil? env)           nil)
-
     ((= (caar env) name)  t)
-
     (t (env-bound? (cdr env) name))))
 
 ;; set a variable in the environment
@@ -255,6 +220,77 @@
 (defun eval-env (x)
   (cadr x))
 
+(defun init-builtins ()
+
+  (register-builtin "%" (lambda (args) (% (car args) (cadr args))))
+  (register-builtin "*" (lambda (args) (* (car args) (cadr args))))
+  (register-builtin "+" (lambda (args) (+ (car args) (cadr args))))
+  (register-builtin "-" (lambda (args) (- (car args) (cadr args))))
+  (register-builtin "/" (lambda (args) (/ (car args) (cadr args))))
+  (register-builtin "<" (lambda (args) (< (car args) (cadr args))))
+  (register-builtin "<=" (lambda (args) (<= (car args) (cadr args))))
+  (register-builtin "=" (lambda (args) (= (car args) (cadr args))))
+  (register-builtin ">" (lambda (args) (> (car args) (cadr args))))
+  (register-builtin ">=" (lambda (args) (>= (car args) (cadr args))))
+  (register-builtin "abs" (lambda (args) (abs (car args))))
+  (register-builtin "car" (lambda (args) (car (car args))))
+  (register-builtin "cdr" (lambda (args) (cdr (car args))))
+  (register-builtin "char?" (lambda (args) (char? (car args))))
+  (register-builtin "chr" (lambda (args) (chr (car args))))
+  (register-builtin "cons" (lambda (args) (cons (car args) (cadr args))))
+  (register-builtin "cons?" (lambda (args) (cons? (car args))))
+  (register-builtin "entries" (lambda (args) (entries (car args))))
+  (register-builtin "environment" (lambda (args) (environment)))
+  (register-builtin "exit" (lambda (args) (exit (car args))))
+  (register-builtin "explode" (lambda (args) (explode (car args))))
+  (register-builtin "fclose" (lambda (args) (fclose (car args))))
+  (register-builtin "float?" (lambda (args) (float? (car args))))
+  (register-builtin "fopen" (lambda (args) (fopen (car args) (cadr args))))
+  (register-builtin "fread" (lambda (args) (fread (car args))))
+  (register-builtin "fwrite" (lambda (args)  (fwrite (car args) (cadr args) (caddr args))))
+  (register-builtin "getc" (lambda (args) (getc)))
+  (register-builtin "getenv" (lambda (args) (getenv (car args))))
+  (register-builtin "implode" (lambda (args) (implode (car args))))
+  (register-builtin "int" (lambda (args) (int (car args))))
+  (register-builtin "int?" (lambda (args) (int? (car args))))
+  (register-builtin "isqrt" (lambda (args) (isqrt (car args))))
+  (register-builtin "lambda?" (lambda (args) (lambda? (car args))))
+  (register-builtin "length" (lambda (args) (length (car args))))
+  (register-builtin "list" (lambda (args) args))
+  (register-builtin "mkdir" (lambda (args) (mkdir (car args))))
+  (register-builtin "nat" (lambda (args) (nat (car args))))
+  (register-builtin "newline" (lambda (args) (newline)))
+  (register-builtin "nil?" (lambda (args) (nil? (car args))))
+  (register-builtin "not" (lambda (args) (not (car args))))
+  (register-builtin "nth!" (lambda (args) (nth! (car args) (cadr args) (caddr args))))
+  (register-builtin "nth" (lambda (args) (nth (car args) (cadr args))))
+  (register-builtin "ord" (lambda (args) (ord (car args))))
+  (register-builtin "print" (lambda (args) (while args (print (car args)) (set! args (cdr args)))))
+  (register-builtin "println" (lambda (args) (while args (print (car args)) (set! args (cdr args))) (newline)))
+  (register-builtin "putc" (lambda (args) (not (putc args))))
+  (register-builtin "random" (lambda (args) (random (car args))))
+  (register-builtin "repeated" (lambda (args) (repeated (car args) (cadr args))))
+  (register-builtin "reverse" (lambda (args) (reverse (car args))))
+  (register-builtin "rmdir" (lambda (args) (rmdir (car args))))
+  (register-builtin "seq" (lambda (args) (seq (car args))))
+  (register-builtin "split" (lambda (args) (split (car args) (cadr args))))
+  (register-builtin "sqrt" (lambda (args) (sqrt (car args))))
+  (register-builtin "stat" (lambda (args) (stat (car args))))
+  (register-builtin "str?" (lambda (args) (str? (car args))))
+  (register-builtin "strcat" (lambda (args) (strcat (car args) (cadr args))))
+  (register-builtin "strcmp" (lambda (args) (strcmp (car args) (cadr args))))
+  (register-builtin "string" (lambda (args) (string (car args))))
+  (register-builtin "strlen" (lambda (args) (strlen (car args))))
+  (register-builtin "substr" (lambda (args)  (substr (car args) (cadr args) (caddr args))))
+  (register-builtin "sys-gc" (lambda (args) (sys-gc)))
+  (register-builtin "sys-heap-allocs" (lambda (args) (sys-heap-allocs)))
+  (register-builtin "sys-heap-bytes" (lambda (args) (sys-heap-bytes)))
+  (register-builtin "sys-heap-dump" (lambda (args) (sys-heap-dump)))
+  (register-builtin "sys-heap-objects" (lambda (args) (sys-heap-objects)))
+  (register-builtin "sys_run" (lambda (args) (sys_run (car args))))
+  (register-builtin "unlink" (lambda (args) (unlink (car args))))
+)
+
 ;; eval: where the magic happens.
 ;;
 ;; NOTE: This returns a list of "return value" and "[possibly updated] environment".
@@ -286,11 +322,10 @@
       (set! result (eval (car forms) env))
       (set! env (eval-env result))
       (set! forms (cdr forms)))
-    (sys-gc)
+(sys-gc)
     result))
 
 
-;; function-call, lambda, builtin, etc.
 (defun eval-call (expr env)
   (let ((fn-result (eval (car expr) env)))
 
@@ -307,8 +342,9 @@
           (set! env  (cadr result)))
         (set! forms (cdr forms)))
 
-      ;; make the call, and return the result of apply, and the env, as a list
+      ;; Make the call.
       (list (apply fn args) env))))
+
 
 ;; special form: and
 (defun eval-and (expr env)
@@ -503,8 +539,10 @@
                (let ((fn (lookup-builtin name)))
                  (if fn
                      fn
-                     ;; user-function
-                     (lookup-function name)))))))))
+                     (let ((user (lookup-function name)))
+                       (if user
+                           user
+                         (do (println "Unknown function " name) nil)))))))))))
 
 ;; special form: or
 (defun eval-or (expr env)
@@ -512,17 +550,13 @@
 
 (defun eval-or-forms (forms env)
   (if (nil? forms)
-
       ;; (or) => nil
       (list nil env)
 
       (let ((result (eval (car forms) env)))
-
         (if (eval-value result)
-
             ;; first true value
             result
-
             ;; otherwise continue
             (eval-or-forms
              (cdr forms)
@@ -567,165 +601,15 @@
 
 ;; apply for built-in and user-functions
 (defun apply (fn args)
-
   (cond
     ;; native builtins
-    ((builtin? fn) (apply-builtin fn args))
+    ((builtin? fn) ((builtin-fn fn) args))
 
     ;; user functions and lambdas
     ((closure? fn) (apply-closure fn args))
 
     ;; nothing known
     (t nil)))
-
-
-(defun builtin-map (fn lst)
-  (if (nil? lst)
-      nil
-      (cons
-       (apply fn (list (car lst)))
-       (builtin-map fn (cdr lst)))))
-
-;; built-in functions all live here, which is a bit horrid.
-;;
-;; 99% of these are deferred to the host.  map/print/println are the only obvious exceptions.
-(defun apply-builtin (fn args)
-  (let ((name (builtin-name fn)))
-    (cond
-      ((= name "+")
-       (+ (car args) (cadr args)))
-
-      ((= name "%")
-       (% (car args) (cadr args)))
-
-      ((= name "-")
-       (- (car args) (cadr args)))
-
-      ((= name "*")
-       (* (car args) (cadr args)))
-
-      ((= name "/")
-       (/ (car args) (cadr args)))
-
-      ((= name "<")
-       (< (car args) (cadr args)))
-
-      ((= name "<=")
-       (<= (car args) (cadr args)))
-
-      ((= name ">")
-       (> (car args) (cadr args)))
-
-      ((= name ">=")
-       (>= (car args) (cadr args)))
-
-      ((= name "=")
-       (= (car args) (cadr args)))
-
-      ((= name "abs")
-       (abs (car args)))
-
-      ((= name "cons")
-       (cons (car args) (cadr args)))
-
-      ((= name "car")
-       (car (car args)))
-
-      ((= name "cdr")
-       (cdr (car args)))
-
-      ((= name "chr")
-       (chr (car args)))
-
-      ((= name "exit")
-       (exit (car args)))
-
-      ((= name "getc")
-       (getc))
-
-      ((= name "getenv")
-       (getenv (car args)))
-
-      ((= name "length")
-       (length (car args)))
-
-      ((= name "list")
-       args)
-
-      ((= name "map")
-       (builtin-map (car args) (cadr args)))
-
-      ((= name "nat")
-       (nat (car args)))
-
-      ((= name "newline")
-       (newline))
-
-      ((= name "not")
-       (not (car args)))
-
-      ((= name "nth")
-       (nth (car args) (cadr args)))
-
-      ((= name "nth!")
-       (nth! (car args) (cadr args) (caddr args)))
-
-      ((= name "ord")
-       (ord (car args)))
-
-      ((= name "random")
-       (random (car args)))
-
-      ((= name "repeated")
-       (repeated (car args) (cadr args)))
-
-      ((= name "reverse")
-       (reverse (car args)))
-
-      ((= name "print")
-        (while args
-          (print (car args))
-          (set! args (cdr args)))
-        nil)
-
-      ((= name "println")
-        (while args
-          (print (car args))
-          (set! args (cdr args)))
-        (print "\n")
-        nil)
-
-      ((= name "seq")
-       (seq (car args)))
-
-      ((= name "strcmp")
-       (strcmp (car args) (cadr args)))
-
-      ((= name "strlen")
-       (strlen (car args)))
-
-      ((= name "substr")
-       (substr (car args) (cadr args) (caddr args)))
-
-      ((= name "sys-heap-allocs")
-       (sys-heap-allocs))
-
-      ((= name "sys-heap-bytes")
-       (sys-heap-bytes))
-
-      ((= name "sys-heap-dump")
-       (sys-heap-dump))
-
-      ((= name "sys-heap-objects")
-       (sys-heap-objects))
-
-      ((= name "sys-gc")
-       (sys-gc))
-
-      ((= name "nil?")
-       (nil? (car args)))
-
-      (t nil))))
 
 
 (defun apply-closure (closure args)
@@ -760,19 +644,26 @@
       (set! forms  (cdr forms)))
     result))
 
+
 ;; Evaluate a program comprised of expressions
 (defun run-program (text)
+  (init-builtins)
   (reader-init text)
   (let ((forms (reader-parse-program)))
     (if *DEBUG* (println "Parsed: " forms))
     (eval-program forms)))
 
 
+
+;;
 ;; REPL code
+;;
 (defun repl ()
   (println "Welcome to lisp in slisp!")
   (println "Enter :quit to exit.")
   (println "")
+
+  (init-builtins)
 
   (let ((run t))
     (while run
@@ -780,13 +671,26 @@
       (let ((line (read-line-sexp)))
         (if (= line ":quit")
             (set! run nil)
-            (let ((result
-                   (repl-execute-line line)))
+            (let ((result (repl-execute-line line)))
               (println (car result))))))))
+
 
 (defun repl-execute-line (text)
   (reader-init text)
   (eval-program (reader-parse-program)))
+
+
+;;
+;; Load File code
+;;
+(defun execute-file(name)
+  (println "Loading .. " name)
+  (let ((handle (fopen name "r"))  ; open
+        (data   (fread handle))    ; read
+        (res    (fclose handle)))  ; close
+    (if data
+        (run-program data)
+        (println "Failed to read file"))))
 
 
 ;;
@@ -805,13 +709,7 @@
   (map (lambda (name)
          (if (and (!= name "--repl")
                   (!= name "--main"))
-             (do
-              (println "Loading .. " name)
-              (let ((handle (fopen name "r"))  ; open
-                    (data   (fread handle))    ; read
-                    (res    (fclose handle)))  ; close
-                (if data
-                    (run-program data))))))
+             (execute-file name)))
        (cdr args))
 
   ;; Should we auto-run (defun main) ..?
