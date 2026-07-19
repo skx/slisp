@@ -29,6 +29,17 @@
 
 ;;; 0. definitions
 
+;;
+;; We don't really use conditional code, but we have some constants
+;; defined below for the various syscalls we make.
+;;
+;; We can also print a "^" character every time GC runs, which is
+;; somewhat useful for debugging.
+;;
+%undef  DEBUG_GC       ;; Disabled by default.
+; %define DEBUG_GC 1   ;; Uncomment to enable.
+
+
 ;; syscalls - searchable list online here
 ;;  https://filippo.io/linux-syscall-table/
 
@@ -67,17 +78,6 @@ S_IFIFO         equ 0010000o
 
 
 ;;; 1. macros
-
-;;
-;; If DEBUG is defined we'll return specific error-codes from
-;; our `fread` implementation, which was helpful for debugging.
-;;
-;; Without it defined we'll just return Nil on all failures which
-;; is what we document, and what the user will expect.
-;;
-%define DEBUG    1
-%undef  DEBUG     ;; Comment out this line to enable debugging.
-
 
 ;;
 ;; We use the lower three bits of values to denote their type,
@@ -1345,6 +1345,7 @@ FUNC fn_sys_chr
 ;;
 FUNC fn_sys_cons
 
+
     push rsi                        ; Preserve these registers so "(explode..)" "(environment .." etc
     push rdi                        ; are safe when we sometimes call GC
     push rdx
@@ -1732,28 +1733,6 @@ FUNC fn_sys_fread
         TAG_STRING_REG rax
         ret
 
-%ifdef DEBUG
-.fread_short_read:
-        mov rax, 1
-        TAG_INTEGER_REG rax
-        ret
-.fread_read_fail:
-        mov rax, 2
-        TAG_INTEGER_REG rax
-        ret
-.fread_seek_start_fail:
-        mov rax, 3
-        TAG_INTEGER_REG rax
-        ret
-.fread_seek_end_fail:
-        mov rax, 4
-        TAG_INTEGER_REG rax
-        ret
-.fread_return_nil:
-        xor rax,rax
-        TAG_NIL_REG rax
-        ret
-%else
 .fread_short_read:
 .fread_read_fail:
 .fread_seek_start_fail:
@@ -1762,7 +1741,6 @@ FUNC fn_sys_fread
         xor rax,rax
         TAG_NIL_REG rax
         ret
-%endif
 
 
 
@@ -3233,6 +3211,18 @@ scan_object:
 ;; Copies only objects directly referenced by globals.
 ;;
 gc_collect:
+
+%ifdef DEBUG_GC
+    push rsi                        ; Print a caret when we GC
+    push rdi
+    push rdx
+     mov rdi,'^'
+     TAG_INTEGER_REG rdi
+     call fn_sys_putc
+    pop rdx
+    pop rdi
+    pop rsi
+%endif
     mov qword [alloc_count], 0      ; reset the count of allocations now GC is running/has run.
 
     ;; Initialise the destination heap.
