@@ -503,8 +503,10 @@
                (let ((fn (lookup-builtin name)))
                  (if fn
                      fn
-                     ;; user-function
-                     (lookup-function name)))))))))
+                     (let ((user (lookup-function name)))
+                       (if user
+                           user
+                         (do (println "Unknown function " name) nil)))))))))))
 
 ;; special form: or
 (defun eval-or (expr env)
