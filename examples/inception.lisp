@@ -100,6 +100,10 @@
   (and (cons? x)
        (= (car x) "builtin")))
 
+(defun character? (x)
+  (and (cons? x)
+       (= (car x) "character")))
+
 (defun closure? (x)
   (and (cons? x)
        (= (car x) "closure")))
@@ -113,6 +117,11 @@
 ;; And some type-specific helpers.
 (defun symbol-name (x)
   (cadr x))
+
+;; we tag characters with "character", but the content is actually a string.
+;; get the first character and print it.
+(defun character-value (x)
+  (car (explode (cadr x)))) ; horrid
 
 (defun builtin-fn (x)
   (cadr x))
@@ -160,10 +169,13 @@
   name)
 
 ;; get a function, by name
+;;
+;; Check for the self-hosted/inception version of the entry first.
 (defun lookup-function (name)
-  (lookup-function-aux
-   name
-   *functions*))
+  (let ((nested (lookup-function-aux name (env-get *globals* "*functions*"))))
+    (if nested
+        nested
+        (lookup-function-aux name *functions*))))
 
 ;; helper
 (defun lookup-function-aux (name functions)
@@ -221,7 +233,7 @@
   (cadr x))
 
 (defun init-builtins ()
-
+  (set! *builtins* nil)
   (register-builtin "%" (lambda (args) (% (car args) (cadr args))))
   (register-builtin "*" (lambda (args) (* (car args) (cadr args))))
   (register-builtin "+" (lambda (args) (+ (car args) (cadr args))))
@@ -267,7 +279,7 @@
   (register-builtin "ord" (lambda (args) (ord (car args))))
   (register-builtin "print" (lambda (args) (while args (print (car args)) (set! args (cdr args)))))
   (register-builtin "println" (lambda (args) (while args (print (car args)) (set! args (cdr args))) (newline)))
-  (register-builtin "putc" (lambda (args) (not (putc args))))
+  (register-builtin "putc" (lambda (args) (not (putc (car args)))))
   (register-builtin "random" (lambda (args) (random (car args))))
   (register-builtin "repeated" (lambda (args) (repeated (car args) (cadr args))))
   (register-builtin "reverse" (lambda (args) (reverse (car args))))
@@ -287,7 +299,7 @@
   (register-builtin "sys-heap-bytes" (lambda (args) (sys-heap-bytes)))
   (register-builtin "sys-heap-dump" (lambda (args) (sys-heap-dump)))
   (register-builtin "sys-heap-objects" (lambda (args) (sys-heap-objects)))
-  (register-builtin "sys_run" (lambda (args) (sys_run (car args))))
+  (register-builtin "sys_run" (lambda (args) (sys_run (car args) (cadr args))))
   (register-builtin "unlink" (lambda (args) (unlink (car args))))
 )
 
@@ -305,6 +317,9 @@
 
     ;; strings are self-evaluating too.
     ((str? expr) (list expr env))
+
+    ;; characters are self-evaluating too - but in this case they look like strings
+    ((character? expr) (list (character-value expr) env))
 
     ;; symbols will be looked up
     ((symbol? expr) (list (eval-symbol expr env) env))
@@ -482,6 +497,8 @@
        (eval-or expr env))
       ((= op "quote")
        (eval-quote expr env))
+      ((= op "require")
+       (eval-require expr env))
       ((= op "set!")
        (eval-set expr env))
       ((= op "unless")
@@ -567,6 +584,18 @@
   (list
    (cadr expr)
    env))
+
+;; special form: require
+;;
+;; NOTE: We don't honour the search-path, or have embedded files, we just
+;; read from ./ with a .lisp suffix.
+(defun eval-require (expr env)
+  (let ((filename (car (cdr (cadr expr)))))
+    (if (exists? (strcat filename ".lisp"))
+        (execute-file (strcat filename ".lisp"))
+        (println "File not found " filename ".lisp")))
+  ; return nothing new.
+  (list nil env))
 
 ;; special form: unless
 (defun eval-unless (expr env)

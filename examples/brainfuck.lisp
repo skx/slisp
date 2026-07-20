@@ -75,7 +75,7 @@ CHARACTERS and our interpreter doesn't understand character types."
   (let ((i 0)                          ; offset into program
         (len (program-length program)) ; length of program
         (ptr 0)                        ; PTR value
-        (cells (makeCells 1000))       ; cells.
+        (cells (makeCells 300))        ; cells.
         (jumps (buildJumps program)))  ; jumps
 
 
