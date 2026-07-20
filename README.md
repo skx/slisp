@@ -287,7 +287,16 @@ Once you do that you can launch the interpreter and tell it to run a second prog
      106
      > (exit)
 
-This works and produces the `Hello World!` output we all know and love, although again it is slow.  Slower than using the compiled interpreter to run the same program (which would be "`./inception brainfuck.lisp --main`").
+You could also try this:
+
+     > (require brainfuck)
+     Loading .. brainfuck.lisp
+     <nil>
+     > (main (list "xx" "bf/hello-world.bf"))
+     Hello World!
+     107
+
+Either will work and produce the `Hello World!` output we all know and love, although again it is slow.  Slower than using the compiled interpreter to run the same program (which would be "`./inception brainfuck.lisp --main`").
 
 </details>
 
