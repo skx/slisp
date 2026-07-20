@@ -169,10 +169,13 @@
   name)
 
 ;; get a function, by name
+;;
+;; Check for the self-hosted/inception version of the entry first.
 (defun lookup-function (name)
-  (lookup-function-aux
-   name
-   *functions*))
+  (let ((nested (lookup-function-aux name (env-get *globals* "*functions*"))))
+    (if nested
+        nested
+        (lookup-function-aux name *functions*))))
 
 ;; helper
 (defun lookup-function-aux (name functions)
@@ -583,10 +586,16 @@
    env))
 
 ;; special form: require
+;;
+;; NOTE: We don't honour the search-path, or have embedded files, we just
+;; read from ./ with a .lisp suffix.
 (defun eval-require (expr env)
-  (list
-   nil
-   env))
+  (let ((filename (car (cdr (cadr expr)))))
+    (if (exists? (strcat filename ".lisp"))
+        (execute-file (strcat filename ".lisp"))
+        (println "File not found " filename ".lisp")))
+  ; return nothing new.
+  (list nil env))
 
 ;; special form: unless
 (defun eval-unless (expr env)

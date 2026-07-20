@@ -266,9 +266,10 @@ That said, and as demonstrated above, the interpreter can run many of the same p
 <details>
 <summary>To achieve true inception you need to run the interpreter with itself</summary>
 
+
 You can of course use the interpreter to run itself, which provides true inception!
 
-Because the interpreter doesn't contain the standard library, and it doesn't understand the `(require ..)` special form, you need to massage the source slightly:
+Because the interpreter doesn't contain the standard library, and it doesn't fully understand the `(require ..)` special form, you need to massage the source slightly:
 
      $ cat ../stdlib.slisp lisp-reader.lisp inception.lisp >new.txt
 
@@ -280,9 +281,11 @@ Once you do that you can launch the interpreter and tell it to run a second prog
 
      > (execute-file "brainfuck.lisp")
      Loading .. brainfuck.lisp
+     ((symbol main) <nil>)
      > (main)
-
-     > (exit 0)
+     Hello World!
+     106
+     > (exit)
 
 This works and produces the `Hello World!` output we all know and love, although again it is slow.  Slower than using the compiled interpreter to run the same program (which would be "`./inception brainfuck.lisp --main`").
 
