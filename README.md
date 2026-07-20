@@ -188,7 +188,7 @@ Enter :quit to exit.
 > :quit
 ```
 
-In addition to having a REPL you can also load files (and then optionally have the REPL start).  So here's running the self-contained example:
+In addition to having a REPL you can also load files (and then optionally have the REPL start).  So here's running the self-contained example that is comprised of top-level functions, without a `(defun main ..)` entry-point:
 
 ```
 $ ./inception inception.in
@@ -205,7 +205,7 @@ Adder (+10) result for  5:15
 ..
 ```
 
-And here is loading an existing test - which will define the function `main` and launching that via the REPL:
+And here is loading an existing test file.  Loading this file will not immediately run the `main` function, so we add the `--repl` flag to start that up, after loading and parsing the program.  We can then make it run by calling `(main)` ourselves:
 
 ```
 $ ./inception ../test/closure2.lisp  --repl
@@ -243,23 +243,50 @@ Solution 1 (1 5 8 6 3 7 2 4):
 
 > Here you'll see we added `--main` which automatically runs the `(main)` function our examples define.
 
-So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can also print.  But the biggest difference is that the compiler has a significantly larger standard-library.
+So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can also print.   The biggest difference really is in terms of speed and features:
 
-That said the interpreter is obviously and more CPU-intensive:
+* The interpreter has 100% of the builtin functions you would expect
+  * `cons`, `entries`, `environment`, `fopen`, `map`, etc.
+* However it does not load the `stdlib.slisp` file, so if you want the functions that this provides you need to prepend it to your source.
+  * `cat stdlib.slisp your-program.lisp > run.me; ./inception ./run.me --main`.
+* The interpreter does support all the types the compiler does though.
+  * Floating point numbers, integers, strings, and character literals, etc.
+
+The interpreter is obviously much slower than our compiled binaries, due to the overhead of interpreting everything manually.  Sometimes this slowdown is minor, other times it is signification, it really depends upon the nature of the program:
 
 * `time ./example` -> 0.006s
-  * `time ./inception example.lisp --main` -> 2.745s
-* `time ./nqueens`  .> 0.043s
-  * `time ./inception nqueens.lisp --main` -> 18.241s
+  * `time ./inception example.lisp --main` -> 0.026s
+* `time ./nqueens`  .> 0.053s
+  * `time ./inception nqueens.lisp --main` -> 14m
 * `time ./brainfuck` -> 0.010s
-  * `time ./inception brainfuck.lisp --main` -> 15.575s
+  * `time ./inception brainfuck.lisp --main` -> 9.963s
 
-The compiler prepends [stdlib.slisp](stdlib.slisp) to all programs, so you always have `map`, `filter`, etc, available.  By contrast the interpreter has a very small standard library - it exposes `print`, `println`, `cons`, `list`, `nth`, `map`, and a few other carefully selected primitives, along with the special forms `do`, `if`, `let`, `while`, etc.  It understands strings, integers, and floating-point numbers but notably it doesn't have a character-type.
+That said, and as demonstrated above, the interpreter can run many of the same programs that the compiler can.
 
-That said, and as demonstrated above, the interpreter can run many of the same programs that the compiler can.  The main omissions are mutating captured variables inside closures, and the need to enter functions all on one line if you're using the REPL.
+<details>
+<summary>To achieve true inception you need to run the interpreter with itself</summary>
 
-* [examples/inception.in](examples/inception.in) is my test program.
-* [examples/cond.in](examples/cond.in) shows that the in-build `cond` primitive works.
+You can of course use the interpreter to run itself, which provides true inception!
+
+Because the interpreter doesn't contain the standard library, and it doesn't understand the `(require ..)` special form, you need to massage the source slightly:
+
+     $ cat ../stdlib.slisp lisp-reader.lisp inception.lisp >new.txt
+
+Once you do that you can launch the interpreter and tell it to run a second program:
+
+     $ ./inception new.txt --repl
+     Welcome to lisp in slisp!
+     Enter :quit to exit.
+
+     > (execute-file "brainfuck.lisp")
+     Loading .. brainfuck.lisp
+     > (main)
+
+     > (exit 0)
+
+This works and produces the `Hello World!` output we all know and love, although again it is slow.  Slower than using the compiled interpreter to run the same program (which would be "`./inception brainfuck.lisp --main`").
+
+</details>
 
 
 
