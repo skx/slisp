@@ -6,6 +6,14 @@
 (defconst WIDTH 80)
 (defconst HEIGHT 25)
 
+;; helper
+(defun map (fn xs)
+  "Create a new list by calling the given function for every list element."
+  (if (nil? xs)
+      nil
+      (cons (fn (car xs)) (map fn (cdr xs)))))
+
+
 ;;
 ;; The board we're working on and displaying
 ;;
