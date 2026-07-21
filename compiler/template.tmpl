@@ -34,7 +34,12 @@
 ;; defined below for the various syscalls we make.
 ;;
 ;; We can also print a "^" character every time GC runs, which is
-;; somewhat useful for debugging.
+;; somewhat useful for debugging.  We also print a "!" if GC was
+;; disabled because it was attempted inside an internal function.
+;;
+;; (We test our GC-threshold within the "(cons ..)" implementation,
+;; but internal functions can call that, so we disable GC for their
+;; durations.)
 ;;
 %undef  DEBUG_GC       ;; Disabled by default.
 ; %define DEBUG_GC 1   ;; Uncomment to enable.
@@ -327,7 +332,7 @@ _start:
 
     mov rdi, rax              ; CAR
     mov rsi, r12              ; CDR
-    call fn_sys_cons
+    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
 
     mov r12, rax
     jmp .loop
@@ -1214,7 +1219,7 @@ FUNC fn_sysMINUSheapMINUSdump
     push    rdx
     lea     rdi, [rcx + OBJ_PAYLOAD]
     TAG_STRING_REG rdi
-;   call    fn_printstr
+    call    fn_printstr
     pop     rdx
     pop     rcx
 
@@ -1344,8 +1349,6 @@ FUNC fn_sys_chr
 ;; need to be careful of that.
 ;;
 FUNC fn_sys_cons
-
-
     push rsi                        ; Preserve these registers so "(explode..)" "(environment .." etc
     push rdi                        ; are safe when we sometimes call GC
     push rdx
@@ -1392,6 +1395,32 @@ FUNC fn_sys_cons
     TAG_CONS_REG rax         ; return the tagged allocation
     ret
 
+
+;; We implement our (cons..) primitve in "fn_sys_cons".
+;; Within that primitive we test the number of memory allocations,
+;; and if we've tripped over our threshold we run garbage collection.
+;;
+;; However we also call fn_sys_cons for internal uses, to create the list
+;; returned by (environment), etc.  In those cases we want to prevent
+;; garbage collection - specifically because our GC considers only three
+;; possible roots:
+;;
+;;   global variables
+;;   stack/frame local variables.
+;;   The two registers RDI and RSI.
+;;
+;; The last point is the sticky one; cons accepts only two arguments,
+;; and if we limit GC to be triggered ONLY by that function we're good.
+;;
+;; However if our internal functions call GC then their own registers
+;; might then contain pointers to values that have been moved/reaped by
+;; the GC process.  So we disable it to be safe.
+;;
+fn_sys_cons_NOGC:
+    mov qword [disable_gc], 1
+    call fn_sys_cons
+    mov qword [disable_gc], 0
+    ret
 
 
 ;; Return a list of directory-entries beneath the given prefix.
@@ -1471,7 +1500,7 @@ FUNC fn_sys_entries
     TAG_STRING_REG rdi
 
     mov rsi, r13                            ; Add to our list
-    call fn_sys_cons
+    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
 
     mov r13, rax                            ; Save the updated list head
 
@@ -1520,7 +1549,7 @@ FUNC fn_sys_environment
 
     ;; cons(string, list)
     mov rsi, rax
-    call fn_sys_cons
+    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
     jmp .loop
 .done:
     ret
@@ -1566,7 +1595,7 @@ FUNC fn_sys_explode
     push rsi        ; preserve scan pointer
     mov rdi, rdx
     mov rsi, rax
-    call fn_sys_cons
+    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
     pop rsi
     pop rdi
     jmp .loop
@@ -2334,21 +2363,21 @@ FUNC fn_sys_stat
     TAG_INTEGER_REG rax
     mov rdi,rax
     mov rsi,r13
-    call fn_sys_cons
+    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
     mov r13,rax
 
     mov rax,[rsp+48]           ; add size
     TAG_INTEGER_REG rax
     mov rdi,rax
     mov rsi,r13
-    call fn_sys_cons
+    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
     mov r13,rax
 
     mov eax,edx                ; add type
     TAG_INTEGER_REG rax
     mov rdi,rax
     mov rsi,r13
-    call fn_sys_cons
+    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
     add rsp, 160               ; restore stack
     ret
 
@@ -2887,6 +2916,10 @@ section .bss
 alloc_count:
     resq 1
 
+;; We can disable GC for the duration of internal functions
+disable_gc:
+    resq 1
+
 ;; buffer for reading directory entries
 dir_buffer:
     resb 1024 * 1024
@@ -3223,6 +3256,24 @@ gc_collect:
     pop rdi
     pop rsi
 %endif
+
+    mov rax, [disable_gc]
+    cmp rax, 0
+    jz .run_gc
+%ifdef DEBUG_GC
+    push rsi                        ; Print a ! when GC was disabled
+    push rdi
+    push rdx
+     mov rdi,'!'
+     TAG_INTEGER_REG rdi
+     call fn_sys_putc
+    pop rdx
+    pop rdi
+    pop rsi
+%endif
+     ret
+
+.run_gc:
     mov qword [alloc_count], 0      ; reset the count of allocations now GC is running/has run.
 
     ;; Initialise the destination heap.
