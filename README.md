@@ -271,7 +271,7 @@ You can of course use the interpreter to run itself, which provides true incepti
 
 Because the interpreter doesn't contain the standard library, and it doesn't fully understand the `(require ..)` special form, you need to massage the source slightly:
 
-     $ cat ../stdlib.slisp lisp-reader.lisp inception.lisp >new.txt
+     $ cat ../stdlib.slisp lisp-reader.lisp tree.lisp inception.lisp >new.txt
 
 Once you do that you can launch the interpreter and tell it to run a second program:
 
