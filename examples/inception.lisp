@@ -36,6 +36,92 @@
 ;;
 (require lisp-reader)
 
+
+;;
+;; Data structures help!
+;;
+;; We used to store variables as a list, and the same for
+;; user functions, and built-ins.  However that meant a linear
+;; scan for lookups.
+;;
+;; Turns out storing things in a tree, not even a balanced/optimal
+;; one is significantly faster and that really helps us execute
+;; programs more quickly.
+;;
+;; So we have a tree-get/put and some helpers here for that purpose.
+;;
+;; Inline for the moment.
+;;
+
+;; Get the node key from a tree item.
+(defun node-key   (node)
+  (car node))
+
+;; Get the node value from a tree itme.
+(defun node-value (node)
+  (cadr node))
+
+;; Get the left-item from a tree itme.
+(defun node-left  (node)
+  (caddr node))
+
+;; Get the right-item from a tree itme.
+(defun node-right (node)
+  (cadddr node))
+
+;; Is there a key with the given name in the tree?
+;;
+;; Since we can set a nil value it isn't enough to do a lookup
+;; of the key, as that would imply the item wasn't found.
+(defun tree-bound? (tree key)
+  (if (nil? tree)
+      nil
+      (if (= key (node-key tree))
+          t
+          (if (string< key (node-key tree))
+              (tree-bound? (node-left tree) key)
+              (tree-bound? (node-right tree) key)))))
+
+;; Get an item from the tree
+(defun tree-get (tree key)
+  (if (nil? key)
+      nil
+      (if (nil? tree)
+          nil
+          (if (= key (car tree))
+              (cadr tree)
+              (if (string< key (car tree))
+                  (tree-get (caddr tree) key)
+                  (tree-get (cadddr tree) key))))))
+
+;; put an item in the tree
+(defun tree-put (tree key value)
+  (if (nil? tree)
+      (list key value nil nil)
+
+      (if (= key (car tree))
+
+          ;; replace existing value
+          (list key
+                value
+                (caddr tree)
+                (cadddr tree))
+
+          (if (string< key (car tree))
+
+              ;; insert left
+              (list (car tree)
+                    (cadr tree)
+                    (tree-put (caddr tree) key value)
+                    (cadddr tree))
+
+              ;; insert right
+              (list (car tree)
+                    (cadr tree)
+                    (caddr tree)
+                    (tree-put (cadddr tree) key value))))))
+
+
 ;; Our standard-library provides "(read-line)" but that
 ;; terminates on newline.  We want to read a complete
 ;; multi-line sexp for REPL usage.
@@ -78,8 +164,7 @@
 
 ;; Register a new built-in
 (defun register-builtin (name fn)
-  (set! *builtins*
-        (env-set *builtins* name (builtin fn))))
+  (set! *builtins* (tree-put *builtins* name (builtin fn))))
 
 
 ;; Since we don't "tag" types as we do in our compiler instead we wrap them in lists, and identify
@@ -119,7 +204,7 @@
   (cadr x))
 
 ;; we tag characters with "character", but the content is actually a string.
-;; get the first character and print it.
+;; get the first character and return it.
 (defun character-value (x)
   (car (explode (cadr x)))) ; horrid
 
@@ -144,83 +229,53 @@
 (defvar *globals* nil)
 
 (defun global-get (name)
-  (env-get *globals* name))
+  (tree-get *globals* name))
 
 (defun global-set (name value)
-  (if (env-bound? *globals* name)
-      (set! *globals*
-            (env-update *globals* name value))
-      (set! *globals*
-            (env-set *globals* name value))))
+  (set! *globals*
+      (tree-put *globals* name value)))
 
 
 ;; Lookup a builtin function.
 (defun lookup-builtin (name)
-  (env-get *builtins* name))
+  (tree-get *builtins* name))
 
 ;; add a function
 (defun add-function (name params body)
   (set! *functions*
-        (cons
-         (list
-          name
-          (closure params body nil))
-         *functions*))
+        (tree-put
+         *functions*
+         name
+         (closure params body nil)))
+  ;; return the name
   name)
 
 ;; get a function, by name
 ;;
 ;; Check for the self-hosted/inception version of the entry first.
 (defun lookup-function (name)
-  (let ((nested (lookup-function-aux name (env-get *globals* "*functions*"))))
+  (let ((nested
+          (tree-get
+             (global-get "*functions*")
+             name)))
     (if nested
         nested
-        (lookup-function-aux name *functions*))))
-
-;; helper
-(defun lookup-function-aux (name functions)
-  (if (nil? functions)
-      nil
-      (if (= (car (car functions)) name)
-          (cadr (car functions))
-          (lookup-function-aux
-           name
-           (cdr functions)))))
+        (tree-get *functions* name))))
 
 ;; lookup a binding from the environment
 (defun env-get (env name)
-  (if (nil? env)
-      nil
-      (if (= (car (car env)) name)
-          (cadr (car env))
-          (env-get (cdr env) name))))
+  (tree-get env name))
 
-;; is a binding present?
 (defun env-bound? (env name)
-  (cond
-    ((nil? env)           nil)
-    ((= (caar env) name)  t)
-    (t (env-bound? (cdr env) name))))
+  (tree-bound? env name))
 
 ;; set a variable in the environment
 (defun env-set (env name value)
-  (cons (list name value) env))
+  (set! env (tree-put env name value)))
+;  (cons (list name value) env))
 
 (defun env-update (env name value)
-  (cond
-    ((nil? env)
-     nil)
-    ((= (caar env) name)
-     (cons
-      (list name value)
-      (cdr env)))
-    (t
-     (cons
-      (car env)
-      (env-update
-       (cdr env)
-       name
-       value)))))
+  (set! env (tree-put env name value)))
 
 ;; eval will return a list: (return-value updated-environment)
 ;; get the value.
