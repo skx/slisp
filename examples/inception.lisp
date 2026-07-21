@@ -36,6 +36,13 @@
 ;;
 (require lisp-reader)
 
+
+;;
+;; tree.lisp contains simple tree-structure routines.
+;;
+(require tree)
+
+
 ;; Our standard-library provides "(read-line)" but that
 ;; terminates on newline.  We want to read a complete
 ;; multi-line sexp for REPL usage.
@@ -78,8 +85,7 @@
 
 ;; Register a new built-in
 (defun register-builtin (name fn)
-  (set! *builtins*
-        (env-set *builtins* name (builtin fn))))
+  (set! *builtins* (tree-put *builtins* name (builtin fn))))
 
 
 ;; Since we don't "tag" types as we do in our compiler instead we wrap them in lists, and identify
@@ -119,7 +125,7 @@
   (cadr x))
 
 ;; we tag characters with "character", but the content is actually a string.
-;; get the first character and print it.
+;; get the first character and return it.
 (defun character-value (x)
   (car (explode (cadr x)))) ; horrid
 
@@ -144,83 +150,53 @@
 (defvar *globals* nil)
 
 (defun global-get (name)
-  (env-get *globals* name))
+  (tree-get *globals* name))
 
 (defun global-set (name value)
-  (if (env-bound? *globals* name)
-      (set! *globals*
-            (env-update *globals* name value))
-      (set! *globals*
-            (env-set *globals* name value))))
+  (set! *globals*
+      (tree-put *globals* name value)))
 
 
 ;; Lookup a builtin function.
 (defun lookup-builtin (name)
-  (env-get *builtins* name))
+  (tree-get *builtins* name))
 
 ;; add a function
 (defun add-function (name params body)
   (set! *functions*
-        (cons
-         (list
-          name
-          (closure params body nil))
-         *functions*))
+        (tree-put
+         *functions*
+         name
+         (closure params body nil)))
+  ;; return the name
   name)
 
 ;; get a function, by name
 ;;
 ;; Check for the self-hosted/inception version of the entry first.
 (defun lookup-function (name)
-  (let ((nested (lookup-function-aux name (env-get *globals* "*functions*"))))
+  (let ((nested
+          (tree-get
+             (global-get "*functions*")
+             name)))
     (if nested
         nested
-        (lookup-function-aux name *functions*))))
-
-;; helper
-(defun lookup-function-aux (name functions)
-  (if (nil? functions)
-      nil
-      (if (= (car (car functions)) name)
-          (cadr (car functions))
-          (lookup-function-aux
-           name
-           (cdr functions)))))
+        (tree-get *functions* name))))
 
 ;; lookup a binding from the environment
 (defun env-get (env name)
-  (if (nil? env)
-      nil
-      (if (= (car (car env)) name)
-          (cadr (car env))
-          (env-get (cdr env) name))))
+  (tree-get env name))
 
-;; is a binding present?
 (defun env-bound? (env name)
-  (cond
-    ((nil? env)           nil)
-    ((= (caar env) name)  t)
-    (t (env-bound? (cdr env) name))))
+  (tree-bound? env name))
 
 ;; set a variable in the environment
 (defun env-set (env name value)
-  (cons (list name value) env))
+  (set! env (tree-put env name value)))
+;  (cons (list name value) env))
 
 (defun env-update (env name value)
-  (cond
-    ((nil? env)
-     nil)
-    ((= (caar env) name)
-     (cons
-      (list name value)
-      (cdr env)))
-    (t
-     (cons
-      (car env)
-      (env-update
-       (cdr env)
-       name
-       value)))))
+  (set! env (tree-put env name value)))
 
 ;; eval will return a list: (return-value updated-environment)
 ;; get the value.

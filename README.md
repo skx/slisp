@@ -257,9 +257,9 @@ The interpreter is obviously much slower than our compiled binaries, due to the 
 * `time ./example` -> 0.006s
   * `time ./inception example.lisp --main` -> 0.026s
 * `time ./nqueens`  .> 0.053s
-  * `time ./inception nqueens.lisp --main` -> 14m
+  * `time ./inception nqueens.lisp --main` -> 20.846s
 * `time ./brainfuck` -> 0.010s
-  * `time ./inception brainfuck.lisp --main` -> 9.963s
+  * `time ./inception brainfuck.lisp --main` -> 6.775s
 
 That said, and as demonstrated above, the interpreter can run many of the same programs that the compiler can.
 
@@ -271,7 +271,7 @@ You can of course use the interpreter to run itself, which provides true incepti
 
 Because the interpreter doesn't contain the standard library, and it doesn't fully understand the `(require ..)` special form, you need to massage the source slightly:
 
-     $ cat ../stdlib.slisp lisp-reader.lisp inception.lisp >new.txt
+     $ cat ../stdlib.slisp lisp-reader.lisp tree.lisp inception.lisp >new.txt
 
 Once you do that you can launch the interpreter and tell it to run a second program:
 
