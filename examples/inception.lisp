@@ -313,7 +313,6 @@
       (set! result (eval (car forms) env))
       (set! env (eval-env result))
       (set! forms (cdr forms)))
-(sys-gc)
     result))
 
 
