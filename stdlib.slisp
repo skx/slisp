@@ -164,6 +164,15 @@
 
 (defun != (a b) (not (= a b)))
 
+(defun string< (a b)
+  (< (strcmp a b) 0))
+
+(defun string> (a b)
+  (> (strcmp a b) 0))
+
+(defun string= (a b)
+  (= (strcmp a b) 0))
+
 ;; 4
 (defun caar (x) (car (car x)))
 (defun cadr (x) (car (cdr x)))
