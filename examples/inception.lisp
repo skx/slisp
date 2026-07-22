@@ -198,6 +198,16 @@
 (defun env-update (env name value)
   (set! env (tree-put env name value)))
 
+
+;; Is the given argument name variadic (i.e prefixed with "&")
+(defun variadic-arg? (name)
+  (if (> (strlen name) 0)
+      (= (substr name 0 1) "&")))
+
+;; Get the name of the argument, having removed the leading &-prefix
+(defun variadic-name (name)
+  (substr name 1 (- (strlen name) 1)))
+
 ;; eval will return a list: (return-value updated-environment)
 ;; get the value.
 (defun eval-value (x)
@@ -622,22 +632,23 @@
         (body   (caddr closure))
         (env    (cadddr closure)))
 
-    ;; Extend the captured environment with arguments.
     (while params
-      (set! env
-            (env-set env
-                     (car params)
-                     (car args)))
-      (set! params (cdr params))
-      (set! args   (cdr args)))
+      (if (variadic-arg? (car params))
+
+          ;; Bind remaining args as a list.
+          (do
+            (set! env (env-set env (variadic-name (car params)) args))
+            (set! params nil))
+
+          ;; Ordinary argument.
+          (do
+            (set! env (env-set env (car params) (car args)))
+            (set! params (cdr params))
+            (set! args   (cdr args)))))
 
     (let ((result (eval-body body env)))
-
-      ;; Save the updated environment back into the closure.
       (nth! closure 3 (eval-env result))
-
       (eval-value result))))
-
 
 
 ;; given a list of expressions, evaluate them all
