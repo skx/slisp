@@ -134,6 +134,8 @@ added to them too.
     * Create the named directory.  **NOTE**: Mode is fixed at 0755, and parent directories must exist unless you use `mkdirs`.
   * `newline`
     * Print a newline.
+  * `now`
+    * Get the milliseconds past the epoch.
   * `not`
     * If the supplied value is `nil` return 1, otherwise return `nil`.
   * `nth`
