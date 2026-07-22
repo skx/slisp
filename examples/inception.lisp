@@ -259,6 +259,7 @@
   (register-builtin "nat" (lambda (args) (nat (car args))))
   (register-builtin "newline" (lambda (args) (newline)))
   (register-builtin "nil?" (lambda (args) (nil? (car args))))
+  (register-builtin "now" (lambda (args) (now)))
   (register-builtin "not" (lambda (args) (not (car args))))
   (register-builtin "nth!" (lambda (args) (nth! (car args) (cadr args) (caddr args))))
   (register-builtin "nth" (lambda (args) (nth (car args) (cadr args))))

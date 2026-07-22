@@ -48,22 +48,23 @@
 ;; syscalls - searchable list online here
 ;;  https://filippo.io/linux-syscall-table/
 
-SYS_read        equ 0
-SYS_write       equ 1
-SYS_open        equ 2
-SYS_close       equ 3
-SYS_stat        equ 4
-SYS_lseek       equ 8
-SYS_dup2        equ 33
-SYS_fork        equ 57
-SYS_exec        equ 59
-SYS_exit        equ 60
-SYS_wait4       equ 61
-SYS_mkdir       equ 83
-SYS_rmdir       equ 84
-SYS_unlink      equ 87
-SYS_getdents64  equ 217
-SYS_getrandom   equ 318
+SYS_read          equ   0
+SYS_write         equ   1
+SYS_open          equ   2
+SYS_close         equ   3
+SYS_stat          equ   4
+SYS_lseek         equ   8
+SYS_dup2          equ  33
+SYS_fork          equ  57
+SYS_exec          equ  59
+SYS_exit          equ  60
+SYS_wait4         equ  61
+SYS_mkdir         equ  83
+SYS_rmdir         equ  84
+SYS_unlink        equ  87
+SYS_getdents64    equ 217
+SYS_clock_gettime equ 228
+SYS_getrandom     equ 318
 
 
 ;; (entries)
@@ -2038,6 +2039,32 @@ FUNC fn_sys_mkdir
 .failure:
     xor rax,rax
     TAG_NIL_REG rax
+    ret
+
+
+;; Get milliseconds since epoc
+FUNC fn_now
+    sub rsp, 16                  ; Reserve space for struct timespec
+
+    mov eax, SYS_clock_gettime
+    mov edi, 0                   ; CLOCK_REALTIME
+    mov rsi, rsp
+    syscall
+
+    ; Convert to milliseconds:
+    ; ms = tv_sec * 1000 + tv_nsec / 1,000,000
+    mov rax, [rsp]               ; tv_sec
+    imul rax, rax, 1000
+    mov r8, rax                  ; Save seconds in ms
+    mov rax, [rsp+8]             ; tv_nsec
+    xor edx, edx
+    mov ecx, 1000000
+    div rcx                      ; RAX = tv_nsec / 1,000,000
+    add rax, r8                  ; Total milliseconds
+    add rsp, 16                  ; Free stack space
+
+    ; RAX now contains milliseconds since the Unix epoch
+    TAG_INTEGER_REG rax
     ret
 
 
