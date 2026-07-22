@@ -1136,6 +1136,80 @@ FUNC fn_sysMINUSheapMINUSbytes
     TAG_INTEGER_REG rax
     ret
 
+
+;; Return a list describing every heap object.
+FUNC fn_sysMINUSheapMINUSdata
+    mov     r12, [from_space]
+    mov     r13, [alloc_ptr]
+
+    xor     r15, r15
+    TAG_NIL_REG r15              ; result list
+
+.loop:
+    cmp     r12, r13
+    jae     .reverse
+
+    lea     r14, [r12 + OBJ_PAYLOAD]  ; object
+    shl     r14, 3
+    mov     eax, [r12 + OBJ_TYPE]
+    or      r14, rax
+
+    mov     rbx, [r12 + OBJ_SIZE] ; size
+    shl     rbx, 3
+
+    mov     rcx, r12          ; offset
+    sub     rcx, [from_space]
+    shl     rcx, 3
+
+    mov     rdi, r14          ; object
+    xor     rsi, rsi
+    TAG_NIL_REG rsi
+    call    fn_sys_cons_NOGC  ; No GC during this
+    mov     r14, rax
+
+    mov     rdi, rbx          ; size
+    mov     rsi, r14
+    call    fn_sys_cons_NOGC  ; No GC during this
+    mov     r14, rax
+
+    mov     rdi, rcx          ; offset
+    mov     rsi, r14
+    call    fn_sys_cons_NOGC  ; No GC during this
+    mov     r14, rax
+
+    mov     rdi, r14          ; prepend
+    mov     rsi, r15
+    call    fn_sys_cons_NOGC  ; No GC during this
+    mov     r15, rax
+
+    mov     rax, [r12 + OBJ_SIZE]  ; next object
+    add     r12, rax
+    jmp     .loop
+
+.reverse:
+    xor     r14, r14
+    TAG_NIL_REG r14
+
+.rev_loop:
+    mov     rax, r15
+    mov     rcx, rax
+    and     rcx, 7
+    cmp     rcx, TAG_ID_NIL
+    je      .done
+
+    mov     rax, r15
+    UNTAG_REG rax
+    mov     rdi, [rax]           ; car
+    mov     r15, [rax+8]         ; cdr
+    mov     rsi, r14
+    call    fn_sys_cons_NOGC     ; No GC during this
+    mov     r14, rax
+    jmp     .rev_loop
+.done:
+    mov     rax, r14
+    ret
+
+
 ;; Dump heap contents.
 FUNC fn_sysMINUSheapMINUSdump
     mov     rcx, [from_space]      ; current object
