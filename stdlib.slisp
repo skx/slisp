@@ -371,7 +371,7 @@ NOTE: This is not a macro, so all arguments are evaluated."
   "Return 1 if the number is even, nil otherwise."
   (= (% n 2 ) 0))
 
-(defun max (xs)
+(defun max (&xs)
   "Return the maximum integer from the list of numbers supplied."
   (if (nil? xs)
       xs
@@ -380,7 +380,7 @@ NOTE: This is not a macro, so all arguments are evaluated."
                 (if (< a b) b a))
               (car xs))))
 
-(defun min (xs)
+(defun min (&xs)
   "Return the smallest integer from the list of numbers supplied."
   (if (nil? xs)
       xs
