@@ -273,6 +273,7 @@
   (register-builtin "sys-gc" (lambda (args) (sys-gc)))
   (register-builtin "sys-heap-allocs" (lambda (args) (sys-heap-allocs)))
   (register-builtin "sys-heap-bytes" (lambda (args) (sys-heap-bytes)))
+  (register-builtin "sys-heap-data" (lambda (args) (sys-heap-data)))
   (register-builtin "sys-heap-dump" (lambda (args) (sys-heap-dump)))
   (register-builtin "sys-heap-objects" (lambda (args) (sys-heap-objects)))
   (register-builtin "sys_run" (lambda (args) (sys_run (car args) (cadr args))))

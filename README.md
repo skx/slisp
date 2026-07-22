@@ -316,6 +316,7 @@ The `(cons ..)` primitive is a lisp-fundamental, so I figure that is going to be
 * `(sys-heap-allocs)` -  Return the number of memory allocations made since the last garbage-collection process.
   * If your program regularly calls `cons` this will never be more than 64,000.
 * `(sys-heap-bytes)` - Return the size of the heap.
+* `(sys-heap-data)` - Return the contents of the heap as a list of entries.
 * `(sys-heap-dump)` - Dump a summary of the heap to the console.
   * This is implemented in assembly and literally writes to STDOUT.  There is no control over the formatting.
   * I wanted to write a function that would return a list of heap entries, but that might trigger a GC process.  Which would invalidate the results mid-traversal, so this is my compromise solution.
