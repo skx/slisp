@@ -76,8 +76,6 @@
         (set! i (+ i 1))))
     depth))
 
-;; Should we show debug output?
-(defvar *DEBUG* nil)
 
 ;; Contains references to built-in functions
 (defvar *builtins* nil)
@@ -293,7 +291,6 @@
 ;;
 ;; NOTE: This returns a list of "return value" and "[possibly updated] environment".
 (defun eval (expr env)
-  (if *DEBUG* (println "expr:" expr))
   (cond
     ;; integers evaluate to themselves
     ((int? expr) (list expr env))
@@ -634,7 +631,6 @@
 (defun eval-program (forms)
   (let ((result nil))
     (while forms
-      (if *DEBUG* (println "FORM " (car forms)))
       (set! result (eval (car forms) nil))
       (set! forms  (cdr forms)))
     result))
@@ -645,7 +641,6 @@
   (init-builtins)
   (reader-init text)
   (let ((forms (reader-parse-program)))
-    (if *DEBUG* (println "Parsed: " forms))
     (eval-program forms)))
 
 
