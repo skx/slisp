@@ -3637,7 +3637,7 @@ std_lib_src:
 ;;
 ;; Copies of the files we embed
 ;;
-section .rodata
+section .rodata.packages,"aw",@progbits
 
 ;; Names and data for each embedded file entry
 {{ range $i, $e := .Assets }}
