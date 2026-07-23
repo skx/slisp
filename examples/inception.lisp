@@ -659,8 +659,8 @@
 ;; Evaluate a program comprised of expressions
 (defun run-program (text)
   (init-builtins)
-  (reader-init text)
-  (let ((forms (reader-parse-program)))
+  (reader:init text)
+  (let ((forms (reader:parse-program)))
     (eval-program forms)))
 
 
@@ -686,8 +686,8 @@
 
 
 (defun repl-execute-line (text)
-  (reader-init text)
-  (eval-program (reader-parse-program)))
+  (reader:init text)
+  (eval-program (reader:parse-program)))
 
 
 ;;

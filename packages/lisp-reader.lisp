@@ -4,10 +4,8 @@
 ;; It is designed to be included in other programs, and is included
 ;; in that way by inception.lisp.
 ;;
-;; There is a standalone `main` function at the foot of this file for
-;; running a self-contained test.  When other programs include it
-;; their own main functions will override the one here.
-;;
+
+;;; Variables
 
 ;; The length of the program.
 (defvar *reader-length* 0)
@@ -18,17 +16,8 @@
 ;; The source we parse goes here.
 (defvar *reader-text*   "")
 
-;; Helper.
-(defun symbol (name)
-  (list "symbol" name))
 
-
-;; constructor
-(defun reader-init (text)
-  "Setup state for processing the given text input."
-  (set! *reader-length* (strlen text))
-  (set! *reader-pos* 0)
-  (set! *reader-text* text))
+;;; Implementation
 
 (defun reader-eof ()
   "Have we reached the end of our input?"
@@ -93,7 +82,7 @@
     ((= (reader-peek) "'")
      (reader-next)
      (list
-      (symbol "quote")
+      (list "symbol" "quote")
       (reader-read)))
     (t
      (reader-read-atom))))
@@ -307,10 +296,20 @@
 
     (if (and numeric seen-digit)
         (atof token)
-        (symbol token))))
+        (list "symbol" token))))
+
+
+;;; Public Functions
+
+;; constructor
+(defun reader:init (text)
+  "Setup state for processing the given text input."
+  (set! *reader-length* (strlen text))
+  (set! *reader-pos* 0)
+  (set! *reader-text* text))
 
 ;; parse a complete program and return all the expressions within it.
-(defun reader-parse-program ()
+(defun reader:parse-program ()
   (let ((forms nil))
     (reader-skip)
     (while (not (reader-eof))

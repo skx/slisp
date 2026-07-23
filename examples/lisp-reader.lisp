@@ -11,9 +11,9 @@
         (data   (fread handle))    ; read
         (res    (fclose handle)))  ; close
     (when data
-      (reader-init data)
+      (reader:init data)
       (println path ":")
-      (println (reader-parse-program)))))
+      (println (reader:parse-program)))))
 
 
 ;;
