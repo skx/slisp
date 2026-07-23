@@ -38,7 +38,7 @@
 
 
 ;;
-;; tree.lisp contains simple tree-structure routines.
+;; tree.lisp contains a simple AVL-tree library.
 ;;
 (require tree)
 
@@ -142,25 +142,25 @@
 (defvar *globals* nil)
 
 (defun global-get (name)
-  (tree-get *globals* name))
+  (tree:get *globals* name))
 
 (defun global-set (name value)
-  (set! *globals* (tree-put *globals* name value)))
+  (set! *globals* (tree:put *globals* name value)))
 
 
 
 ;; Register a new built-in
 (defun register-builtin (name fn)
-  (set! *builtins* (tree-put *builtins* name (builtin fn))))
+  (set! *builtins* (tree:put *builtins* name (builtin fn))))
 
 ;; Lookup a builtin function.
 (defun lookup-builtin (name)
-  (tree-get *builtins* name))
+  (tree:get *builtins* name))
 
 ;; add a function
 (defun add-function (name params body)
   (set! *functions*
-        (tree-put
+        (tree:put
          *functions*
          name
          (closure params body nil)))
@@ -172,26 +172,26 @@
 ;; Check for the self-hosted/inception version of the entry first.
 (defun lookup-function (name)
   (let ((nested
-          (tree-get
+          (tree:get
              (global-get "*functions*")
              name)))
     (if nested
         nested
-        (tree-get *functions* name))))
+        (tree:get *functions* name))))
 
 ;; lookup a binding from the environment
 (defun env-get (env name)
-  (tree-get env name))
+  (tree:get env name))
 
 (defun env-bound? (env name)
-  (tree-bound? env name))
+  (tree:bound? env name))
 
 ;; set a variable in the environment
 (defun env-set (env name value)
-  (set! env (tree-put env name value)))
+  (set! env (tree:put env name value)))
 
 (defun env-update (env name value)
-  (set! env (tree-put env name value)))
+  (set! env (tree:put env name value)))
 
 
 ;; Is the given argument name variadic (i.e prefixed with "&")

@@ -41,7 +41,11 @@ Property list code, included as part of `stdlib.lisp`, so there is no need to ad
 
 ### tree
 
-A tree structure package, used by our inception interpreter.  (Located beneath examples/).
+A package containing simple AVL-tree routines, used by our inception interpreter.  (Located beneath examples/).
+
+```lisp
+(require tree)
+```
 
 
 ### variadic-maths
