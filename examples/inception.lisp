@@ -458,9 +458,9 @@
     (cond
       ((= op "and")      (eval-and expr env))
       ((= op "cond")     (eval-cond expr env))
+      ((= op "defconst") (eval-defvar expr env))
       ((= op "defun")    (eval-defun expr env))
       ((= op "defvar")   (eval-defvar expr env))
-      ((= op "defconst") (eval-defvar expr env))
       ((= op "do")       (eval-do expr env))
       ((= op "if")       (eval-if expr env))
       ((= op "lambda")   (eval-lambda expr env))
