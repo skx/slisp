@@ -153,8 +153,7 @@
   (tree-get *globals* name))
 
 (defun global-set (name value)
-  (set! *globals*
-      (tree-put *globals* name value)))
+  (set! *globals* (tree-put *globals* name value)))
 
 
 ;; Lookup a builtin function.
@@ -193,7 +192,6 @@
 ;; set a variable in the environment
 (defun env-set (env name value)
   (set! env (tree-put env name value)))
-;  (cons (list name value) env))
 
 (defun env-update (env name value)
   (set! env (tree-put env name value)))
@@ -462,40 +460,25 @@
 (defun eval-list (expr env)
   (let ((op (symbol-name (car expr))))
     (cond
-      ((= op "and")
-       (eval-and expr env))
-      ((= op "cond")
-       (eval-cond expr env))
-      ((= op "defun")
-       (eval-defun expr env))
-      ((= op "defvar")
-       (eval-defvar expr env))
-      ((= op "defconst")
-       (eval-defvar expr env))
-      ((= op "do")
-       (eval-do expr env))
-      ((= op "if")
-       (eval-if expr env))
-      ((= op "lambda")
-       (eval-lambda expr env))
-      ((= op "let")
-       (eval-let expr env))
-      ((= op "or")
-       (eval-or expr env))
-      ((= op "quote")
-       (eval-quote expr env))
-      ((= op "require")
-       (eval-require expr env))
-      ((= op "set!")
-       (eval-set expr env))
-      ((= op "unless")
-       (eval-unless expr env))
-      ((= op "when")
-       (eval-when expr env))
-      ((= op "while")
-       (eval-while expr env))
-      (t
-       (eval-call expr env)))))
+      ((= op "and")      (eval-and expr env))
+      ((= op "cond")     (eval-cond expr env))
+      ((= op "defun")    (eval-defun expr env))
+      ((= op "defvar")   (eval-defvar expr env))
+      ((= op "defconst") (eval-defvar expr env))
+      ((= op "do")       (eval-do expr env))
+      ((= op "if")       (eval-if expr env))
+      ((= op "lambda")   (eval-lambda expr env))
+      ((= op "let")      (eval-let expr env))
+      ((= op "or")       (eval-or expr env))
+      ((= op "quote")    (eval-quote expr env))
+      ((= op "require")  (eval-require expr env))
+      ((= op "set!")     (eval-set expr env))
+      ((= op "unless")   (eval-unless expr env))
+      ((= op "when")     (eval-when expr env))
+      ((= op "while")    (eval-while expr env))
+
+      ;; default
+      (t  (eval-call expr env)))))
 
 ;; eval set!
 (defun eval-set (expr env)
@@ -521,13 +504,10 @@
 (defun eval-symbol (sym env)
   (let ((name (symbol-name sym)))
 
-    ;; boolean constants
     (cond
-      ((= name "t")
-       t)
-
-      ((= name "nil")
-       nil)
+      ;; boolean constants
+      ((= name "t")       t)
+      ((= name "nil")     nil)
 
       (t
 
@@ -568,9 +548,7 @@
 
 ;; special form: quote
 (defun eval-quote (expr env)
-  (list
-   (cadr expr)
-   env))
+  (list (cadr expr) env))
 
 ;; special form: require
 ;;
