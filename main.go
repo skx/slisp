@@ -42,7 +42,7 @@ func generate(prg string) (string, error) {
 
 // compile will compile the given program into an object,
 // then a binary.
-func compile(name string, txt string) {
+func compile(name string, txt string, output string) {
 
 	// Get the basename
 	nm := filepath.Base(name)
@@ -70,8 +70,13 @@ func compile(name string, txt string) {
 		os.Exit(1)
 	}
 
+	bin := nm
+	if output != "" {
+		bin = output
+	}
+
 	// link
-	linkCmd := []string{"ld", "-o", nm, "--gc-sections", "-s", nm + ".o"}
+	linkCmd := []string{"ld", "-o", bin, "--gc-sections", nm + ".o"}
 
 	c = exec.Command(linkCmd[0], linkCmd[1:]...)
 	c.Stdout = os.Stdout
@@ -91,6 +96,7 @@ func main() {
 	stdlibFlag := flag.Bool("stdlib", true, "Prepend our Lisp standard library to user-programs.")
 	compileFlag := flag.Bool("compile", false, "Automatically generate a binary.")
 	c := flag.Bool("c", false, "Automatically generate a binary.")
+	o := flag.String("o", "", "Generated name of the binary")
 	flag.Parse()
 
 	// Do we have a file?
@@ -119,7 +125,7 @@ func main() {
 	}
 
 	if *c || *compileFlag {
-		compile(flag.Args()[0], txt)
+		compile(flag.Args()[0], txt, *o)
 	} else {
 		// Print the code to STDOUT
 		fmt.Print(txt)
