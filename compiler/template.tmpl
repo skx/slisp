@@ -3641,24 +3641,25 @@ section .rodata.packages,"aw",@progbits
 
 ;; Names and data for each embedded file entry
 {{ range $i, $e := .Assets }}
+align 16
  asset_{{ $i }}_name: db "{{ .Name }}", 0
  asset_{{ $i }}_data: db {{ .Data }}
  db 0x00
  asset_{{ $i }}_size: equ $ - asset_{{ $i }}_data
 {{ end }}
 
-align 16
 
 ;;
 ;; A lookup table to allow us to retrieve the contents
 ;; at runtime, via (package xx)
 ;;
+align 16
 asset_table:
-
 {{ range $i, $e := .Assets }}
   dq asset_{{ $i }}_name
   dq asset_{{ $i }}_data
   dq asset_{{ $i }}_size
 {{ end }}
 
+;; The count of assets
 asset_count equ {{ .AssetCount }}
