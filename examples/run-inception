@@ -7,7 +7,7 @@ rm inception ../slisp || true
 make inception
 
 # build up the code
-cat ../stdlib.slisp lisp-reader.lisp tree.lisp inception.lisp >new.txt
+cat lisp-reader.lisp tree.lisp inception.lisp >new.txt
 
 # run
 ./inception new.txt --repl

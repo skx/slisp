@@ -243,14 +243,9 @@ Solution 1 (1 5 8 6 3 7 2 4):
 
 > Here you'll see we added `--main` which automatically runs the `(main)` function our examples define.
 
-So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can also print.   The biggest difference really is in terms of speed and features:
+So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can also print.
 
-* The interpreter has 100% of the builtin functions you would expect
-  * `cons`, `entries`, `environment`, `fopen`, `map`, etc.
-* However it does not load the `stdlib.slisp` file, so if you want the functions that this provides you need to prepend it to your source.
-  * `cat stdlib.slisp your-program.lisp > run.me; ./inception ./run.me --main`.
-* The interpreter does support all the types the compiler does though.
-  * Floating point numbers, integers, strings, and character literals, etc.
+Inception also contains the standard library `stdlib.slisp` and the embedded packages contained within `packages/` so there is no longer a feature gap.  The standard library is always loaded, and the optional packages my be loaded on demand with `(require NAME)` as you would expect.
 
 The interpreter is obviously much slower than our compiled binaries, due to the overhead of interpreting everything manually.  Sometimes this slowdown is minor, other times it is signification, it really depends upon the nature of the program:
 
@@ -269,9 +264,9 @@ That said, and as demonstrated above, the interpreter can run many of the same p
 
 You can of course use the interpreter to run itself, which provides true inception!
 
-Because the interpreter doesn't contain the standard library, and it doesn't fully understand the `(require ..)` special form, you need to massage the source slightly:
+Within the `examples/` directory requiring the files the interpreter wants will just work, but it would be safer to join them together to avoid the need to consider setup of LISP_PATH:
 
-     $ cat ../stdlib.slisp lisp-reader.lisp tree.lisp inception.lisp >new.txt
+     $ cat lisp-reader.lisp tree.lisp inception.lisp >new.txt
 
 Once you do that you can launch the interpreter and tell it to run a second program:
 
@@ -287,6 +282,8 @@ Once you do that you can launch the interpreter and tell it to run a second prog
      106
      > (exit)
 
+> **NOTE**: The script `./run-inception` will do this for you.
+
 You could also try this:
 
      > (require brainfuck)
@@ -298,6 +295,7 @@ You could also try this:
 
 Either will work and produce the `Hello World!` output we all know and love, although again it is slow.  Slower than using the compiled interpreter to run the same program (which would be "`./inception brainfuck.lisp --main`").
 
+> **NOTE** You might need to run `ulimit -s unlimited` to avoid segfaults due to stack exhaustion with the nested inception usage.
 </details>
 
 

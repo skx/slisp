@@ -259,6 +259,7 @@
   (register-builtin "nth!" (lambda (args) (nth! (car args) (cadr args) (caddr args))))
   (register-builtin "nth" (lambda (args) (nth (car args) (cadr args))))
   (register-builtin "ord" (lambda (args) (ord (car args))))
+  (register-builtin "package" (lambda (args) (package (car args))))
   (register-builtin "print" (lambda (args) (while args (print (car args)) (set! args (cdr args)))))
   (register-builtin "println" (lambda (args) (while args (print (car args)) (set! args (cdr args))) (newline)))
   (register-builtin "putc" (lambda (args) (not (putc (car args)))))
@@ -270,6 +271,7 @@
   (register-builtin "split" (lambda (args) (split (car args) (cadr args))))
   (register-builtin "sqrt" (lambda (args) (sqrt (car args))))
   (register-builtin "stat" (lambda (args) (stat (car args))))
+  (register-builtin "stdlib" (lambda (args) (stdlib)))
   (register-builtin "str?" (lambda (args) (str? (car args))))
   (register-builtin "strcat" (lambda (args) (strcat (car args) (cadr args))))
   (register-builtin "strcmp" (lambda (args) (strcmp (car args) (cadr args))))
@@ -546,15 +548,34 @@
 (defun eval-quote (expr env)
   (list (cadr expr) env))
 
+
+(defun require-path (file)
+  "Find the given file on LISP_PATH, if possible"
+  (let ((path (getenv "LISP_PATH")))
+    (if path
+        (let ((split (split-all path #\:))
+              (res (filter split (lambda (dir) (exists? (join (list dir "/" file)))))))
+          (if res
+              (join (list (car res) "/" file))))
+        file)))
+
 ;; special form: require
 ;;
-;; NOTE: We don't honour the search-path, or have embedded files, we just
-;; read from ./ with a .lisp suffix.
+;; Load a file from the embedded asset, if we can.  Otherwise we
+;; append ".lisp" to files missing it and search LISP_PATH for them.
 (defun eval-require (expr env)
-  (let ((filename (car (cdr (cadr expr)))))
-    (if (exists? (strcat filename ".lisp"))
-        (execute-file (strcat filename ".lisp"))
-        (println "File not found " filename ".lisp")))
+  (let ((filename (car (cdr (cadr expr))))
+        (data     (package filename)))       ;; can we load it from the embedded assets?
+    (if data
+        (run-program data)                   ;; Yes we can!
+        (do
+         (if (strstr filename ".")
+             (set! filename (require-path filename))
+             (set! filename (require-path (strcat filename ".lisp"))))
+         (if filename
+             (if (exists? filename)
+                 (execute-file filename)
+                 (println "File not found " filename))))))
   ; return nothing new.
   (list nil env))
 
@@ -693,6 +714,14 @@
       (do
        (println "Usage " (car args) " --repl | path/to/run")
        (exit 1)))
+
+  ;; Load the standard library
+  (let ((before (now))
+        (x (run-program (stdlib)))
+        (after (now)))
+    ;; Loading time will vary, so we should exclude from tests
+    (if (not (getenv "TEST"))
+        (println "Loaded stdlib.lisp in \e[1m" (- after before) "ms\e[0m.")))
 
   ;; We process each named file (skipping --repl)
   (map (lambda (name)
