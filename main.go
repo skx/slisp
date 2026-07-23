@@ -26,6 +26,9 @@ func generate(prg string) (string, error) {
 	// Create a compiler
 	c := compiler.New(prg)
 
+	// ensure it has access to the standard library
+	c.SetStdLib(stdlibLisp)
+
 	// Inline packages
 	c.LoadPackages(staticFiles)
 
