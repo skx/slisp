@@ -6,14 +6,6 @@
 (defconst WIDTH 80)
 (defconst HEIGHT 25)
 
-;; helper
-(defun map (fn xs)
-  "Create a new list by calling the given function for every list element."
-  (if (nil? xs)
-      nil
-      (cons (fn (car xs)) (map fn (cdr xs)))))
-
-
 ;;
 ;; The board we're working on and displaying
 ;;
@@ -37,13 +29,6 @@
 ;;
 (defvar limit 100)
 
-
-;; Print an escape character
-;;
-;; This is a bit clunky, but it allows our code to be executed by the
-;; inception interpreter.
-(defun escape ()
-  (chr 27))
 
 ;; Build a row containing WIDTH zeroes.
 (defun make-row ()
@@ -73,9 +58,9 @@
 
 ;; Draw the state of the board.
 (defun draw-board (b)
-  (print (escape) "[?25l")  ; hide cursor
-  (print (escape) "[H")     ; move home & clear
-  (print (escape) "[2J")
+  (print "\e[?25l")  ; hide cursor
+  (print "\e[H")     ; move home & clear
+  (print "\e[2J")    ; clear screen
 
   (let ((y 0))
     (while (< y HEIGHT)
@@ -94,7 +79,7 @@
   (if (> generation limit)
       (exit 0))
 
-  (print (escape) "[?25h") ; restore cursor
+  (print "\e[?25h") ; restore cursor
 )
 
 
