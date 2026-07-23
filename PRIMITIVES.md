@@ -144,6 +144,8 @@ added to them too.
     * Update the Nth item in the given list with the specified value, in-place.
   * `ord`
     * Return the ASCII code of the specified character.
+  * `package`
+     * Return the contents of one of our embedded packages at runtime.
   * `putc`
     * Print the given character.
   * `printfloat`
@@ -165,6 +167,8 @@ added to them too.
     * Square root.
   * `stat`
     * Returns file information as a list (TYPE SIZE MODE), or nil on failure.
+  * `stdlib`
+     * Return the contents of our slisp stdlib at runtime.
   * `strcat`
     * Join two strings together and return them.
   * `strcmp`

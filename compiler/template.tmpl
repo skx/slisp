@@ -2185,6 +2185,54 @@ FUNC fn_sys_ord
     ret
 
 
+;; Lookup and return the contents of a package at runtime
+FUNC fn_sys_package
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    UNTAG_REG rdi
+
+    mov rcx, asset_count
+    mov rsi, asset_table
+.next:
+    test rcx, rcx
+    jz .not_found
+
+    ; Compare requested filename with table entry.
+    mov rdx, [rsi]      ; stored filename pointer
+    push rcx
+    push rsi
+    push rdi
+.compare:
+    mov al, [rdi]
+    mov bl, [rdx]
+    cmp al, bl
+    jne .different
+    test al, al
+    je .match
+    inc rdi
+    inc rdx
+    jmp .compare
+.different:
+    pop rdi
+    pop rsi
+    pop rcx
+    add rsi, 24         ; sizeof(Asset)
+    dec rcx
+    jmp .next
+.match:
+    pop rdi
+    pop rax             ; restore table pointer into RAX
+    pop rcx
+    mov rax, [rax+8]
+    TAG_STRING_REG rax
+    ret
+.not_found:
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
+
 
 ;; Write the given ASCII character to STDOUT
 FUNC fn_sys_putc
@@ -3584,3 +3632,33 @@ align 16
 ;; Embedded our (lisp) standard library inline
 std_lib_src:
 {{ .StdLib }}
+
+
+;;
+;; Copies of the files we embed
+;;
+section .rodata
+
+;; Names and data for each embedded file entry
+{{ range $i, $e := .Assets }}
+ asset_{{ $i }}_name: db "{{ .Name }}", 0
+ asset_{{ $i }}_data: db {{ .Data }}
+ db 0x00
+ asset_{{ $i }}_size: equ $ - asset_{{ $i }}_data
+{{ end }}
+
+align 16
+
+;;
+;; A lookup table to allow us to retrieve the contents
+;; at runtime, via (package xx)
+;;
+asset_table:
+
+{{ range $i, $e := .Assets }}
+  dq asset_{{ $i }}_name
+  dq asset_{{ $i }}_data
+  dq asset_{{ $i }}_size
+{{ end }}
+
+asset_count equ {{ .AssetCount }}

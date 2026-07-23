@@ -8,6 +8,7 @@ import (
 	"embed"
 	"encoding/hex"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -517,6 +518,51 @@ func (c *Compiler) Compile() (string, error) {
 	floatTable := getCompiled()
 
 	//
+	// Define a structure to hold embedded assets
+	//
+	// This is NOT used for our stdlib, but it is used for
+	// our embedded package-files, which come from packages/
+	//
+	type Asset struct {
+		Name string
+
+		Data string
+	}
+
+	//
+	// Generate assets
+	//
+	assets := []Asset{}
+
+	fs.WalkDir(c.fs, ".", func(path string, d fs.DirEntry, err error) error {
+		if d.Type().IsRegular() {
+			data, err := c.fs.ReadFile(path)
+			if err != nil {
+				return err
+			}
+
+			// strip directory
+			name := filepath.Base(path)
+			// strip suffix
+			name = strings.TrimSuffix(name, filepath.Ext(name))
+
+			var b strings.Builder
+			for i, c := range data {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				fmt.Fprintf(&b, "0x%02X", c)
+			}
+
+			assets = append(assets, Asset{
+				Name: name,
+				Data: b.String(),
+			})
+		}
+		return nil
+	})
+
+	//
 	// We also need to define a variable to hold the pointer
 	// for each global-variable value.
 	//
@@ -530,6 +576,12 @@ func (c *Compiler) Compile() (string, error) {
 	// file we render for our output.
 	//
 	type Generated struct {
+		// Static assets
+		Assets []Asset
+
+		// Count of assets
+		AssetCount int
+
 		// The defintions of defun's we've seen.
 		Defuns string
 
@@ -558,6 +610,8 @@ func (c *Compiler) Compile() (string, error) {
 	// the template appropriately.
 	//
 	x := &Generated{
+		Assets:      assets,
+		AssetCount:  len(assets),
 		Defuns:      defuns,
 		Globals:     globals,
 		InitGlobals: initGlobals,
