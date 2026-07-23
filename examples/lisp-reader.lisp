@@ -220,6 +220,7 @@
                   (strcat
                    text
                    (cond
+                     ((= ch "e") (string (chr 27)))
                      ((= ch "n") "\n")
                      ((= ch "t") "\t")
                      ((= ch "r") "\r")
