@@ -23,7 +23,7 @@
 ;; 6. GC machinery
 ;; 7. string literals
 ;; 8. floating-point literals
-
+;; 9. global variables
 
 
 
@@ -2489,6 +2489,12 @@ FUNC fn_sys_stat
     ret
 
 
+;; return the contents of our standard library
+FUNC fn_stdlib
+    mov rax, std_lib_src
+    TAG_STRING_REG rax
+    ret
+
 ;; join the two given strings and return a new one.
 FUNC fn_sys_strcat
     mov rbx, rdi            ; type-check arg1: str
@@ -3142,6 +3148,9 @@ forward:
     test r11,r11
     jnz .done
 
+    ; Preserve original tagged value.
+    mov r9, rax
+
     ; Save original tag bits.
     mov     rbx, rax
     GET_TAG_BITS rbx
@@ -3149,31 +3158,20 @@ forward:
     ; Convert tagged pointer -> payload pointer.
     UNTAG_REG rax
 
-    ; Strings may be static literals.
-    cmp rbx, TAG_ID_STRING
-    jne .not_string
+    ;
+    ; We have static string/floats within our
+    ; static area.
+    ;
+    ; We exclude those by making sure we only forward items which are located
+    ; within the heap area - this preserves our stdlib too as a happy accident (ha!)
+    ;
+    mov     rcx, [from_space]
+    cmp     rax, rcx
+    jb      .not_heap
 
-    mov rcx, rax                        ; already untagged
-    cmp rcx, string_literals_start
-    jb .heap_object
-
-    cmp rcx, string_literals_end
-    jb .static_string
-
-.not_string:
-    cmp rbx, TAG_ID_FLOAT
-    jne .not_float
-
-    mov rcx, rax
-
-    cmp rcx, float_literals_start
-    jb .heap_object
-
-    cmp rcx, float_literals_end
-    jb .static_float
-
-.not_float:
-.heap_object:
+    mov     rcx, [from_limit]
+    cmp     rax, rcx
+    jae     .not_heap
 
     ; payload -> object header
     OBJ_TO_HEADER rax
@@ -3234,13 +3232,8 @@ forward:
     mov     rax, rcx
 .done:
     ret
-
-.static_string:
-    TAG_STRING_REG rax
-    ret
-
-.static_float:
-    TAG_FLOAT_REG rax
+.not_heap:
+    mov rax, r9
     ret
 
 
@@ -3552,24 +3545,20 @@ gc_scan_stack:
 
 section .data
 
-
-string_literals_start:
-
 {{ .StringTable }}
 
-string_literals_end:
+
 
 
 ;;; 8. floating-point literals
 
-
-float_literals_start:
+section .data
 
 {{ .FloatTable }}
 
-float_literals_end:
 
-;;; 8. global variables
+
+;;; 9. global variables
 section .data
 
 align 16
@@ -3579,3 +3568,19 @@ globals_start:
         dq 0x0000
 {{end}}
 globals_end:
+
+
+
+;;
+;; We embed the standard-library, primarily for the benefit of the inception interpretter
+;;
+;; But we don't want to bloat our binaries so this is in a section which can be reaped by the
+;; linker.
+;;
+section .data.stdlib,"aw",@progbits
+
+align 16
+
+;; Embedded our (lisp) standard library inline
+std_lib_src:
+{{ .StdLib }}

@@ -77,6 +77,9 @@ type Compiler struct {
 	// source stores the program we're parsing.
 	source string
 
+	// stdlib is our embedded standard library
+	stdlib string
+
 	// text stores the text we emit as we compile various things.
 	text bytes.Buffer
 
@@ -119,6 +122,23 @@ func New(src string) *Compiler {
 		loaded:    map[string]bool{},
 		strings:   map[string]string{},
 	}
+}
+
+// SetStdLib allows embedding the standard library
+func (c *Compiler) SetStdLib(s string) {
+
+	var b strings.Builder
+
+	b.WriteString("db ")
+
+	for i, c := range []byte(s) {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(&b, "0x%02X", c)
+	}
+
+	c.stdlib = b.String() + "\ndb 0x00\n"
 }
 
 // LoadPackages will enable loading packages from the specified embedded filesystem.
@@ -525,6 +545,9 @@ func (c *Compiler) Compile() (string, error) {
 		// StringTable contains the strings we've seen.
 		StringTable string
 
+		// Stdlib embeds our standard library
+		StdLib string
+
 		// FloatTable contains the floating point literals we've seen.
 		FloatTable string
 	}
@@ -539,6 +562,7 @@ func (c *Compiler) Compile() (string, error) {
 		Globals:     globals,
 		InitGlobals: initGlobals,
 		Lambdas:     lambdas,
+		StdLib:      c.stdlib,
 		StringTable: stringTable,
 		FloatTable:  floatTable,
 	}
