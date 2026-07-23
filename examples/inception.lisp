@@ -222,6 +222,9 @@
   (register-builtin "lambda?" (lambda (args) (lambda? (car args))))
   (register-builtin "list" (lambda (args) args))
   (register-builtin "nil?" (lambda (args) (nil? (car args))))
+  (register-builtin "printfloat" (lambda (args) (printfloat (car args))))
+  (register-builtin "printint" (lambda (args) (printint (car args))))
+  (register-builtin "printstr" (lambda (args) (printstr (car args))))
   (register-builtin "stdlib" (lambda (args) (stdlib)))
   (register-builtin "str?" (lambda (args) (str? (car args))))
   (register-builtin "string" (lambda (args) (string (car args))))
@@ -275,6 +278,7 @@
   (register-builtin "sys_strcat" (lambda (args) (sys_strcat (car args) (cadr args))))
   (register-builtin "sys_strcmp" (lambda (args) (sys_strcmp (car args) (cadr args))))
   (register-builtin "sys_strlen" (lambda (args) (sys_strlen (car args))))
+  (register-builtin "sys_substr" (lambda (args) (sys_substr (car args) (cadr args) (caddr args))))
   (register-builtin "sys_unlink" (lambda (args) (sys_unlink (car args))))
 )
 

@@ -844,7 +844,7 @@ FUNC fn_sys_GT
 section .text.printing,"ax",@progbits
 
 ;; print a newline.
-fn_newline:
+FUNC fn_sys_newline
     mov rax, SYS_write
     mov rdi, 1              ; stdout
     mov rsi, random_buffer  ; point to the buffer
@@ -2043,7 +2043,7 @@ FUNC fn_sys_mkdir
 
 
 ;; Get milliseconds since epoc
-FUNC fn_now
+FUNC fn_sys_now
     sub rsp, 16                  ; Reserve space for struct timespec
 
     mov eax, SYS_clock_gettime
@@ -2928,7 +2928,7 @@ out_of_range:
     mov rdi, qword [rel last_function]   ; and the function-name
     TAG_STRING_REG rdi
     call fn_printstr
-    call fn_newline
+    call fn_sys_newline
     mov rdi, 1                           ; exit-code
     jmp fn_exit
 
@@ -2942,7 +2942,7 @@ heap_exhausted:
     mov rdi, qword [rel last_function]   ; and the function-name
     TAG_STRING_REG rdi
     call fn_printstr
-    call fn_newline
+    call fn_sys_newline
     mov rdi, 1                           ; exit-code
     jmp fn_exit
 
@@ -2955,7 +2955,7 @@ type_error:
     mov rdi, qword [rel last_function]   ; and the function-name
     TAG_STRING_REG rdi
     call fn_printstr
-    call fn_newline
+    call fn_sys_newline
     mov rdi, 1                           ; exit-code
     jmp fn_exit
 

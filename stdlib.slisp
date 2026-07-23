@@ -106,8 +106,14 @@
 (defun mkdir (str)
        (sys_mkdir str))
 
+(defun newline ()
+       (sys_newline))
+
 (defun not (x)
        (sys_not x))
+
+(defun now ()
+       (sys_now))
 
 (defun isqrt(x)
        (sys_isqrt x))
