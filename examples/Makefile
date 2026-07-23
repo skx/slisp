@@ -1,4 +1,5 @@
 export FOO=BAR
+export TEST=1
 export NAME=Steve
 
 PROGRAMS := $(basename $(wildcard *.lisp))
@@ -20,14 +21,6 @@ test: $(TESTS)
 
 
 
-# Optionally remove unused sections and strip the binaries.
-ifeq ($(SMALL),1)
-LINK_CMD = @ld --gc-sections -s -o $@ tmp.o
-else
-LINK_CMD = @ld -o $@ tmp.o
-endif
-
-
 # Generic rule
 #   "foo.lisp" becomes "foo"
 #   "foo" is executed to produce "foo.out"
@@ -35,20 +28,12 @@ endif
 #
 %: %.lisp ../slisp
 	@echo "compiling $@"
-	@../slisp $< > tmp.asm
-	@nasm -f elf64 tmp.asm
-	$(LINK_CMD)
-
-# Life isn't gonna get tested
-life.test:
-	@echo "ignoring $@ - as it doesn't terminate"
+	@../slisp -c $<
 
 # inception needs a file to be named
-inception.test:
+inception.test: ../slisp
 	@echo "compiling $@"
-	@../slisp inception.lisp > tmp.asm
-	@nasm -f elf64 tmp.asm
-	$(LINK_CMD)
+	@../slisp -c -o inception.test inception.lisp
 	@echo "testing $@"
 	@./$@ inception.in > $@.out 2>&1  || true
 	@cmp $@.out $@.expected || (echo "program $< did not match" ; cat $@.out ; exit 1)
@@ -56,12 +41,13 @@ inception.test:
 wc.test:
 	@echo "ignoring $@ - as it doesn't terminate"
 
+life.test:
+	@echo "ignoring $@ - as it doesn't terminate"
+
 # Generic rule for testing each binary
 %.test: %.lisp ../slisp
 	@echo "compiling $@"
-	@../slisp $< > tmp.asm
-	@nasm -f elf64 tmp.asm
-	$(LINK_CMD)
+	@../slisp -c -o $@ $<
 	@echo "testing $@"
 	@./$@ > $@.out 2>&1  || true
 	@cmp $@.out $@.expected || (echo "program $< did not match" ; cat $@.out ; exit 1)

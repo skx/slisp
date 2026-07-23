@@ -1,6 +1,14 @@
 # packages
 
-These packages are embedded within the standard library, they can be loaded:
+These packages are embedded within our compiler and they may be loaded like so:
+
+    (require foo)
+
+This inserts the contents of "foo.lisp" which will then be parsed by the usual process.  (There is a _little_ more complexity when used dynamically via `inception`, but we can ignore that.)
+
+By convention all "public" functions should be prefixed with the package-name, and a ":".
+
+So you'll see the tree package has functions such as `tree:bound?`, `tree:get`, and `tree:put`.
 
 
 ### alist
@@ -25,12 +33,26 @@ Usage is demonstrated in the [examples/wc.lisp](examples/wc.lisp) utility progra
         (print "Files " (parser :files))))
 
 
+### lisp-reader
+
+A lisp-reader which converts s-expressions to parsed structure, used by our inception interpreter.  (Located beneath examples/).
+
+
 ### plist
 
 Property list code, included as part of `stdlib.lisp`, so there is no need to additionally require it.
 
 ```lisp
 (require plist)
+```
+
+
+### tree
+
+A package containing simple AVL-tree routines, used by our inception interpreter.  (Located beneath examples/).
+
+```lisp
+(require tree)
 ```
 
 

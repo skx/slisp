@@ -6,7 +6,7 @@ LAMBDA X 2*2: -> 4
 LAMBDA X 3*3: -> 9
 LAMBDA X 4*4: -> 16
 LAMBDA X 5*5: -> 25
-This is what a function looks like: (closure (x) (((symbol +) (symbol x) (symbol n))) (n 10 <nil> <nil>))
+This is what a function looks like: (closure (x) (((symbol +) (symbol x) (symbol n))) (n 10 <nil> <nil> 1))
 Adder (+10) result for  5:15
 Adder (+10) result for 25:35
 Some maths:

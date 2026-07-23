@@ -1,3 +1,3 @@
 OK.. apple is bound
 OK.. fake is not bound
-(apple apple <nil> (cake cake <nil> (shoe shoe (pig pig (dog cat <nil> <nil>) <nil>) <nil>)))
+(cake cake (apple apple <nil> <nil> 1) (pig pig (dog cat <nil> <nil> 1) (shoe shoe <nil> <nil> 1) 2) 3)

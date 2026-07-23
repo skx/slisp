@@ -121,6 +121,9 @@
 (defun ord (c)
        (sys_ord c))
 
+(defun package (str)
+       (sys_package str))
+
 (defun putc (c)
        (sys_putc c))
 

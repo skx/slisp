@@ -243,14 +243,25 @@ Solution 1 (1 5 8 6 3 7 2 4):
 
 > Here you'll see we added `--main` which automatically runs the `(main)` function our examples define.
 
-So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can also print.   The biggest difference really is in terms of speed and features:
+So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can also print.
 
-* The interpreter has 100% of the builtin functions you would expect
-  * `cons`, `entries`, `environment`, `fopen`, `map`, etc.
-* However it does not load the `stdlib.slisp` file, so if you want the functions that this provides you need to prepend it to your source.
-  * `cat stdlib.slisp your-program.lisp > run.me; ./inception ./run.me --main`.
-* The interpreter does support all the types the compiler does though.
-  * Floating point numbers, integers, strings, and character literals, etc.
+The `alias!` function works for user-defined functions, but sadly doesn't allow you to override or change built-in functions, as they are in a different namespace.  This works:
+
+      (defun foo () (println "foo"))
+      (defun bar () (println "bar"))
+      (alias! foo bar)
+      (foo)   ; prints "bar" - all calls to foo will go to bar instead.
+
+But this doesn't work:
+
+    (defun add (a b) (sum (list a b)))
+    (alias + add)
+
+The core `+` function will still be called, never the user function.  The same thing means this is never invoked:
+
+    (defun * (a b) (println "pretend i multiply"))
+
+Inception also contains the standard library `stdlib.slisp` and the embedded packages contained within `packages/` so there is no longer a feature gap.  The standard library is always loaded, and the optional packages my be loaded on demand with `(require NAME)` as you would expect.
 
 The interpreter is obviously much slower than our compiled binaries, due to the overhead of interpreting everything manually.  Sometimes this slowdown is minor, other times it is signification, it really depends upon the nature of the program:
 
@@ -267,15 +278,9 @@ That said, and as demonstrated above, the interpreter can run many of the same p
 <summary>To achieve true inception you need to run the interpreter with itself</summary>
 
 
-You can of course use the interpreter to run itself, which provides true inception!
+You can of course use the interpreter to run itself, which provides true inception!  You can then go on to run a third second program, using the nested interpreter:
 
-Because the interpreter doesn't contain the standard library, and it doesn't fully understand the `(require ..)` special form, you need to massage the source slightly:
-
-     $ cat ../stdlib.slisp lisp-reader.lisp tree.lisp inception.lisp >new.txt
-
-Once you do that you can launch the interpreter and tell it to run a second program:
-
-     $ ./inception new.txt --repl
+     $ ./inception inception.lisp --repl
      Welcome to lisp in slisp!
      Enter :quit to exit.
 
@@ -296,8 +301,9 @@ You could also try this:
      Hello World!
      107
 
-Either will work and produce the `Hello World!` output we all know and love, although again it is slow.  Slower than using the compiled interpreter to run the same program (which would be "`./inception brainfuck.lisp --main`").
+Either will work and produce the `Hello World!` output we all know and love, although it is slow.  Slower than using the compiled interpreter to run the same program (which would be "`./inception brainfuck.lisp --main`").
 
+> **NOTE** You might need to run `ulimit -s unlimited` to avoid segfaults due to stack exhaustion with the nested inception usage.
 </details>
 
 
