@@ -344,6 +344,21 @@
       (list (apply fn args) env))))
 
 
+;; special form: alias!
+(defun eval-alias (expr env)
+  (let ((old (symbol-name (cadr expr)))
+        (new (symbol-name (caddr expr)))
+        (fn  (lookup-function new)))
+
+    (if fn
+        (do
+          (set! *functions*
+                (tree:put *functions* old fn))
+          (list old env))
+        (do
+          (println "Unknown function " new)
+          (list nil env)))))
+
 ;; special form: and
 (defun eval-and (expr env)
   (eval-and-forms (cdr expr) env))
@@ -458,6 +473,7 @@
 (defun eval-list (expr env)
   (let ((op (symbol-name (car expr))))
     (cond
+      ((= op "alias!")   (eval-alias expr env))
       ((= op "and")      (eval-and expr env))
       ((= op "cond")     (eval-cond expr env))
       ((= op "defconst") (eval-defvar expr env))
