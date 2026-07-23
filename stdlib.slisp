@@ -148,6 +148,9 @@
 (defun stat(str)
        (sys_stat str))
 
+(defun stdlib()
+       (sys_stdlib))
+
 (defun strcat(a b)
        (sys_strcat a b))
 
