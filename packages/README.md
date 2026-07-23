@@ -25,6 +25,11 @@ Usage is demonstrated in the [examples/wc.lisp](examples/wc.lisp) utility progra
         (print "Files " (parser :files))))
 
 
+### lisp-reader
+
+A lisp-reader which converts s-expressions to parsed structure, used by our inception interpreter.  (Located beneath examples/).
+
+
 ### plist
 
 Property list code, included as part of `stdlib.lisp`, so there is no need to additionally require it.
@@ -32,6 +37,11 @@ Property list code, included as part of `stdlib.lisp`, so there is no need to ad
 ```lisp
 (require plist)
 ```
+
+
+### tree
+
+A tree structure package, used by our inception interpreter.  (Located beneath examples/).
 
 
 ### variadic-maths

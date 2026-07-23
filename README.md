@@ -262,15 +262,9 @@ That said, and as demonstrated above, the interpreter can run many of the same p
 <summary>To achieve true inception you need to run the interpreter with itself</summary>
 
 
-You can of course use the interpreter to run itself, which provides true inception!
+You can of course use the interpreter to run itself, which provides true inception!  You can then go on to run a third second program, using the nested interpreter:
 
-Within the `examples/` directory requiring the files the interpreter wants will just work, but it would be safer to join them together to avoid the need to consider setup of LISP_PATH:
-
-     $ cat lisp-reader.lisp tree.lisp inception.lisp >new.txt
-
-Once you do that you can launch the interpreter and tell it to run a second program:
-
-     $ ./inception new.txt --repl
+     $ ./inception inception.lisp --repl
      Welcome to lisp in slisp!
      Enter :quit to exit.
 
@@ -282,8 +276,6 @@ Once you do that you can launch the interpreter and tell it to run a second prog
      106
      > (exit)
 
-> **NOTE**: The script `./run-inception` will do this for you.
-
 You could also try this:
 
      > (require brainfuck)
@@ -293,7 +285,7 @@ You could also try this:
      Hello World!
      107
 
-Either will work and produce the `Hello World!` output we all know and love, although again it is slow.  Slower than using the compiled interpreter to run the same program (which would be "`./inception brainfuck.lisp --main`").
+Either will work and produce the `Hello World!` output we all know and love, although it is slow.  Slower than using the compiled interpreter to run the same program (which would be "`./inception brainfuck.lisp --main`").
 
 > **NOTE** You might need to run `ulimit -s unlimited` to avoid segfaults due to stack exhaustion with the nested inception usage.
 </details>
