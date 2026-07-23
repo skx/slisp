@@ -77,14 +77,6 @@
     depth))
 
 
-;; Contains references to built-in functions
-(defvar *builtins* nil)
-
-
-;; Register a new built-in
-(defun register-builtin (name fn)
-  (set! *builtins* (tree-put *builtins* name (builtin fn))))
-
 
 ;; Since we don't "tag" types as we do in our compiler instead we wrap them in lists, and identify
 ;; them via a string-compare of the first element.
@@ -140,6 +132,8 @@
 
 
 
+;; Contains references to built-in functions
+(defvar *builtins* nil)
 
 ;; global storage for user-functions
 (defvar *functions*  nil)
@@ -153,6 +147,11 @@
 (defun global-set (name value)
   (set! *globals* (tree-put *globals* name value)))
 
+
+
+;; Register a new built-in
+(defun register-builtin (name fn)
+  (set! *builtins* (tree-put *builtins* name (builtin fn))))
 
 ;; Lookup a builtin function.
 (defun lookup-builtin (name)
