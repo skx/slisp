@@ -245,6 +245,22 @@ Solution 1 (1 5 8 6 3 7 2 4):
 
 So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can also print.
 
+The `alias!` function works for user-defined functions, but sadly doesn't allow you to override or change built-in functions, as they are in a different namespace.  This works:
+
+      (defun foo () (println "foo"))
+      (defun bar () (println "bar"))
+      (alias! foo bar)
+      (foo)   ; prints "bar" - all calls to foo will go to bar instead.
+
+But this doesn't work:
+
+    (defun add (a b) (sum (list a b)))
+    (alias + add)
+
+The core `+` function will still be called, never the user function.  The same thing means this is never invoked:
+
+    (defun * (a b) (println "pretend i multiply"))
+
 Inception also contains the standard library `stdlib.slisp` and the embedded packages contained within `packages/` so there is no longer a feature gap.  The standard library is always loaded, and the optional packages my be loaded on demand with `(require NAME)` as you would expect.
 
 The interpreter is obviously much slower than our compiled binaries, due to the overhead of interpreting everything manually.  Sometimes this slowdown is minor, other times it is signification, it really depends upon the nature of the program:
