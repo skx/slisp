@@ -146,6 +146,8 @@ added to them too.
     * Return the ASCII code of the specified character.
   * `package`
      * Return the contents of one of our embedded packages at runtime.
+  * `packages`
+     * Return the names of our embedded packages.
   * `putc`
     * Print the given character.
   * `printfloat`
