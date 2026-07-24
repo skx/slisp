@@ -155,6 +155,24 @@
   ;; return the name
   name)
 
+;; get all known functions
+(defun functions ()
+  "Print builtins followed by user-defined functions."
+  (map (lambda (name)
+         (print name " "))
+       (tree:keys *functions*))
+  (newline)
+  nil)
+
+;; get help information, if available
+(defun help (xs)
+  (let ((x (car xs)))
+    (if (cons? x)
+        (if (str? (caaddr x))
+            (println (caaddr x))
+            (println "No help available")))))
+
+
 ;; get a function, by name
 ;;
 ;; Check for the self-hosted/inception version of the entry first.
@@ -206,6 +224,8 @@
   (register-builtin "char?" (lambda (args) (char? (car args))))
   (register-builtin "cons?" (lambda (args) (cons? (car args))))
   (register-builtin "float?" (lambda (args) (float? (car args))))
+  (register-builtin "functions" (lambda (args) (functions)))
+  (register-builtin "help" (lambda (args) (help args)))
   (register-builtin "int?" (lambda (args) (int? (car args))))
   (register-builtin "lambda?" (lambda (args) (lambda? (car args))))
   (register-builtin "list" (lambda (args) args))
@@ -720,9 +740,12 @@
 ;; REPL code
 ;;
 (defun repl ()
-  (println "Welcome to lisp in slisp!")
+  (newline)
+  (println "Welcome to lisp in slisp; \e[1mInception\e[0m!")
   (println "Enter :quit to exit.")
-  (println "")
+  (println "NOTE: Help for many functions is available - e.g. (help print)")
+  (println "NOTE: Available functions may be listed with (functions)")
+  (newline)
 
   (init-builtins)
 
