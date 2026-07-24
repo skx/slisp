@@ -4,7 +4,9 @@ These packages are embedded within our compiler and they may be loaded like so:
 
     (require foo)
 
-This inserts the contents of "foo.lisp" which will then be parsed by the usual process.  (There is a _little_ more complexity when used dynamically via `inception`, but we can ignore that.)
+This inserts the contents of "foo.lisp" which will then be parsed by the usual process.
+
+**NOTE**: Within our compiler these are inserted at **compile time**, so this statement is very similar to the C pre-processor directive `#include ..`.  Within our interpreter the `require` expression is executed at run-time, be it within a source file or at the REPL.
 
 By convention all "public" functions should be prefixed with the package-name, and a ":".
 
@@ -38,6 +40,15 @@ Usage is demonstrated in the [examples/wc.lisp](examples/wc.lisp) utility progra
 A lisp-reader which converts s-expressions to parsed structure, used by our inception interpreter.  (Located beneath examples/).
 
 
+### maths
+
+Once this package has been loaded the core mathematical primitives `+`, `-`, `*`, and `/` will accept more than the standard two arguments.
+
+```lisp
+(require maths)
+```
+
+
 ### plist
 
 Property list code, included as part of `stdlib.lisp`, so there is no need to additionally require it.
@@ -53,13 +64,4 @@ A package containing simple AVL-tree routines, used by our inception interpreter
 
 ```lisp
 (require tree)
-```
-
-
-### variadic-maths
-
-Code that converts mathematical primitives into variadic functions.
-
-```lisp
-(require variadic-maths)
 ```
