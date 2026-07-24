@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 	"unicode"
@@ -560,6 +561,14 @@ func (c *Compiler) Compile() (string, error) {
 			})
 		}
 		return nil
+	})
+
+	//
+	// Sort assets by name: in reverse because "packages" will
+	// return them in this order.
+	//
+	sort.Slice(assets, func(i, j int) bool {
+		return assets[i].Name > assets[j].Name
 	})
 
 	//

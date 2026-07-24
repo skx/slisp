@@ -2234,6 +2234,29 @@ FUNC fn_sys_package
     ret
 
 
+;; Return a list of all embedded package names.
+FUNC fn_sys_packages
+    xor r13, r13
+    TAG_NIL_REG r13
+    mov rcx, asset_count
+    test rcx, rcx
+    jz .done
+    mov r12, asset_table
+.loop:
+    mov rax, [r12]        ; Name
+    TAG_STRING_REG rax
+    mov rdi, rax          ; car
+    mov rsi, r13          ; cdr
+    call fn_sys_cons_NOGC
+    mov r13, rax
+    add r12, 3*8          ; three pointers: NAME, DATA, SIZE
+    dec rcx
+    jnz .loop
+.done:
+    mov rax, r13
+    ret
+
+
 ;; Write the given ASCII character to STDOUT
 FUNC fn_sys_putc
     mov rax, rdi

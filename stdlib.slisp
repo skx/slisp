@@ -130,6 +130,9 @@
 (defun package (str)
        (sys_package str))
 
+(defun packages ()
+       (sys_packages))
+
 (defun putc (c)
        (sys_putc c))
 
