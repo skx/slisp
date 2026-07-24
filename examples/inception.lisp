@@ -158,20 +158,24 @@
 ;; get all known functions
 (defun functions ()
   "Print builtins followed by user-defined functions."
-  (map (lambda (name)
-         (print name " "))
-       (tree:keys *functions*))
-  (newline)
-  nil)
+  (tree:keys *functions*))
 
 ;; get help information, if available
 (defun help (xs)
   (let ((x (car xs)))
-    (if (cons? x)
-        (if (str? (caaddr x))
-            (println (caaddr x))
-            (println "No help available")))))
+    (if (str? x)
+        (help (list (lookup-function x)))
+        (if (cons? x)
+            (if (str? (caaddr x))
+                (do
+                 (println "Arguments: " (cadr x))
+                 (println "Summary  : " (caaddr x)))
+                (println "No help available."))))))
 
+
+(defun help-all ()
+  (map (lambda (x) (println "\e[1m" x "\e[0m") (print "\t") (help (list x))) (functions))
+  nil)
 
 ;; get a function, by name
 ;;
@@ -226,6 +230,7 @@
   (register-builtin "float?" (lambda (args) (float? (car args))))
   (register-builtin "functions" (lambda (args) (functions)))
   (register-builtin "help" (lambda (args) (help args)))
+  (register-builtin "help-all" (lambda (args) (help-all)))
   (register-builtin "int?" (lambda (args) (int? (car args))))
   (register-builtin "lambda?" (lambda (args) (lambda? (car args))))
   (register-builtin "list" (lambda (args) args))
@@ -744,7 +749,8 @@
   (println "Welcome to lisp in slisp; \e[1mInception\e[0m!")
   (println "Enter :quit to exit.")
   (println "NOTE: Help for many functions is available - e.g. (help print)")
-  (println "NOTE: Available functions may be listed with (functions)")
+  (println "      Enter '(help-all)' to see all functions and their help-text.")
+  (println "      Available functions may be listed with (functions)")
   (newline)
 
   (init-builtins)

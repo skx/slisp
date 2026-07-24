@@ -74,69 +74,101 @@
       (sys_entries str))
 
 (defun environment ()
+    "Return a list of all known environmental variables, and their values."
       (sys_environment))
 
 (defun exit (n)
+    "Terminate execution, with the specified integer status-code."
       (sys_exit n))
 
 (defun explode (str)
+    "Convert a string to a list of characters."
       (sys_explode str))
 
 (defun fclose (n)
+    "Close the given file-handle.
+
+It is assumed the filehandle came from fopen, but nil is also accepted."
        (sys_fclose n))
 
 (defun fopen (str mode)
+    "Open a file with the given mode.
+
+Mode is \"r\" for read, \"w\" for write, and \"a\" for append."
        (sys_fopen str mode))
 
 (defun fread (handle)
+       "Read all available data from the given file-handle.
+
+It is assumed the filehandle came from fopen, but nil is also accepted."
        (sys_fread handle))
 
+
 (defun fwrite (handle data len)
+       "Write the given data, of length LEN, to the specified file-handle.
+
+It is assumed the filehandle came from fopen, but nil is also accepted."
        (sys_fwrite handle data len))
 
 (defun getc ()
+       "Read a single character from STDIN, and return it."
        (sys_getc))
 
 (defun implode (xs)
+       "Convert a list of characters to a string."
        (sys_implode xs))
 
 (defun int (x)
+       "Convert the given thing to an integer, if possible."
        (sys_int x))
 
 (defun mkdir (str)
+       "Make the given directory.
+
+Note that this does not create parents, use (mkdirs) for that."
        (sys_mkdir str))
 
 (defun newline ()
+       "Print a newline."
        (sys_newline))
 
 (defun not (x)
        (sys_not x))
 
 (defun now ()
+       "Return the number of milliseconds since the Unix EPOCH."
        (sys_now))
 
 (defun isqrt(x)
+       "Perform an integer square root of the given number."
        (sys_isqrt x))
 
 (defun nth(xs n)
+       "Return the Nth item of the given list."
        (sys_nth xs n))
 
 (defun nth!(xs n x)
+       "Update the Nth item of the given list, in-place."
        (sys_nth! xs n x))
 
 (defun ord (c)
+       "Return the ASCII character code of the given character."
        (sys_ord c))
 
 (defun package (str)
+       "Return the contents of the embedded package, if available."
        (sys_package str))
 
 (defun packages ()
+       "Return the names of all embedded packages."
        (sys_packages))
 
 (defun putc (c)
+       "Write the single specified character to STDOUT."
        (sys_putc c))
 
 (defun random (n)
+       "Return a random number 0-N."
        (sys_random n))
 
 ;; NOP: This is a special form in our compiler
@@ -147,36 +179,53 @@
 ;; Load all embedded packages, again this is a nop
 ;; for compiled code, but inception can use it.
 (defun require-all()
+       "Load all packages which are embedded in our run-time."
   (map (lambda (p) (require p)) (packages)))
 
 (defun rmdir (str)
+       "Remove the given directory."
        (sys_rmdir str))
 
 (defun split (str c)
+       "Split a string on the given character.
+
+Return a list of (BEFORE . AFTER)."
        (sys_split str c))
 
 (defun sqrt(x)
+       "Return the floating-point square root of the given number."
        (sys_sqrt x))
 
 (defun stat(str)
+       "Return details of the given filesystem entry.
+
+This returns a list of the form (TYPE SIZE MODE)."
        (sys_stat str))
 
 (defun stdlib()
+       "Return the contents of the stdlib.slisp standard-library."
        (sys_stdlib))
 
 (defun strcat(a b)
+       "Return the result of concatenating the two specified strings into one."
        (sys_strcat a b))
 
 (defun strcmp(a b)
+       "Compare the two specified strings, return zero if equal."
        (sys_strcmp a b))
 
 (defun string (x)
+       "Convert the given item into a string, if possible."
        (sys_string x))
 
 (defun strlen (str)
+       "Return the length, in bytes, of the given string."
        (sys_strlen str))
 
 (defun unlink (str)
+       "Delete the given file from the filesystem.
+
+Use (rmdir) to remove directories instead of files."
        (sys_unlink str))
 
 ;;; 1. Compatibility
@@ -334,7 +383,7 @@ do the right thing for each entry in the given list."
         (mkdirs-helper (cdr parts) next))))
 
 (defun which (binary)
-  "Return the complete path to the file, on the system $PATH, if possible"
+  "Return the complete path to the file, on the system $PATH, if possible."
   (let ((path (split-all (getenv "PATH") #\:))
         (res (filter path (lambda (dir) (exists? (join (list dir "/" binary)))))))
     (if res
@@ -667,6 +716,9 @@ Incrementing by the given step each time."
 ;; system environment more than just with File I/O
 
 (defun getenv (name)
+  "Return the contents of a given environmental variable.
+
+Uses (environment) to get all environmental variables, and filters."
   (getenv-loop name (environment)))
 
 (defun getenv-loop (name xs)
