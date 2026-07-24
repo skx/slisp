@@ -167,7 +167,9 @@
         (help (list (lookup-function x)))
         (if (cons? x)
             (if (str? (caaddr x))
-                (println (caaddr x))
+                (do
+                 (println "Arguments: " (cadr x))
+                 (println "Summary  : " (caaddr x)))
                 (println "No help available."))))))
 
 
