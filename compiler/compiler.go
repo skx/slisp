@@ -3,6 +3,7 @@
 package compiler
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/sha1"
 	"embed"
@@ -128,7 +129,6 @@ func New(src string) *Compiler {
 
 // SetStdLib allows embedding the standard library
 func (c *Compiler) SetStdLib(s string) {
-
 	var b strings.Builder
 
 	b.WriteString("db ")
@@ -141,6 +141,34 @@ func (c *Compiler) SetStdLib(s string) {
 	}
 
 	c.stdlib = b.String() + "\ndb 0x00\n"
+}
+
+// trimComments processes the given text, and returns a copy without
+// [lisp] comments.
+func (c *Compiler) trimComments(str string) (string, error) {
+	var out bytes.Buffer
+
+	scanner := bufio.NewScanner(strings.NewReader(str))
+
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, ";") {
+			continue
+		}
+
+		out.WriteString(line)
+		out.WriteByte('\n')
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	return out.String(), nil
 }
 
 // LoadPackages will enable loading packages from the specified embedded filesystem.
@@ -542,13 +570,20 @@ func (c *Compiler) Compile() (string, error) {
 				return err
 			}
 
+			// Trim the data
+			txt, err := c.trimComments(string(data))
+			if err != nil {
+				return err
+
+			}
+
 			// strip directory
 			name := filepath.Base(path)
 			// strip suffix
 			name = strings.TrimSuffix(name, filepath.Ext(name))
 
 			var b strings.Builder
-			for i, c := range data {
+			for i, c := range txt {
 				if i > 0 {
 					b.WriteString(", ")
 				}
@@ -613,6 +648,11 @@ func (c *Compiler) Compile() (string, error) {
 		FloatTable string
 	}
 
+	// Trim our standard library
+	stdLib, err1 := c.trimComments(c.stdlib)
+	if err1 != nil {
+		return "", err1
+	}
 	//
 	// Create an instance of that internal structure, which we
 	// can then pass to the template processor to fill out into
@@ -625,7 +665,7 @@ func (c *Compiler) Compile() (string, error) {
 		Globals:     globals,
 		InitGlobals: initGlobals,
 		Lambdas:     lambdas,
-		StdLib:      c.stdlib,
+		StdLib:      stdLib,
 		StringTable: stringTable,
 		FloatTable:  floatTable,
 	}
