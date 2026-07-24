@@ -114,6 +114,9 @@
 
 ;;; Tree functions
 
+;; Constructor.
+(defun tree:new()
+  nil)
 
 ;; Is there a key with the given name in the tree?
 ;;
