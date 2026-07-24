@@ -44,6 +44,8 @@ We don't have "symbols" exposed to the language, but if you prefix a variable wi
 
 Special forms are things that are built into the compiler core, and handled specially.
 
+* `alias!`
+  * Remap functions.  See [INTRODUCTION.md](INTRODUCTION.md) for details.
 * `cond`
   * An efficient switch implementation.
 * `defconst`
@@ -146,6 +148,8 @@ added to them too.
     * Return the ASCII code of the specified character.
   * `package`
      * Return the contents of one of our embedded packages at runtime.
+  * `packages`
+     * Return the names of our embedded packages.
   * `putc`
     * Print the given character.
   * `printfloat`
