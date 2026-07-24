@@ -334,24 +334,44 @@
           (set! env  (cadr result)))
         (set! forms (cdr forms)))
 
-      ;; Make the call.
-      (list (apply fn args) env))))
+      ;; Get the name of the thing we're calling
+      (let ((call-name
+        (if (symbol? (car expr))
+            (symbol-name (car expr))
+            "<lambda>")))
+
+        ;; make the call
+        (list (apply fn args call-name) env)))))
 
 
 ;; special form: alias!
+;;
+;; Two forms:
+;; "(alias! foo    bar)" will receive ((symbol alias!) (symbol foo) (symbol bar))
+;; "(alias! "foo" "bar") will be ((symbol alias!) foo bar)
+;;
+;; The former form is obvious and what we expect, but the latter form is what our compiler
+;; will generate.
 (defun eval-alias (expr env)
+  (if (cons? (caddr expr))
+      (eval-alias-references expr env)                  ; default two symbosl
+      (eval-alias-references (list                      ; strings - build up a list
+                              (symbol "alias!")
+                              (symbol (cadr expr))
+                              (symbol (caddr expr)))
+                             env)))
+
+(defun eval-alias-references (expr env)
   (let ((old (symbol-name (cadr expr)))
         (new (symbol-name (caddr expr)))
         (fn  (lookup-function new)))
-
     (if fn
         (do
-          (set! *functions*
-                (tree:put *functions* old fn))
-          (list old env))
+         (set! *functions* (tree:put *functions* old fn))
+         (list old env))
         (do
-          (println "Unknown function " new)
-          (list nil env)))))
+         (println "Unknown function " new)
+         (list nil env)))))
 
 ;; special form: and
 (defun eval-and (expr env)
@@ -621,41 +641,54 @@
 
 
 ;; apply for built-in and user-functions
-(defun apply (fn args)
+(defun apply (fn args name)
   (cond
     ;; native builtins
     ((builtin? fn) ((builtin-fn fn) args))
 
     ;; user functions and lambdas
-    ((closure? fn) (apply-closure fn args))
+    ((closure? fn) (apply-closure fn args name))
 
     ;; nothing known
     (t nil)))
 
 
-(defun apply-closure (closure args)
+(defun apply-closure (closure args call-name)
   (let ((params (cadr closure))
         (body   (caddr closure))
         (env    (cadddr closure)))
 
     (while params
       (if (variadic-arg? (car params))
-
-          ;; Bind remaining args as a list.
+          ;; Bind all remaining arguments.
           (do
-            (set! env (env-set env (variadic-name (car params)) args))
+            (set! env
+                  (env-set env
+                           (variadic-name (car params))
+                           args))
+            (set! args nil)
             (set! params nil))
 
-          ;; Ordinary argument.
-          (do
-            (set! env (env-set env (car params) (car args)))
-            (set! params (cdr params))
-            (set! args   (cdr args)))))
+          ;; Ordinary argument - Too few arguments?
+          (if (nil? args)
+              (do
+               (println call-name ": too few arguments supplied")
+               (set! env (env-set env (car params) nil)) ; missing arg is nil
+                (set! params nil))
+              (do
+               (set! env
+                     (env-set env
+                              (car params)
+                              (car args)))
+               (set! params (cdr params))
+                (set! args   (cdr args))))))
+
+    ;; Too many arguments?
+    (if args (println call-name ": too many arguments supplied"))
 
     (let ((result (eval-body body env)))
       (nth! closure 3 (eval-env result))
       (eval-value result))))
-
 
 ;; given a list of expressions, evaluate them all
 (defun eval-program (forms)
