@@ -284,10 +284,11 @@ You can of course use the interpreter to run itself, which provides true incepti
      Welcome to lisp in slisp!
      Enter :quit to exit.
 
-     > (execute-file "brainfuck.lisp")
+     > (main (list "x" "--repl"))         ; Launch the second copy of inception.
+     > (execute-file "brainfuck.lisp")    ; Using that load the brainfuck program.
      Loading .. brainfuck.lisp
      ((symbol main) <nil>)
-     > (main)
+     > (main)                             ; And run it without args..
      Hello World!
      106
      > (exit)

@@ -44,6 +44,8 @@ We don't have "symbols" exposed to the language, but if you prefix a variable wi
 
 Special forms are things that are built into the compiler core, and handled specially.
 
+* `alias!`
+  * Remap functions.  See [INTRODUCTION.md](INTRODUCTION.md) for details.
 * `cond`
   * An efficient switch implementation.
 * `defconst`

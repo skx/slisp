@@ -1,6 +1,6 @@
 # Brief `slisp` Introduction
 
-`slisp` is a typical toy lisp with support for floating-point numbers, integers, strings, characters, lambdas, packages, and functions.
+`slisp` is a typical lisp implementation, complete with support for floating-point numbers, integers, strings, characters, lambdas, packages, and functions.  The compiler generates standalone binaries, which run in a self-contained way.  There is also an interpreter (which has a REPLY), and both of these benefit from a runtime stop&copy garbage-collection process.
 
 
 
@@ -26,6 +26,20 @@
   * But `alists` and `plists` are implemented in our standard library, and are documented below.
 
 We don't have "symbols" exposed to the language, but if you prefix a variable with "`:`" it will become visually distinct, and this is useful when working with alists, or plists.  Internally that is actually translated to a stringified version of the variable name (So `(print :name)` becomes `(print "name")` - that might seem weird but it works for alist/plist usage, etc.)
+
+
+
+## Aliases
+
+The `(alias! ..)`  special form allows remapping a function:
+
+    (defun bar () (print "bar"))
+    (defun foo () (print "foo"))
+    (alias! "foo" "bar")
+
+After that calls to `(foo)` will be rerouted to `(bar)`.  In our compiler we accept strings for the old/new functions, in our interpreter we accept bare references (and strings too for compatibility):
+
+    (alias! foo bar)
 
 
 
@@ -245,7 +259,7 @@ See [test/plist.lisp](test/plist.lisp) for an example of use.
 
 
 
-## Embedded Packages
+## Requiring Packages
 
 You'll note that plist and alist functionality we documented above is implemented in a pair of files within our [packages/](packages/) directory:
 
@@ -258,7 +272,20 @@ Usually you'd need to run `(require alist)` to load such an external package, ho
 
 You **do** need to `(require arg-parser)` if you wish to use that as that package is **not** loaded by default.  Similarly you must `(require maths)` if you wish to load our enhanced mathematical primitives which allow arbitrary argument counts (e.g. To permit `(+ 1 2 3 4)` instead of the two arguments our default `+` routine permits).
 
-Over time the packages we bundle might change, but you can of course create your own packages.
+The behaviour of our `(require ..)` primitive varies depending on the implementation:
+
+* Within the compiler this is a compile-time behaviour, akin to the C preprocessor's `#include` directive.
+  * It literally inserts the code at the current position in the source.
+* Within our interpreter this can be called at any time, and includes and immediately evaluates the included code.
+  * The `(packages)` function can be used to introspect the names of available embedded packages.
+
+In all cases the process of resolving a `(require)` statement is the same:
+
+* Given `(require FOO)`
+  * Look to see if the file `foo.lisp` was included in our binary.  If so evaluate it.
+  * Otherwise add ".lisp" suffix to FOO unless there is already a suffix of some kind.
+  * Look for it on ever directory within the current directory and the directories referenced on the `LISP_PATH` environmental variable.  (Which is `:`-separated.)
+  * If not found continue, but perhaps log a message.
 
 
 
