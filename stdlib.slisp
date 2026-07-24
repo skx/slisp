@@ -139,6 +139,16 @@
 (defun random (n)
        (sys_random n))
 
+;; NOP: This is a special form in our compiler
+;; However if we make this then we can pretend
+;; we load packages.
+(defun require (x))
+
+;; Load all embedded packages, again this is a nop
+;; for compiled code, but inception can use it.
+(defun require-all()
+  (map (lambda (p) (require p)) (packages)))
+
 (defun rmdir (str)
        (sys_rmdir str))
 
