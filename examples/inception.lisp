@@ -1,44 +1,33 @@
 ;; A minimal lisp interpreter, meant to be compiled with slisp.
 ;;
-;; Features:
+;; Features match those of the parent compiler, so we have strings, floats,
+;; integers, lambdas, characters, etc.
 ;;
-;;   Integer & floating-point numbers.
-;;   Strings.
-;;   Functions.
-;;   Lambdas (closures).
+;; In some ways the interpreter is more advanced than the compiler as it
+;; has proper symbols and the (quote..) special form.  The downside is
+;; that it is slower in the execution of programs.
 ;;
-;; We store built-in primitives, variables, and functions in different namespaces.
+;; Note that we store built-in primitives, variables, and functions
+;; in three different namespaces.  We do allow `alias!` to remap
+;; a function, and of course defining the same function name a second
+;; time will also overwrite the previous version.
 ;;
-;; Special forms:
-;;
-;;   AND
-;;   COND
-;;   DEFUN
-;;   DEFCONST
-;;   DEFVAR
-;;   DO
-;;   IF
-;;   LAMBDA
-;;   LET
-;;   OR
-;;   QUOTE
-;;   SET!
-;;   UNLESS
-;;   WHEN
-;;   WHILE
-;;
-;; We have a couple of builtin-functions we handle specially, but most are deferred to the
-;; host/compiler's version of the code.
 
 
 ;;
 ;; lisp-reader.lisp contains our reader/parser code.
+;;
+;; The source of this lives in ../packages/lisp-reader.lisp, however
+;; it is also bundled into the runtime and available that way.
 ;;
 (require lisp-reader)
 
 
 ;;
 ;; tree.lisp contains a simple AVL-tree library.
+;;
+;; The source of this lives in ../packages/tree.lisp, however
+;; it is also bundled into the runtime and available that way.
 ;;
 (require tree)
 
@@ -86,7 +75,6 @@
 (defun closure (params body env)
   (list "closure" params body env))
 
-;; Also declared in lisp-reader.lisp
 (defun symbol (name)
   (list "symbol" name))
 
@@ -266,6 +254,7 @@
   (register-builtin "sys_nth" (lambda (args) (sys_nth (car args) (cadr args))))
   (register-builtin "sys_ord" (lambda (args) (sys_ord (car args))))
   (register-builtin "sys_package" (lambda (args) (sys_package (car args))))
+  (register-builtin "sys_packages" (lambda (args) (sys_packages )))
   (register-builtin "sys_plus" (lambda (args) (sys_plus (car args) (cadr args))))
   (register-builtin "sys_putc" (lambda (args) (sys_putc (car args))))
   (register-builtin "sys_random" (lambda (args) (sys_random (car args))))
@@ -589,25 +578,44 @@
               (join (list (car res) "/" file))))
         file)))
 
+(defun require-filename (arg env)
+  (cond
+    ;; literal string
+    ((str? arg)
+      arg)
+
+    ;; symbol
+    ((symbol? arg)
+      (let ((name (symbol-name arg)))
+        (if (or (env-bound? env name)
+                (env-bound? *globals* name))
+            (eval-symbol arg env)
+            name)))
+
+    ;; expression
+    (t
+      (eval-value (eval arg env)))))
+
 ;; special form: require
 ;;
 ;; Load a file from the embedded asset, if we can.  Otherwise we
 ;; append ".lisp" to files missing it and search LISP_PATH for them.
 (defun eval-require (expr env)
-  (let ((filename (car (cdr (cadr expr))))
-        (data     (package filename)))       ;; can we load it from the embedded assets?
+  (let ((filename (require-filename (cadr expr) env))
+        (data nil))
+    (set! data (package filename))
     (if data
-        (run-program data)                   ;; Yes we can!
+        (run-program data)
         (do
-         (if (strstr filename ".")
-             (set! filename (require-path filename))
-             (set! filename (require-path (strcat filename ".lisp"))))
-         (if filename
-             (if (exists? filename)
-                 (execute-file filename)
-                 (println "File not found " filename))))))
-  ; return nothing new.
-  (list nil env))
+          (if (strstr filename ".")
+              (set! filename (require-path filename))
+              (set! filename (require-path (strcat filename ".lisp"))))
+          (if filename
+              (if (exists? filename)
+                  (execute-file filename)
+                  (println "File not found " filename)))))
+    (list nil env)))
+
 
 ;; special form: unless
 (defun eval-unless (expr env)
