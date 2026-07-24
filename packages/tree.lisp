@@ -131,6 +131,17 @@
               (tree:bound? (node-left tree) key)
               (tree:bound? (node-right tree) key)))))
 
+;; Get keys in our tree
+(defun tree:keys (tree)
+  (tree:keys-aux tree nil))
+
+(defun tree:keys-aux (tree acc)
+  (if (nil? tree)
+      acc
+      (tree:keys-aux
+        (node-left tree)
+        (cons (node-key tree)
+              (tree:keys-aux (node-right tree) acc)))))
 
 ;; Get an item from the tree
 (defun tree:get (tree key)
