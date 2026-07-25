@@ -174,7 +174,7 @@
 
 
 (defun help-all ()
-  (map (lambda (x) (println "\e[1m" x "\e[0m") (print "\t") (help (list x))) (functions))
+  (map (lambda (x) (println "\e[1m" x "\e[0m") (print "\t") (help (list x)) (newline)) (functions))
   nil)
 
 ;; get a function, by name
@@ -792,7 +792,7 @@
   ;; no args?  show error and terminate
   (if (= (length args) 1 )
       (do
-       (println "Usage " (car args) " --repl | path/to/run")
+       (println "Usage " (car args) " --repl | --eval=xx | path/to/run")
        (exit 1)))
 
   ;; Load the standard library
@@ -813,6 +813,16 @@
   ;; Should we auto-run (defun main) ..?
   (if (member? args "--main")
       (repl-execute-line "(main)"))
+
+  ;; Should we evaluate some code?
+  (map (lambda (arg)
+         ;; If long enough
+         (if (> (length arg) 6)
+             ;; If it matches
+             (if (= "--eval" (substr arg 0 6))
+                 (let ((cmd (car (cdr (split arg #\=)))))
+                   (repl-execute-line cmd)))))
+       args)
 
   ;; Is this REPL mode?  Then run it
   (if (member? args "--repl")
