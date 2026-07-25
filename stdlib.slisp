@@ -41,36 +41,47 @@
 ;;
 
 (defun < (a b)
+       "Return true if A < B"
        (sys_< a b))
 
 (defun <= (a b)
+       "Return true if A <= B"
        (sys_<= a b))
 
 (defun > (a b)
+       "Return true if A > B"
        (sys_> a b))
 
 (defun >= (a b)
+       "Return true if A >= B"
        (sys_>= a b))
 
 (defun = (a b)
+       "Return true if A = B"
        (sys_= a b))
 
 (defun % (a b)
+       "Perform A modulus B"
        (sys_% a b))
 
 (defun car (xs)
+       "Return the first item from the list"
        (sys_car xs))
 
 (defun cdr (xs)
+       "Return the tail of the list."
        (sys_cdr xs))
 
 (defun chr (x)
+       "Convert the given integer to a character."
        (sys_chr x))
 
 (defun cons(a b)
+       "Join A and B into a list"
        (sys_cons a b))
 
 (defun entries (str)
+       "Return the names of all filesystem entries beneath the given directory."
       (sys_entries str))
 
 (defun environment ()
@@ -133,6 +144,7 @@ Note that this does not create parents, use (mkdirs) for that."
        (sys_newline))
 
 (defun not (x)
+       "Return true when given NIL, otherwise return NIL"
        (sys_not x))
 
 (defun now ()
@@ -234,17 +246,23 @@ Use (rmdir) to remove directories instead of files."
 ;; to allow easy copying/pasting of code.
 
 (defun ! (x)
+       "Shorthand for \"not\"."
   (not x))
 
-(defun != (a b) (not (= a b)))
+(defun != (a b)
+       "Return true if A != B"
+       (not (= a b)))
 
 (defun string< (a b)
+       "Return true if A < B."
   (< (strcmp a b) 0))
 
 (defun string> (a b)
+       "Return true if A > B."
   (> (strcmp a b) 0))
 
 (defun string= (a b)
+       "Return true if A = B."
   (= (strcmp a b) 0))
 
 ;; 4
@@ -282,12 +300,15 @@ Use (rmdir) to remove directories instead of files."
 (defun cddddr (x) (cdr (cdr (cdr (cdr x)))))
 
 (defun eq (a b)
+  "Compatiliby wrapper, the same as \"=\"."
   (= a b))
 
 (defun eq? (a b)
+  "Compatiliby wrapper, the same as \"=\"."
   (= a b))
 
 (defun equal (a b)
+  "Compatiliby wrapper, the same as \"=\"."
   (= a b))
 
 (defun null? (x)
@@ -422,17 +443,21 @@ NOTE: This is not a macro, so all arguments are evaluated."
 
 ;; Define the usual maths
 (defun + (a b)
+  "Addition operation."
   (sys_plus a b))
 
 (defun - (a &b)
+  "Subtraction operation."
   (if (car b)
       (sys_minus a (car b))
       (sys_minus 0 a)))
 
 (defun * (a b)
+  "Multiplication operation."
   (sys_multiply a b))
 
 (defun / (a &b)
+  "Division operation."
   (if (car b)
       (sys_divide a (car b))
       (sys_divide 1 (+ a 0.0))))
@@ -472,29 +497,29 @@ NOTE: This is not a macro, so all arguments are evaluated."
   (= (% n 2 ) 1))
 
 (defun one? (n)
-  "Return 1 if the number is one, nil otherwise."
+  "Return true if the number is one, NIL otherwise."
   (= n 1))
 
 (defun pos? (n)
-  "Return 1 if the number is positive, nil otherwise."
+  "Return 1 if the number is positive, NIL otherwise."
   (> n 0))
 
 (defun pow (x y)
-  "Return x to the power of y"
+  "Return X to the power of Y."
   (if (= 0 y)
       1
       (* x (pow x (- y 1)))))
 
 ;; Sum all the numbers in the given list
 (defun sum (xs)
-  "sum all the numbers in the list"
+  "Return the sum of all the numbers in the list"
   (if xs
       (+ (car xs)
          (sum (cdr xs)))
       0))
 
 (defun zero? (n)
-  "Return 1 if the number is zero, nil otherwise."
+  "Return true if the number is zero, NIL otherwise."
   (= n 0))
 
 
@@ -609,7 +634,7 @@ Incrementing by the given step each time."
       acc))
 
 (defun join-by (xs sep)
-  "Join string list-items by the given separator"
+  "Join a list of string-items by the given separator."
   (if xs
       (join-rest (cdr xs) (car xs) sep)
       ""))
@@ -773,7 +798,9 @@ Uses (environment) to get all environmental variables, and filters."
 ;;
 
 (defun atof (str)
-  "Convert the given string to a floating point number."
+  "Convert the given string to a floating point number.
+
+For integer conversion use (atoi) instead."
   (let ((chars (explode str)))
     (cond
       ((= (ord (car chars)) (ord #\-))
@@ -807,7 +834,9 @@ Uses (environment) to get all environmental variables, and filters."
            (atof-frac (explode (cadr parts)) 0 1)))))
 
 (defun atoi (str)
-  "Convert the given string to an integer.   Positive and negative numbers work, but floats do not."
+  "Convert the given string to an integer.
+
+Positive and negative numbers work. For floats use (atof)."
   (let ((chars (explode str)))
     (if (= (car chars) #\-)
         (- 0 (atoi-helper (cdr chars) 0))
@@ -823,7 +852,7 @@ Uses (environment) to get all environmental variables, and filters."
              (ord #\0))))))
 
 (defun lower (str)
-  "Convert the given string to lower-case"
+  "Convert the given string to lower-case."
   (implode
    (map
     (lambda (ch)
@@ -835,7 +864,7 @@ Uses (environment) to get all environmental variables, and filters."
     (explode str))))
 
 (defun upper (str)
-  "Convert the given string to upper-case"
+  "Convert the given string to upper-case."
   (implode
    (map
     (lambda (ch)
@@ -872,7 +901,9 @@ Uses (environment) to get all environmental variables, and filters."
     (t nil)))
 
 (defun substr (str start &len)
-  "Return a substring of the given string"
+  "Return a substring of the given string.
+
+If no length is specified return from the given start to the end of the string."
   (if len
       (sys_substr str start (car len))
-      (sys_substr str start 1)))
+      (sys_substr str start (- (length str) start))))
