@@ -1,6 +1,6 @@
 (defvar by-five (lambda (x) (* x 5)))
 
-(defun main ()
+(defun main (args)
   (let ((lst (list 3 4 5 (list 5 2 1) (list 3 12 99))))
     (print "Original list: ")
     (print lst)

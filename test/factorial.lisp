@@ -12,7 +12,7 @@
 ;;
 ;; main is the entry-point to our compiled code.
 ;;
-(defun main ()
+(defun main (args)
 
       (let ((n (list 0 1 2 3 4 5 6 7 8 9 10)))
          (println "Showing results of factorial for each entry in that list:")

@@ -15,7 +15,7 @@
           total                                ; then return the current value
           (set! total (+ total increment)))))) ; otherwise the updated one
 
-(defun main()
+(defun main(args)
   (let ((f (count)))
 
     ;; Add some numbers to the total

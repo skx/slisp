@@ -1,5 +1,5 @@
 (require 1.lsp)
 
-(defun main ()
+(defun main (args)
          (one)
          (two))

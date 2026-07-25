@@ -15,5 +15,5 @@
        (handle_number (cdr xs)))))
 
 ;; Show fizzbuzz for values 0-100.
-(defun main ()
+(defun main (args)
   (handle_number (nat 100)))

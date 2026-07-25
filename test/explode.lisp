@@ -19,7 +19,7 @@
 
 
 
-(defun main()
+(defun main(args)
 
   (let ((str "Hello, world!"))
     ;; Print the characters of the string as a list

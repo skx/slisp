@@ -1,7 +1,7 @@
 (defun float1 ()
   3.1)
 
-(defun main()
+(defun main(args)
   "Print floating point numbers!"
 
   ; float1 is a function that returns a float

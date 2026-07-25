@@ -10,7 +10,7 @@ pattern of using a (let ..) scope to handle the I/O."
         (res    (fclose handle)))  ; close
     data))
 
-(defun main ()
+(defun main (args)
   (print "Reading a missing file: ")
   (println (read "/path/does/not/exist!"))
   (newline)

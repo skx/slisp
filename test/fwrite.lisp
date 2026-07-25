@@ -20,7 +20,7 @@ a file-handle that might be nil."
         (discard (fclose handle)))                 ; close
     result))
 
-(defun main ()
+(defun main (args)
   ; write
   (print "Writing to a file: ")
   (println (write "test.txt" "Hello, world!"))

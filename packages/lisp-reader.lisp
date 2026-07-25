@@ -128,7 +128,6 @@
   ;; consume '\'
   (reader-next)
 
-  ;; read first character
   (let ((token (reader-next))
         (ch "")
         (reading t))
@@ -138,37 +137,55 @@
           (println "Unexpected EOF in character literal")
           (exit 1)))
 
-    ;; If the first character is alphabetic, continue
-    ;; reading alphabetic characters.
-    (if (alpha? token)
-        (do
-          (set! ch (reader-peek))
-
-          (while reading
-            (if (= ch "")
-                (set! reading nil)
-                (if (alpha? ch)
-                    (do
-                      (reader-next)
-                      (set! token (strcat token ch))
-                      (set! ch (reader-peek)))
-                    (set! reading nil))))))
-
     (cond
-      ;; named characters
-      ((= token "Space")   " ")
-      ((= token "Newline") "\n")
-      ((= token "Tab")     "\t")
 
-      ;; single-character literals
-      ((= (strlen token) 1)
-       token)
+      ;; Escaped character literals
+      ((= token "\\")
+       (set! token (reader-next))
 
+       (if (= token "")
+           (do
+             (println "Unexpected EOF in escaped character literal")
+             (exit 1)))
+
+       (cond
+         ((= token "n") "\n")
+         ((= token "t") "\t")
+         ((= token "r") "\r")
+         ((= token "e") (string (chr 27)))
+         ((= token "\\") "\\")
+         ((= token "\"") "\"")
+         (t token)))
+
+      ;; Everything else
       (t
-       (do
-         (println "Unknown character literal:")
-         (println token)
-         (exit 1))))))
+
+       ;; Read alphabetic names like Space/Newline/Tab
+       (if (alpha? token)
+           (do
+             (set! ch (reader-peek))
+
+             (while reading
+               (if (= ch "")
+                   (set! reading nil)
+                   (if (alpha? ch)
+                       (do
+                         (reader-next)
+                         (set! token (strcat token ch))
+                         (set! ch (reader-peek)))
+                       (set! reading nil))))))
+
+       (cond
+         ((= token "Space")   " ")
+         ((= token "Newline") "\n")
+         ((= token "Tab")     "\t")
+         ((= (strlen token) 1) token)
+
+         (t
+          (do
+            (println "Unknown character literal:")
+            (println token)
+            (exit 1))))))))
 
 (defun reader-read-list ()
   ;; consume '('
@@ -294,9 +311,23 @@
       ;; Peek once for the next iteration
       (set! ch (reader-peek)))
 
-    (if (and numeric seen-digit)
-        (atof token)
-        (list "symbol" token))))
+    (cond
+      ;; number?
+      ((and numeric seen-digit) (atof token))
+
+      ;; hex number?
+      ((hex? token) (hex token))
+
+      ;; binary number?
+      ((binary? token) (binary token))
+
+      ;; Keywords become strings.
+      ((and (> (strlen token) 0)
+            (= (substr token 0 1) ":"))
+       (substr token 1 (- (strlen token) 1)))
+
+      ;; Always a symbol
+      (t (list "symbol" token)))))
 
 
 ;;; Public Functions

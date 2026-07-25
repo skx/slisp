@@ -1,4 +1,4 @@
-(defun main()
+(defun main(args)
   (println (atof "3"))
   (println (atof "3.25"))
   (println (atof "12.34"))

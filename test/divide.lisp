@@ -5,7 +5,7 @@
 ;; return results that make sense, and we now format them
 ;; correctly.
 ;;
-(defun main ()
+(defun main (args)
   (println (/ 3 0.0))    ; +Inf
   (println (/ -3 0.0))   ; -Inf
   (println (/ 0.0 0.0))) ; NaN

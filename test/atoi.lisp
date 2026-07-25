@@ -1,4 +1,4 @@
-(defun main()
+(defun main(args)
   (println (atoi "00"))
   (println (atoi    "1"))
   (println (atoi   "10"))

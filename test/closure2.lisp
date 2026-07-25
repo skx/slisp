@@ -3,7 +3,7 @@
   (lambda (x)
     (+ x n)))
 
-(defun main ()
+(defun main (args)
   (let ((ten (makeAdder 10))
         (five (makeAdder 5)))
 

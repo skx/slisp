@@ -10,7 +10,7 @@
        (println "\tnumber " (car xs) ": " (describe_number (car xs)))
        (describe (cdr xs)))))
 
-(defun main ()
+(defun main (args)
   (let ((n (list 0 -1 32 -14 22 101)))
     (println "Showing descriptions of numbers in list:" n)
     (describe n)))

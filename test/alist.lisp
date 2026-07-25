@@ -1,6 +1,6 @@
 (require alist)
 
-(defun main ()
+(defun main (args)
 
   ;; alist tests
   (let ((a (list (list :name "John") (list :age 42) (list :city "Paris"))))

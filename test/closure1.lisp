@@ -13,7 +13,7 @@
       (set! n (+ n 1))
       n)))
 
-(defun main()
+(defun main(args)
   (let ((f (counter)))
     (println (f))
     (println (f))

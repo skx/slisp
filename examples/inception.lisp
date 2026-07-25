@@ -129,6 +129,9 @@
 ;; global storage for global variables
 (defvar *globals* nil)
 
+;; Keep track of packages we've required
+(defvar *required* nil)
+
 (defun global-get (name)
   (tree:get *globals* name))
 
@@ -240,6 +243,7 @@
   (register-builtin "lambda?" (lambda (args) (lambda? (car args))))
   (register-builtin "list" (lambda (args) args))
   (register-builtin "nil?" (lambda (args) (nil? (car args))))
+  (register-builtin "numeric?" (lambda (args) (numeric? (car args))))
   (register-builtin "printfloat" (lambda (args) (printfloat (car args))))
   (register-builtin "printint" (lambda (args) (printint (car args))))
   (register-builtin "printstr" (lambda (args) (printstr (car args))))
@@ -642,7 +646,10 @@
               (set! filename (require-path (strcat filename ".lisp"))))
           (if filename
               (if (exists? filename)
-                  (execute-file filename)
+                  (if (not (member? *required* filename))
+                      (do
+                       (set! *required* (cons filename *required*))
+                       (execute-file filename)))
                   (println "File not found " filename)))))
     (list nil env)))
 
@@ -776,7 +783,8 @@
 ;; Load File code
 ;;
 (defun execute-file(name)
-  (println "Loading .. " name)
+  (if (not (getenv "TEST"))
+      (println "Loading .. " name))
   (let ((handle (fopen name "r"))  ; open
         (data   (fread handle))    ; read
         (res    (fclose handle)))  ; close

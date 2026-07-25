@@ -1,4 +1,4 @@
-(defun main ()
+(defun main (args)
   ;; explicitly call GC
   (let ((x (nat 1000)))
     (repeat 1000 (lambda (n) (sys-gc)))

@@ -8,7 +8,7 @@
     (println "\tFlags:" (parser :flags))))
 
 
-(defun main()
+(defun main(args)
   (let ((a1 (list "--long" "/etc/passwd"))
         (a2 (list "-lwc" "id")))
 
