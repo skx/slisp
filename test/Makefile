@@ -38,14 +38,12 @@ test-inception: ../examples/inception
 	cd ../examples && make inception
 
 
-# Generic rule to compile "foo.lisp" into "foo"
-%: %.lisp ../slisp
-	@echo "compiling $@"
-	@../slisp -c $<
-
-# Compiled tests
+# Generic rule to compile "foo.lisp" into "foo" and run tests
+#
+# NOTE: The RUN command is set so it might be that we don't
+#       even need the compiled program.
 %.test: %.lisp ../slisp
-	@echo "compiling $@"
+	@echo "Running test for $@"
 	@../slisp -c -o $@ $<
 	@$(RUN) > $@.out 2>&1 || true
 	@cmp $@.out $@.expected || \
