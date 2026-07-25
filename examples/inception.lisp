@@ -805,7 +805,7 @@
 
   ;; We process each named file skipping arguments
   (map (lambda (name)
-         (if (and (> 0 (length name))
+         (if (and (> (length name) 0)
                   (!= "-" (substr name 0 1)))
              (execute-file name)))
        (cdr args))
