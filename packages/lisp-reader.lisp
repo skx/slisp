@@ -311,9 +311,17 @@
       ;; Peek once for the next iteration
       (set! ch (reader-peek)))
 
-    (if (and numeric seen-digit)
-        (atof token)
-        (list "symbol" token))))
+    (cond
+      ((and numeric seen-digit)
+       (atof token))
+
+      ;; Keywords become strings.
+      ((and (> (strlen token) 0)
+            (= (substr token 0 1) ":"))
+       (substr token 1 (- (strlen token) 1)))
+
+      (t
+       (list "symbol" token)))))
 
 
 ;;; Public Functions
