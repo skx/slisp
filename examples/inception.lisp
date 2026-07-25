@@ -129,6 +129,9 @@
 ;; global storage for global variables
 (defvar *globals* nil)
 
+;; Keep track of packages we've required
+(defvar *required* nil)
+
 (defun global-get (name)
   (tree:get *globals* name))
 
@@ -643,7 +646,10 @@
               (set! filename (require-path (strcat filename ".lisp"))))
           (if filename
               (if (exists? filename)
-                  (execute-file filename)
+                  (if (not (member? *required* filename))
+                      (do
+                       (set! *required* (cons filename *required*))
+                       (execute-file filename)))
                   (println "File not found " filename)))))
     (list nil env)))
 
