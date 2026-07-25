@@ -312,16 +312,22 @@
       (set! ch (reader-peek)))
 
     (cond
-      ((and numeric seen-digit)
-       (atof token))
+      ;; number?
+      ((and numeric seen-digit) (atof token))
+
+      ;; hex number?
+      ((hex? token) (hex token))
+
+      ;; binary number?
+      ((binary? token) (binary token))
 
       ;; Keywords become strings.
       ((and (> (strlen token) 0)
             (= (substr token 0 1) ":"))
        (substr token 1 (- (strlen token) 1)))
 
-      (t
-       (list "symbol" token)))))
+      ;; Always a symbol
+      (t (list "symbol" token)))))
 
 
 ;;; Public Functions

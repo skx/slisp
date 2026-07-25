@@ -237,8 +237,6 @@ cd test/
 make test-inception
 ```
 
-All but one of the tests succeeds at the moment - inception doesn't understand all the numeric types, so it cannot parse `0xFF` or `0b10110010` as integers.
-
 In addition to that we can run our example files too, for example [examples/nqueens.lisp](examples/nqueens.lisp):
 
 ```
