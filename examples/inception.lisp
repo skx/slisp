@@ -734,7 +734,6 @@
 
 ;; Evaluate a program comprised of expressions
 (defun run-program (text)
-  (init-builtins)
   (reader:init text)
   (let ((forms (reader:parse-program)))
     (eval-program forms)))
@@ -752,8 +751,6 @@
   (println "      Enter '(help-all)' to see all functions and their help-text.")
   (println "      Available functions may be listed with (functions)")
   (newline)
-
-  (init-builtins)
 
   (let ((run t))
     (while run
@@ -789,6 +786,9 @@
 (defun main (args)
   "Entry-Point, either start the REPL or process each named file."
 
+  (init-builtins)
+
+
   ;; no args?  show error and terminate
   (if (= (length args) 1 )
       (do
@@ -820,7 +820,9 @@
          (if (> (length arg) 6)
              ;; If it matches
              (if (= "--eval" (substr arg 0 6))
+                 ;; Get the command
                  (let ((cmd (car (cdr (split arg #\=)))))
+                   ;; and execute it
                    (repl-execute-line cmd)))))
        args)
 
