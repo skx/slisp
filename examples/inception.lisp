@@ -843,7 +843,5 @@
 
   ;; Is this REPL mode?  Then run it
   (if (member? args "--repl")
-      (do
-       (repl)
-       (exit 0)))
-  )
+       (repl))
+)
