@@ -1,4 +1,4 @@
-(defun main ()
+(defun main (args)
   ;; real square root
   (println (sqrt 1))
   (println (sqrt 2))

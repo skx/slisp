@@ -2,7 +2,7 @@
 /etc/fstab exists as directory:<nil>
 /etc/fstab exists as file:1
 file type for stat.lisp: 0
-file size for stat.lisp: 676
+file size for stat.lisp: 680
 file mode for stat.lisp: 420
 stat of a missing file:
 <nil>

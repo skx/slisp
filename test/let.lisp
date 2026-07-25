@@ -1,5 +1,5 @@
 ;; Test nested-scopes behave properly
-(defun main ()
+(defun main (args)
 
   ; confirm that new scopes don't overwrite
   ; nested scopes due to offset-reuse.

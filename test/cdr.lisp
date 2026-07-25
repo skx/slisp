@@ -1,2 +1,2 @@
-(defun main ()
+(defun main (args)
     (print (cdr "steve")))

@@ -1,6 +1,6 @@
 ;; Test the comparison operators.
 ;; They return 1 (int) or NIL depending on whether they are true or not
-(defun main ()
+(defun main (args)
   ;; <
   (print "(< 3 4):" (< 3 4) " (< 4 4):" (< 4 4))
   (newline)

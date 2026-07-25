@@ -14,7 +14,7 @@
               (sort (cdr xs)))
       nil))
 
-(defun main ()
+(defun main (args)
   (let ((input (list  2 489 21 2 39 10 1894 782 21 1 3.2 93.1 1 -32 -3)))
     (print "Before: ")
     (println input)

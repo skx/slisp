@@ -1,4 +1,4 @@
-(defun main ()
+(defun main (args)
   "Test printing cons pairs."
   (println (cons 1 2))
   (println (cons 1 (cons 2 nil)))

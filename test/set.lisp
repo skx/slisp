@@ -1,4 +1,4 @@
-(defun main()
+(defun main(args)
   "Test that set! will update the value of a local binding, as produced by 'let'."
 
   (let ((x 1))

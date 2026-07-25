@@ -24,7 +24,7 @@
              (second (drop half xs)))
         (merge (mergesort first) (mergesort second))))))
 
-(defun main ()
+(defun main (args)
   (let ((p (list 3 10 -2 -200 9289 38 321 01 38 112 10 23 5 2 6 7 7 8 9 1)))
     (print "Before sort:")
     (println p)

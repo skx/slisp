@@ -5,7 +5,7 @@
        (unlink name))
       (println "file does not exist:" name)))
 
-(defun main()
+(defun main(args)
   ;; delete if present
   (delete "unlink.txt")
 

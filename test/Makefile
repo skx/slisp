@@ -1,49 +1,52 @@
 export FOO=BAR
+export TEST=TEST
 export NAME=Steve
 
 PROGRAMS := $(basename $(wildcard *.lisp))
 TESTS := $(addsuffix .test,$(PROGRAMS))
 
-.PHONY: all clean
+.PHONY: all clean test test-inception
 
 all: $(PROGRAMS)
 
 clean:
-	@rm -f *.s *.o *.out *.test tmp.asm $(PROGRAMS)
+	@rm -f *.s *.o *.out *.test *.itest tmp.asm $(PROGRAMS)
 
-test: $(TESTS)
+#
+# Compile each test, and compare the results of executing it with expected ones.
+#
+test: ../slisp
+	@$(MAKE) RUN='./$$@' $(TESTS)
+
+#
+# Compile each test, but ignore the result.
+#
+# Instead execute the test-case via the interpreter and compare the results with expected ones.
+#
+test-inception: ../examples/inception
+	@$(MAKE) RUN='../examples/inception $$< --eval="(main (list \"a.out\"))"' $(TESTS)
+
+
 
 # Ensure we have the compiler
 ../slisp:
 	cd .. && go build .
 
 
-
-# Optionally remove unused sections and strip the binaries.
-ifeq ($(SMALL),1)
-LINK_CMD = @ld --gc-sections -s -o $@ tmp.o
-else
-LINK_CMD = @ld -o $@ tmp.o
-endif
+# Ensure we have inception
+../examples/inception:
+	cd ../examples && make inception
 
 
-# Generic rule
-#   "foo.lisp" becomes "foo"
-#   "foo" is executed to produce "foo.out"
-#   "foo.out" is compared to "foo.expected" which is the expected output
-#
+# Generic rule to compile "foo.lisp" into "foo"
 %: %.lisp ../slisp
 	@echo "compiling $@"
-	@../slisp $< > tmp.asm
-	@nasm -f elf64 tmp.asm
-	$(LINK_CMD)
+	@../slisp -c $<
 
-# Generic rule for testing each binary
+# Compiled tests
 %.test: %.lisp ../slisp
 	@echo "compiling $@"
-	@../slisp $< > tmp.asm
-	@nasm -f elf64 tmp.asm
-	$(LINK_CMD)
-	@echo "testing $@"
-	@./$@ > $@.out 2>&1  || true
-	@cmp $@.out $@.expected || (echo "program $< did not match" ; cat $@.out ; exit 1)
+	@../slisp -c -o $@ $<
+	@$(RUN) > $@.out 2>&1 || true
+	@cmp $@.out $@.expected || \
+		(echo "program $< did not match"; cat $@.out; exit 1)

@@ -1,4 +1,4 @@
-(defun main ()
+(defun main (args)
 
   (println "start")
 

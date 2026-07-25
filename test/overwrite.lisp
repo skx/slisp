@@ -7,5 +7,5 @@
   (println "Hello, World!"))
 
 
-(defun main ()
+(defun main (args)
   (foo))

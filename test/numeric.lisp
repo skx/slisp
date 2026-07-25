@@ -1,4 +1,4 @@
-(defun main ()
+(defun main (args)
   (println (numeric? 3))
   (println (numeric? 3.0))
   (println (numeric? #\a))

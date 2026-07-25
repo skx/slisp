@@ -1,4 +1,4 @@
-(defun main ()
+(defun main (args)
   (println (int 3.2))
   (println (int #\*))
   (println (int 37))

@@ -13,7 +13,7 @@
       nil))
 
 
-(defun main ()
+(defun main (args)
   ;; get all files in the parent directory
   (let ((results (entries ".."))
         (mdown   nil))

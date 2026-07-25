@@ -1,4 +1,4 @@
-(defun main()
+(defun main(args)
   (println (getenv "FOO"))
   (println (getenv "NAME"))
   (println (getenv "NOT.FOUND!"))

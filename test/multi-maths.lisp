@@ -1,6 +1,6 @@
 (require maths)
 
-(defun main ()
+(defun main (args)
   ;; +
   (println (+ 3 0 7 3 -3))
   (println (sys_plus 5 5))

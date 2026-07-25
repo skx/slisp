@@ -1,4 +1,4 @@
-(defun main ()
+(defun main (args)
 
   ;; Start with an empty list
   (let ((p (list)))

@@ -1,4 +1,4 @@
-(defun main ()
+(defun main (args)
   (mkdir "foo")
   (println "Does foo/ exist:" (dir? "foo"))
   (rmdir "foo")

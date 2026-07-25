@@ -19,7 +19,7 @@
   )
 
 
-(defun main ()
+(defun main (args)
   "Test strlen/strcmp"
 
   ; strlen test

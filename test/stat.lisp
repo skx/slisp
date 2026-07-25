@@ -1,4 +1,4 @@
-(defun main ()
+(defun main (args)
 
   ;; basic tests
   (println "/etc exists as directory:" (dir? "/etc"))
