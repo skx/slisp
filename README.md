@@ -175,7 +175,6 @@ Now you should have the executable `inception` present, which is the lisp-interp
 ```
 $ ./inception --repl
 Welcome to lisp in slisp!
-Enter :quit to exit.
 
 > (defun square (x) (* x x))
 (symbol square)
@@ -224,9 +223,26 @@ Enter :quit to exit.
 40
 ```
 
-Perhaps more impressive is that we can execute the [examples/nqueens.lisp](examples/nqueens.lisp) example, with no changes:
+We have a series of test-cases located with `test/`, by default we compile each and execute them to ensure their output matches known-good results.  All the tests are usually run with `make test`:
 
 ```
+cd test/
+make test
+```
+
+However we can also run all the test-cases using inception:
+
+```
+cd test/
+make test-inception
+```
+
+All but one of the tests succeeds at the moment - inception doesn't understand all the numeric types, so it cannot parse `0xFF` or `0b10110010` as integers.
+
+In addition to that we can run our example files too, for example [examples/nqueens.lisp](examples/nqueens.lisp):
+
+```
+$ cd examples/ ; make inception
 $ ./inception nqueens.lisp  --main
 Loading .. nqueens.lisp
 
@@ -247,21 +263,17 @@ So what are the differences between our _compiler_ and our _interpreter_?  Well 
 
 The `alias!` function works for user-defined functions, but sadly doesn't allow you to override or change built-in functions, as they are in a different namespace.  This works:
 
-      (defun foo () (println "foo"))
-      (defun bar () (println "bar"))
-      (alias! foo bar)
-      (foo)   ; prints "bar" - all calls to foo will go to bar instead.
+    (defun steve (a b) (println "ADD") (sys_plus a b))
+    (alias! + steve)
+    (+ 3 4)
 
-But this doesn't work:
+But this doesn't work, if it did we'd have a recursion problem too of course:
 
-    (defun add (a b) (sum (list a b)))
-    (alias + add)
+    (defun x (n) (println "CALLED!") (string n))
+    (alias! string x)
+    (string "steve")
 
-The core `+` function will still be called, never the user function.  The same thing means this is never invoked:
-
-    (defun * (a b) (println "pretend i multiply"))
-
-Inception also contains the standard library `stdlib.slisp` and the embedded packages contained within `packages/` so there is no longer a feature gap.  The standard library is always loaded, and the optional packages my be loaded on demand with `(require NAME)` as you would expect.
+Inception does contain our standard library `stdlib.slisp` and the embedded packages contained within `packages/` so there is no longer a feature gap there.  The standard library is always loaded, and the optional packages my be loaded on demand with `(require NAME)` as you would expect.
 
 The interpreter is obviously much slower than our compiled binaries, due to the overhead of interpreting everything manually.  Sometimes this slowdown is minor, other times it is signification, it really depends upon the nature of the program:
 
