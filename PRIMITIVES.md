@@ -227,6 +227,10 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Convert a string such as `"123"` to an integer.
 * `atof`
   * Convert a string such as `"123.25"` to a float.
+* `binary?`
+  * Does the given string look like a binary number, with 0b-prefix?
+* `binary`
+  * Parse the given string, with 0b-prefix, as a binary number and return the integer value.
 * `dir?`
   * Does the given path exist as a directory?
 * `even?`
@@ -246,6 +250,10 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
 * `getenv`
   * Return the value of the given environmental variable, nor NIL if not found.
   * Uses `environment`.
+* `hex?`
+  * Does the given string look like a hex number, with 0x prefix?
+* `hex`
+  * Parse the given string, with 0x-prefix, as a hex number and return the integer value.
 * `join`
   * Join all (string) items of a list into a single string.
 * `join-by`
