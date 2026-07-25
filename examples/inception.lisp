@@ -156,9 +156,13 @@
   name)
 
 ;; get all known functions
-(defun functions ()
-  "Print builtins followed by user-defined functions."
-  (tree:keys *functions*))
+(defun functions (str)
+  "Return the names of user-functions, optionally only those containing the given substring."
+  (let ((all (tree:keys *functions*)))
+    (if (nil? str)
+        all
+        (filter all (lambda (x) (strstr x (car str)))))))
+
 
 ;; get help information, if available
 (defun help (xs)
@@ -168,13 +172,14 @@
         (if (cons? x)
             (if (str? (caaddr x))
                 (do
-                 (println "Arguments: " (cadr x))
-                 (println "Summary  : " (caaddr x)))
-                (println "No help available."))))))
+                 (println "\tArguments: " (cadr x))
+                 (println "\tSummary  : " (caaddr x)))
+                (println "\tNo help available."))))))
 
 
-(defun help-all ()
-  (map (lambda (x) (println "\e[1m" x "\e[0m") (print "\t") (help (list x)) (newline)) (functions))
+(defun help-all (filter)
+  "Provide help to all functions, or those matching the given string in their name."
+  (map (lambda (x) (println "\e[1m" x "\e[0m") (help (list x)) (newline)) (functions filter))
   nil)
 
 ;; get a function, by name
@@ -228,9 +233,9 @@
   (register-builtin "char?" (lambda (args) (char? (car args))))
   (register-builtin "cons?" (lambda (args) (cons? (car args))))
   (register-builtin "float?" (lambda (args) (float? (car args))))
-  (register-builtin "functions" (lambda (args) (functions)))
+  (register-builtin "functions" (lambda (args) (functions args)))
   (register-builtin "help" (lambda (args) (help args)))
-  (register-builtin "help-all" (lambda (args) (help-all)))
+  (register-builtin "help-all" (lambda (args) (help-all args)))
   (register-builtin "int?" (lambda (args) (int? (car args))))
   (register-builtin "lambda?" (lambda (args) (lambda? (car args))))
   (register-builtin "list" (lambda (args) args))
