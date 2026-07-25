@@ -10,7 +10,7 @@ TESTS := $(addsuffix .test,$(PROGRAMS))
 all: $(PROGRAMS)
 
 clean:
-	@rm -f *.s *.o *.out *.test *.itest tmp.asm $(PROGRAMS)
+	@rm -f *.asm *.o *.out *.test *.itest tmp.asm $(PROGRAMS)
 
 #
 # Compile each test, and compare the results of executing it with expected ones.
