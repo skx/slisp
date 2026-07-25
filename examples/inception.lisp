@@ -803,10 +803,10 @@
     (if (not (getenv "TEST"))
         (println "Loaded stdlib.lisp in \e[1m" (- after before) "ms\e[0m.")))
 
-  ;; We process each named file (skipping --repl)
+  ;; We process each named file skipping arguments
   (map (lambda (name)
-         (if (and (!= name "--repl")
-                  (!= name "--main"))
+         (if (and (> 0 (length name))
+                  (!= "-" (substr name 0 1)))
              (execute-file name)))
        (cdr args))
 
