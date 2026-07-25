@@ -2638,6 +2638,13 @@ FUNC fn_sys_strcat
     ret
 
 
+;; Increase every time the standard library is loaded
+FUNC fn_sysMINUSstdlibMINUSloaded
+     inc qword [stdlib_loaded]
+     mov rax, [stdlib_loaded]
+     TAG_INTEGER_REG rax
+     ret
+
 ;; Compare the two specified strings.
 FUNC fn_sys_strcmp
     mov rbx, rdi             ; type-check arg1
@@ -3089,6 +3096,10 @@ random_buffer_end:
 
 ;; zero section
 section .bss
+
+;; How many times has our standard library been loaded
+stdlib_loaded:
+    resq 1
 
 ;; how many times was our allocator called?
 alloc_count:

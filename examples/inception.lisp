@@ -250,6 +250,7 @@
   (register-builtin "str?" (lambda (args) (str? (car args))))
   (register-builtin "string" (lambda (args) (string (car args))))
   (register-builtin "sys-gc" (lambda (args) (sys-gc)))
+  (register-builtin "sys-stdlib-loaded" (lambda (args) (sys-stdlib-loaded)))
   (register-builtin "sys-heap-allocs" (lambda (args) (sys-heap-allocs)))
   (register-builtin "sys-heap-bytes" (lambda (args) (sys-heap-bytes)))
   (register-builtin "sys-heap-data" (lambda (args) (sys-heap-data)))
@@ -766,6 +767,8 @@
 
   (let ((run t))
     (while run
+      (if (>= *stdlib* 2)
+          (print "self-hosted"))
       (print "> ")
       (let ((line (read-line-sexp)))
         (if (= line ":quit")
@@ -800,7 +803,6 @@
   "Entry-Point, either start the REPL or process each named file."
 
   (init-builtins)
-
 
   ;; no args?  show error and terminate
   (if (= (length args) 1 )

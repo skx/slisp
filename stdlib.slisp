@@ -1016,3 +1016,6 @@ If no length is specified return from the given start to the end of the string."
   (if len
       (sys_substr str start (car len))
       (sys_substr str start (- (length str) start))))
+
+;; We're loaded now.
+(defvar *stdlib* (sys-stdlib-loaded))
