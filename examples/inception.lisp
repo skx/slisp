@@ -158,20 +158,24 @@
 ;; get all known functions
 (defun functions ()
   "Print builtins followed by user-defined functions."
-  (map (lambda (name)
-         (print name " "))
-       (tree:keys *functions*))
-  (newline)
-  nil)
+  (tree:keys *functions*))
 
 ;; get help information, if available
 (defun help (xs)
   (let ((x (car xs)))
-    (if (cons? x)
-        (if (str? (caaddr x))
-            (println (caaddr x))
-            (println "No help available")))))
+    (if (str? x)
+        (help (list (lookup-function x)))
+        (if (cons? x)
+            (if (str? (caaddr x))
+                (do
+                 (println "Arguments: " (cadr x))
+                 (println "Summary  : " (caaddr x)))
+                (println "No help available."))))))
 
+
+(defun help-all ()
+  (map (lambda (x) (println "\e[1m" x "\e[0m") (print "\t") (help (list x)) (newline)) (functions))
+  nil)
 
 ;; get a function, by name
 ;;
@@ -226,6 +230,7 @@
   (register-builtin "float?" (lambda (args) (float? (car args))))
   (register-builtin "functions" (lambda (args) (functions)))
   (register-builtin "help" (lambda (args) (help args)))
+  (register-builtin "help-all" (lambda (args) (help-all)))
   (register-builtin "int?" (lambda (args) (int? (car args))))
   (register-builtin "lambda?" (lambda (args) (lambda? (car args))))
   (register-builtin "list" (lambda (args) args))
@@ -729,7 +734,6 @@
 
 ;; Evaluate a program comprised of expressions
 (defun run-program (text)
-  (init-builtins)
   (reader:init text)
   (let ((forms (reader:parse-program)))
     (eval-program forms)))
@@ -744,10 +748,9 @@
   (println "Welcome to lisp in slisp; \e[1mInception\e[0m!")
   (println "Enter :quit to exit.")
   (println "NOTE: Help for many functions is available - e.g. (help print)")
-  (println "NOTE: Available functions may be listed with (functions)")
+  (println "      Enter '(help-all)' to see all functions and their help-text.")
+  (println "      Available functions may be listed with (functions)")
   (newline)
-
-  (init-builtins)
 
   (let ((run t))
     (while run
@@ -783,10 +786,13 @@
 (defun main (args)
   "Entry-Point, either start the REPL or process each named file."
 
+  (init-builtins)
+
+
   ;; no args?  show error and terminate
   (if (= (length args) 1 )
       (do
-       (println "Usage " (car args) " --repl | path/to/run")
+       (println "Usage " (car args) " --repl | --eval=xx | path/to/run")
        (exit 1)))
 
   ;; Load the standard library
@@ -797,16 +803,28 @@
     (if (not (getenv "TEST"))
         (println "Loaded stdlib.lisp in \e[1m" (- after before) "ms\e[0m.")))
 
-  ;; We process each named file (skipping --repl)
+  ;; We process each named file skipping arguments
   (map (lambda (name)
-         (if (and (!= name "--repl")
-                  (!= name "--main"))
+         (if (and (> (length name) 0)
+                  (!= "-" (substr name 0 1)))
              (execute-file name)))
        (cdr args))
 
   ;; Should we auto-run (defun main) ..?
   (if (member? args "--main")
       (repl-execute-line "(main)"))
+
+  ;; Should we evaluate some code?
+  (map (lambda (arg)
+         ;; If long enough
+         (if (> (length arg) 6)
+             ;; If it matches
+             (if (= "--eval" (substr arg 0 6))
+                 ;; Get the command
+                 (let ((cmd (car (cdr (split arg #\=)))))
+                   ;; and execute it
+                   (repl-execute-line cmd)))))
+       args)
 
   ;; Is this REPL mode?  Then run it
   (if (member? args "--repl")

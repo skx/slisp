@@ -41,103 +41,147 @@
 ;;
 
 (defun < (a b)
-       (sys_< a b))
+  "Return true if A < B"
+  (sys_< a b))
 
 (defun <= (a b)
-       (sys_<= a b))
+  "Return true if A <= B"
+  (sys_<= a b))
 
 (defun > (a b)
-       (sys_> a b))
+  "Return true if A > B"
+  (sys_> a b))
 
 (defun >= (a b)
-       (sys_>= a b))
+  "Return true if A >= B"
+  (sys_>= a b))
 
 (defun = (a b)
-       (sys_= a b))
+  "Return true if A = B"
+  (sys_= a b))
 
 (defun % (a b)
-       (sys_% a b))
+  "Perform A modulus B"
+  (sys_% a b))
 
 (defun car (xs)
-       (sys_car xs))
+  "Return the first item from the list"
+  (sys_car xs))
 
 (defun cdr (xs)
-       (sys_cdr xs))
+  "Return the tail of the list."
+  (sys_cdr xs))
 
 (defun chr (x)
-       (sys_chr x))
+  "Convert the given integer to a character."
+  (sys_chr x))
 
 (defun cons(a b)
-       (sys_cons a b))
+  "Join A and B into a list"
+  (sys_cons a b))
 
 (defun entries (str)
-      (sys_entries str))
+  "Return the names of all filesystem entries beneath the given directory."
+  (sys_entries str))
 
 (defun environment ()
-      (sys_environment))
+  "Return a list of all known environmental variables, and their values."
+  (sys_environment))
 
 (defun exit (n)
-      (sys_exit n))
+  "Terminate execution, with the specified integer status-code."
+  (sys_exit n))
 
 (defun explode (str)
-      (sys_explode str))
+  "Convert a string to a list of characters."
+  (sys_explode str))
 
 (defun fclose (n)
-       (sys_fclose n))
+  "Close the given file-handle.
+
+It is assumed the filehandle came from fopen, but nil is also accepted."
+  (sys_fclose n))
 
 (defun fopen (str mode)
-       (sys_fopen str mode))
+  "Open a file with the given mode.
+
+Mode is \"r\" for read, \"w\" for write, and \"a\" for append."
+  (sys_fopen str mode))
 
 (defun fread (handle)
-       (sys_fread handle))
+  "Read all available data from the given file-handle.
+
+It is assumed the filehandle came from fopen, but nil is also accepted."
+  (sys_fread handle))
+
 
 (defun fwrite (handle data len)
-       (sys_fwrite handle data len))
+  "Write the given data, of length LEN, to the specified file-handle.
+
+It is assumed the filehandle came from fopen, but nil is also accepted."
+  (sys_fwrite handle data len))
 
 (defun getc ()
-       (sys_getc))
+  "Read a single character from STDIN, and return it."
+  (sys_getc))
 
 (defun implode (xs)
-       (sys_implode xs))
+  "Convert a list of characters to a string."
+  (sys_implode xs))
 
 (defun int (x)
-       (sys_int x))
+  "Convert the given thing to an integer, if possible."
+  (sys_int x))
 
 (defun mkdir (str)
-       (sys_mkdir str))
+  "Make the given directory.
+
+Note that this does not create parents, use (mkdirs) for that."
+  (sys_mkdir str))
 
 (defun newline ()
-       (sys_newline))
+  "Print a newline."
+  (sys_newline))
 
 (defun not (x)
-       (sys_not x))
+  "Return true when given NIL, otherwise return NIL"
+  (sys_not x))
 
 (defun now ()
-       (sys_now))
+  "Return the number of milliseconds since the Unix EPOCH."
+  (sys_now))
 
 (defun isqrt(x)
-       (sys_isqrt x))
+  "Perform an integer square root of the given number."
+  (sys_isqrt x))
 
 (defun nth(xs n)
-       (sys_nth xs n))
+  "Return the Nth item of the given list."
+  (sys_nth xs n))
 
 (defun nth!(xs n x)
-       (sys_nth! xs n x))
+  "Update the Nth item of the given list, in-place."
+  (sys_nth! xs n x))
 
 (defun ord (c)
-       (sys_ord c))
+  "Return the ASCII character code of the given character."
+  (sys_ord c))
 
 (defun package (str)
-       (sys_package str))
+  "Return the contents of the embedded package, if available."
+  (sys_package str))
 
 (defun packages ()
-       (sys_packages))
+  "Return the names of all embedded packages."
+  (sys_packages))
 
 (defun putc (c)
-       (sys_putc c))
+  "Write the single specified character to STDOUT."
+  (sys_putc c))
 
 (defun random (n)
-       (sys_random n))
+  "Return a random number 0-N."
+  (sys_random n))
 
 ;; NOP: This is a special form in our compiler
 ;; However if we make this then we can pretend
@@ -147,37 +191,54 @@
 ;; Load all embedded packages, again this is a nop
 ;; for compiled code, but inception can use it.
 (defun require-all()
+  "Load all packages which are embedded in our run-time."
   (map (lambda (p) (require p)) (packages)))
 
 (defun rmdir (str)
-       (sys_rmdir str))
+  "Remove the given directory."
+  (sys_rmdir str))
 
 (defun split (str c)
-       (sys_split str c))
+  "Split a string on the given character.
+
+Return a list of (BEFORE . AFTER)."
+  (sys_split str c))
 
 (defun sqrt(x)
-       (sys_sqrt x))
+  "Return the floating-point square root of the given number."
+  (sys_sqrt x))
 
 (defun stat(str)
-       (sys_stat str))
+  "Return details of the given filesystem entry.
+
+This returns a list of the form (TYPE SIZE MODE)."
+  (sys_stat str))
 
 (defun stdlib()
-       (sys_stdlib))
+  "Return the contents of the stdlib.slisp standard-library."
+  (sys_stdlib))
 
 (defun strcat(a b)
-       (sys_strcat a b))
+  "Return the result of concatenating the two specified strings into one."
+  (sys_strcat a b))
 
 (defun strcmp(a b)
-       (sys_strcmp a b))
+  "Compare the two specified strings, return zero if equal."
+  (sys_strcmp a b))
 
 (defun string (x)
-       (sys_string x))
+  "Convert the given item into a string, if possible."
+  (sys_string x))
 
 (defun strlen (str)
-       (sys_strlen str))
+  "Return the length, in bytes, of the given string."
+  (sys_strlen str))
 
 (defun unlink (str)
-       (sys_unlink str))
+  "Delete the given file from the filesystem.
+
+Use (rmdir) to remove directories instead of files."
+  (sys_unlink str))
 
 ;;; 1. Compatibility
 
@@ -185,17 +246,23 @@
 ;; to allow easy copying/pasting of code.
 
 (defun ! (x)
+  "Shorthand for \"not\"."
   (not x))
 
-(defun != (a b) (not (= a b)))
+(defun != (a b)
+  "Return true if A != B"
+  (not (= a b)))
 
 (defun string< (a b)
+  "Return true if A < B."
   (< (strcmp a b) 0))
 
 (defun string> (a b)
+  "Return true if A > B."
   (> (strcmp a b) 0))
 
 (defun string= (a b)
+  "Return true if A = B."
   (= (strcmp a b) 0))
 
 ;; 4
@@ -233,12 +300,15 @@
 (defun cddddr (x) (cdr (cdr (cdr (cdr x)))))
 
 (defun eq (a b)
+  "Compatiliby wrapper, the same as \"=\"."
   (= a b))
 
 (defun eq? (a b)
+  "Compatiliby wrapper, the same as \"=\"."
   (= a b))
 
 (defun equal (a b)
+  "Compatiliby wrapper, the same as \"=\"."
   (= a b))
 
 (defun null? (x)
@@ -334,7 +404,7 @@ do the right thing for each entry in the given list."
         (mkdirs-helper (cdr parts) next))))
 
 (defun which (binary)
-  "Return the complete path to the file, on the system $PATH, if possible"
+  "Return the complete path to the file, on the system $PATH, if possible."
   (let ((path (split-all (getenv "PATH") #\:))
         (res (filter path (lambda (dir) (exists? (join (list dir "/" binary)))))))
     (if res
@@ -373,17 +443,21 @@ NOTE: This is not a macro, so all arguments are evaluated."
 
 ;; Define the usual maths
 (defun + (a b)
+  "Addition operation."
   (sys_plus a b))
 
 (defun - (a &b)
+  "Subtraction operation."
   (if (car b)
       (sys_minus a (car b))
       (sys_minus 0 a)))
 
 (defun * (a b)
+  "Multiplication operation."
   (sys_multiply a b))
 
 (defun / (a &b)
+  "Division operation."
   (if (car b)
       (sys_divide a (car b))
       (sys_divide 1 (+ a 0.0))))
@@ -423,29 +497,29 @@ NOTE: This is not a macro, so all arguments are evaluated."
   (= (% n 2 ) 1))
 
 (defun one? (n)
-  "Return 1 if the number is one, nil otherwise."
+  "Return true if the number is one, NIL otherwise."
   (= n 1))
 
 (defun pos? (n)
-  "Return 1 if the number is positive, nil otherwise."
+  "Return 1 if the number is positive, NIL otherwise."
   (> n 0))
 
 (defun pow (x y)
-  "Return x to the power of y"
+  "Return X to the power of Y."
   (if (= 0 y)
       1
       (* x (pow x (- y 1)))))
 
 ;; Sum all the numbers in the given list
 (defun sum (xs)
-  "sum all the numbers in the list"
+  "Return the sum of all the numbers in the list"
   (if xs
       (+ (car xs)
          (sum (cdr xs)))
       0))
 
 (defun zero? (n)
-  "Return 1 if the number is zero, nil otherwise."
+  "Return true if the number is zero, NIL otherwise."
   (= n 0))
 
 
@@ -560,7 +634,7 @@ Incrementing by the given step each time."
       acc))
 
 (defun join-by (xs sep)
-  "Join string list-items by the given separator"
+  "Join a list of string-items by the given separator."
   (if xs
       (join-rest (cdr xs) (car xs) sep)
       ""))
@@ -667,6 +741,9 @@ Incrementing by the given step each time."
 ;; system environment more than just with File I/O
 
 (defun getenv (name)
+  "Return the contents of a given environmental variable.
+
+Uses (environment) to get all environmental variables, and filters."
   (getenv-loop name (environment)))
 
 (defun getenv-loop (name xs)
@@ -680,19 +757,19 @@ Incrementing by the given step each time."
       nil))
 
 (defun read-line ()
-   "Read and return a line of text from STDIN"
-    (let ((text "")
-          (done nil)
-          (ch ""))
-        (while (not done)
-            (set! ch (getc))
-            (if (not  ch)
-                (set! done t)
-                (if (= ch #\Newline)
-                    (set! done t)
-                    (set! text
-                        (strcat text (string (chr ch)))))))
-        text))
+  "Read and return a line of text from STDIN"
+  (let ((text "")
+        (done nil)
+        (ch ""))
+    (while (not done)
+      (set! ch (getc))
+      (if (not  ch)
+          (set! done t)
+          (if (= ch #\Newline)
+              (set! done t)
+              (set! text
+                    (strcat text (string (chr ch)))))))
+    text))
 
 (defun system(cmd)
   "Run a command and return the output; nil on failure."
@@ -721,7 +798,9 @@ Incrementing by the given step each time."
 ;;
 
 (defun atof (str)
-  "Convert the given string to a floating point number."
+  "Convert the given string to a floating point number.
+
+For integer conversion use (atoi) instead."
   (let ((chars (explode str)))
     (cond
       ((= (ord (car chars)) (ord #\-))
@@ -755,7 +834,9 @@ Incrementing by the given step each time."
            (atof-frac (explode (cadr parts)) 0 1)))))
 
 (defun atoi (str)
-  "Convert the given string to an integer.   Positive and negative numbers work, but floats do not."
+  "Convert the given string to an integer.
+
+Positive and negative numbers work. For floats use (atof)."
   (let ((chars (explode str)))
     (if (= (car chars) #\-)
         (- 0 (atoi-helper (cdr chars) 0))
@@ -771,7 +852,7 @@ Incrementing by the given step each time."
              (ord #\0))))))
 
 (defun lower (str)
-  "Convert the given string to lower-case"
+  "Convert the given string to lower-case."
   (implode
    (map
     (lambda (ch)
@@ -783,7 +864,7 @@ Incrementing by the given step each time."
     (explode str))))
 
 (defun upper (str)
-  "Convert the given string to upper-case"
+  "Convert the given string to upper-case."
   (implode
    (map
     (lambda (ch)
@@ -820,7 +901,9 @@ Incrementing by the given step each time."
     (t nil)))
 
 (defun substr (str start &len)
-  "Return a substring of the given string"
+  "Return a substring of the given string.
+
+If no length is specified return from the given start to the end of the string."
   (if len
       (sys_substr str start (car len))
-      (sys_substr str start 1)))
+      (sys_substr str start (- (length str) start))))
