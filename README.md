@@ -341,7 +341,7 @@ The `(cons ..)` primitive is a lisp-fundamental, so I figure that is going to be
 * `(sys-heap-data)` - Return the contents of the heap as a list of entries.
 * `(sys-heap-dump)` - Dump a summary of the heap to the console.
   * This is implemented in assembly and literally writes to STDOUT.  There is no control over the formatting.
-  * I wanted to write a function that would return a list of heap entries, but that might trigger a GC process.  Which would invalidate the results mid-traversal, so this is my compromise solution.
+  * Use `sys-heap-data` if you want to get the heap-data and format it for printing yourself.
 * `(sys-heap-objects)` - Return the number of objects stored upon the heap.
 
 The stop and copy implementation is pretty simple:
@@ -350,6 +350,7 @@ The stop and copy implementation is pretty simple:
 * One heap is used as the backing-store for all allocations we make.
 * When a `sys-gc` request is made the current heap is inspected and all live items are copied to the other heap.
   * The new heap is then made the active one, which essentially orphans and frees the unreachable entries upon the old heap.
+  * As a nice side-effect this removes any fragmentation, there are no holes in the new heap.  Allocation continues to grow the heap with no need to worry about using previously-freed objects.
 * The copying process has to deal with global variables, objects held within stack-frames, and those objects which might be held inside registers.
   * For register contents we cheat a little.
   * The `(cons ..)` primitive is the only one that is used to trigger "auto GC",  and we know `cons` can only be called with two arguments, so we only have to consider the two registers RDI & RSI.
