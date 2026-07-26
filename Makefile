@@ -1,6 +1,6 @@
 # Compile *.lisp in the current directory.
 PROGRAMS := $(basename $(wildcard *.lisp))
-.PHONY: test clean
+.PHONY: clean test test-inception
 
 
 # build the compiler
@@ -31,3 +31,9 @@ test:
 	cd examples/    && make test
 	cd examples/bf/ && make test
 	cd test/        && make test
+
+
+# Test with inception
+test-inception:
+	cd examples/ && make test-inception
+	cd test/     && make test-inception
