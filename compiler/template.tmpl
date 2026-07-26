@@ -64,8 +64,8 @@ SYS_rmdir         equ  84
 SYS_unlink        equ  87
 SYS_getdents64    equ 217
 SYS_clock_gettime equ 228
+SYS_prlimit64     equ 302       ; x86-64
 SYS_getrandom     equ 318
-
 
 ;; (entries)
 O_RDONLY        equ 0
@@ -81,6 +81,8 @@ S_IFDIR         equ 0040000o
 S_IFCHR         equ 0020000o
 S_IFIFO         equ 0010000o
 
+;; stack size fetch
+RLIMIT_STACK  equ 3
 
 
 ;;; 1. macros
@@ -261,6 +263,8 @@ global _start
 section .text
 
 _start:
+    ; save our initial stack-pointer
+    mov [initial_rsp], rsp
 
     ; Heap A is initially active
     mov rax, heap_a
@@ -342,6 +346,16 @@ _start:
     mov rdi, r12               ; args list
     call fn_init_globals
     mov rdi, r12               ; args again if main takes it
+
+    push rdi
+    mov rax, SYS_prlimit64
+    xor edi, edi               ; pid = 0
+    mov esi, RLIMIT_STACK
+    xor edx, edx               ; new_limit = NULL
+    lea r10, [rel rlimit]      ; old_limit
+    syscall
+    pop rdi
+
     call fn_main
     mov rdi, rax               ; exit code is the last expression
     UNTAG_REG rdi
@@ -388,6 +402,24 @@ section .text
 ;;       This is the address we return to the caller, the prefixed header is only relevant to us and GC machinery.
 ;;
 alloc:
+    push rax                    ; Test our stack size limit
+    push rcx
+    mov rcx, [rlimit]           ; limit
+    cmp rcx, -1                 ; unlimited?
+    je  .ok                     ; no limit
+    sub rcx, 65536              ; reserve safety margin
+
+    mov rax, [initial_rsp]
+    sub rax, rsp                ; bytes used
+
+    cmp rax, rcx
+
+    jae stack_too_deep
+
+.ok:
+    pop rcx
+    pop rax
+
     inc qword [alloc_count]   ; count allocations
 
     add rax, 24               ; Prefix allocation with the header size
@@ -422,6 +454,17 @@ alloc:
     pop rdx
     pop rcx
     jmp heap_exhausted
+
+stack_too_deep:
+    pop rcx
+    pop rax
+    mov rdi, stack_error_msg             ; show the error
+    TAG_STRING_REG rdi
+    call fn_printstr
+    mov rdi, 1                           ; exit-code
+    jmp fn_exit
+
+
 
 
 ;; xmm0 contains a float, store it on the heap and return it
@@ -3036,6 +3079,12 @@ heap_error_msg:
         db `Heap exhausted! Aborted inside `
         db 00
 
+;; stack exhastued
+align 16
+stack_error_msg:
+        db `Stack overflow, run 'ulimit -s unlimited' and try again!\n`
+        db 00
+
 ;; error message for type-errors
 align 16
 type_error_msg:
@@ -3113,6 +3162,14 @@ disable_gc:
 dir_buffer:
     resb 1024 * 1024
 dir_buffer_end:
+
+;; stack address on startup
+initial_rsp:
+    resq 1
+
+;; where we get stack limits to
+rlimit:
+    resq 2
 
 ;; start of the environmental variable array
 envp_ptr:
