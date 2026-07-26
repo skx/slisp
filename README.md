@@ -63,7 +63,8 @@ It should be noted that we prepend a standard library of functions to all user p
 * Support for bindings, functions, floating-point numbers, integers, strings, lambdas, lists, etc.
   * The lambdas have support for closures.
   * Run-time type detection via functions such as `int?`, and `cons?`.
-* A rough and ready bump-allocator used heap to allocate memory for heap-allocated objects.
+* A rough and ready bump-allocator for memory-allocation.
+  * Floats, Lambdas, Lists, and Strings live on the heap.
   * This is supported by a stop&copy garbage collector, using [Cheney's algorithm](https://en.wikipedia.org/wiki/Cheney%27s_algorithm) (which is named after it's inventor Chris J. Cheney).
   * See the [Garbage Collection](#garbage-collection) section below for details.
 * Mathematical operations `+`, `-`, `*`, and `/`.
