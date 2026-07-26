@@ -3,7 +3,9 @@
 // lambdas.
 package env
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // Env holds our state
 type Env struct {
