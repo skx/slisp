@@ -458,7 +458,7 @@ func (c *Compiler) Compile() (string, error) {
 	//   (defun foo () (print "Hello, World"))
 	//
 	// Will mean "(foo) -> Hello, World"
-	tmp := make(map[string]parser.Defun)
+	tmp := map[string]parser.Defun{}
 
 	//
 	// Generate the assembly for each known user-defined
