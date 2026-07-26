@@ -18,7 +18,7 @@ Spoiler: Local variable always comes first."
 
 
 
-(defun main ()
+(defun main (args)
   "Entry Point."
 
   ;; show global foo

@@ -5,19 +5,42 @@ export NAME=Steve
 PROGRAMS := $(basename $(wildcard *.lisp))
 TESTS := $(addsuffix .test,$(PROGRAMS))
 
-.PHONY: all clean
+.PHONY: all clean test test-inception
+
 
 all: $(PROGRAMS)
+
 
 clean:
 	@rm -f *.asm *.o *.out *.test $(PROGRAMS)
 	@cd bf/ && make clean
 
-test: $(TESTS)
+
+#
+# Compile each test, and compare the results of executing it with expected ones.
+#
+test: ../slisp
+	@$(MAKE) RUN='./$$@' $(TESTS)
+
+
+#
+# Compile each test, but ignore the result.
+#
+# Instead execute the test-case via the interpreter and compare the results with expected ones.
+#
+test-inception: ./inception
+	@$(MAKE) RUN='./inception $$< --eval="(main (list \"./example.test\"))"' $(TESTS)
+
 
 # Ensure we have the compiler
 ../slisp:
 	cd .. && go build .
+
+
+# Ensure we have inception
+inception: inception.lisp ../slisp
+	@../slisp -c $<
+
 
 
 
@@ -49,5 +72,5 @@ life.test:
 	@echo "compiling $@"
 	@../slisp -c -o $@ $<
 	@echo "testing $@"
-	@./$@ > $@.out 2>&1  || true
+	@$(RUN) > $@.out 2>&1 || true
 	@cmp $@.out $@.expected || (echo "program $< did not match" ; cat $@.out ; exit 1)

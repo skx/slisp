@@ -3,7 +3,7 @@
 
 ;;; Test code
 
-(defun main ()
+(defun main (args)
   (let ((tr nil))
     (set! tr (tree:put tr "apple" "apple"))
     (set! tr (tree:put tr "cake" "cake"))
