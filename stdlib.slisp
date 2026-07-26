@@ -19,6 +19,8 @@
 ;;  3. Filesystem Functions
 ;;  5. Logical Functions
 ;;  6. Maths functions
+;;  6.1 Base conversion
+;;  6.2 Maths functions
 ;;  7. List Creation
 ;;  8. List Utility Functions
 ;;  9. System functions.
@@ -441,6 +443,111 @@ NOTE: This is not a macro, so all arguments are evaluated."
 ;; processing items of lists
 
 
+
+;;; 6.1 base conversions
+
+
+(defun digit-value (ch)
+  "return the value of a given number, used for parsing binary/hex/octal strings"
+  (cond
+    ((= ch "0") 0)
+    ((= ch "1") 1)
+    ((= ch "2") 2)
+    ((= ch "3") 3)
+    ((= ch "4") 4)
+    ((= ch "5") 5)
+    ((= ch "6") 6)
+    ((= ch "7") 7)
+    ((= ch "8") 8)
+    ((= ch "9") 9)
+
+    ((= ch "a") 10)
+    ((= ch "A") 10)
+    ((= ch "b") 11)
+    ((= ch "B") 11)
+    ((= ch "c") 12)
+    ((= ch "C") 12)
+    ((= ch "d") 13)
+    ((= ch "D") 13)
+    ((= ch "e") 14)
+    ((= ch "E") 14)
+    ((= ch "f") 15)
+    ((= ch "F") 15)
+
+    (t -1)))
+
+(defun integer-base? (text prefix base)
+  "Is the given text a valid number in the specified base?"
+  (let ((len (strlen text))
+        (pos 2)
+        (digit 0)
+        (ok t))
+
+    (if (< len 3)
+        nil
+
+        (if (or (!= (substr text 0 1) "0")
+                (and (!= (substr text 1 1) prefix)
+                     (!= (substr text 1 1) (upper prefix))))
+            nil
+
+            (do
+              (while (and ok (< pos len))
+
+                (set! digit (digit-value (substr text pos 1)))
+
+                (if (or (< digit 0)
+                        (>= digit base))
+                    (set! ok nil))
+                (set! pos (+ pos 1)))
+              ok)))))
+
+(defun parse-integer (text prefix base)
+  (let ((value 0)
+        (pos 2)
+        (len (strlen text))
+        (digit 0))
+
+    ;; Assume the caller has already verified the prefix.
+    (while (< pos len)
+      (set! digit (digit-value (substr text pos 1)))
+
+      (if (or (< digit 0) (>= digit base))
+          (do
+            (println "Invalid digit")
+            (exit 1)))
+
+      (set! value (+ (* value base) digit))
+      (set! pos (+ pos 1)))
+    value))
+
+
+(defun binary (text)
+  "Parse the given text as a binary number, complet with 0b prefix."
+  (parse-integer text "b" 2))
+
+(defun binary? (text)
+  (integer-base? text "b" 2))
+
+(defun hex (text)
+  "Parse the given text as a hex number, complet with 0x prefix."
+  (parse-integer text "x" 16))
+
+(defun hex? (text)
+  (integer-base? text "x" 16))
+
+(defun octal (text)
+  "Parse the given text as a binary number, complet with 0o prefix."
+  (parse-integer text "o" 8))
+
+(defun octal? (text)
+  (integer-base? text "o" 8))
+
+
+
+;;; 6.2 maths functions
+
+
 ;; Define the usual maths
 (defun + (a b)
   "Addition operation."
@@ -466,118 +573,9 @@ NOTE: This is not a macro, so all arguments are evaluated."
   "Return the absolute value of N, as a positive number"
   (if (< n 0) (- 0 n) n))
 
-(defun binary-digit (ch)
-  "Does the given digit look like it could be part of a binary number?"
-  (cond
-    ((= ch "0") 0)
-    ((= ch "1") 1)
-    (t -1)))
-
-(defun binary? (text)
-  "Does the text contain a binary number, with 0b prefix?"
-  (let ((len (strlen text))
-        (pos 2)
-        (ok t)
-        (ch ""))
-    (if (< len 3)
-        nil
-        (if (or (!= (substr text 0 1) "0")
-                (and (!= (substr text 1 1) "b")
-                     (!= (substr text 1 1) "B")))
-            nil
-            (do
-              (while (and ok (< pos len))
-                (set! ch (substr text pos 1))
-                (if (= (binary-digit ch) -1)
-                    (set! ok nil))
-                (set! pos (+ pos 1)))
-             ok)))))
-
-(defun binary (text)
-  "Parse the given text as a binary-number, with 0b-prefix required, and return the integer value."
-  (let ((value 0)
-        (len (strlen text))
-        (pos 2))
-    (while (< pos len)
-      (set! value
-            (+ (* value 2)
-               (binary-digit (substr text pos 1))))
-      (set! pos (+ pos 1)))
-    value))
-
 (defun even? (n)
   "Return 1 if the number is even, nil otherwise."
   (= (% n 2 ) 0))
-
-(defun hex-digit (ch)
-  "Is the given character a potential hex number?"
-  (cond
-    ((= ch "0") 0)
-    ((= ch "1") 1)
-    ((= ch "2") 2)
-    ((= ch "3") 3)
-    ((= ch "4") 4)
-    ((= ch "5") 5)
-    ((= ch "6") 6)
-    ((= ch "7") 7)
-    ((= ch "8") 8)
-    ((= ch "9") 9)
-
-    ((= ch "a") 10)
-    ((= ch "b") 11)
-    ((= ch "c") 12)
-    ((= ch "d") 13)
-    ((= ch "e") 14)
-    ((= ch "f") 15)
-
-    ((= ch "A") 10)
-    ((= ch "B") 11)
-    ((= ch "C") 12)
-    ((= ch "D") 13)
-    ((= ch "E") 14)
-    ((= ch "F") 15)
-
-    (t -1)))
-
-(defun hex? (text)
-  "Is the given string, complete with 0x-prefix, a hex number?"
-  (let ((len (strlen text))
-        (pos 2)
-        (ok t)
-        (ch ""))
-
-    (if (< len 3)
-        nil
-
-        (if (or (!= (substr text 0 1) "0")
-                (!= (substr text 1 1) "x"))
-            nil
-
-            (do
-              (while (and ok (< pos len))
-                (set! ch (substr text pos 1))
-
-                (if (= (hex-digit ch) -1)
-                    (set! ok nil))
-
-                (set! pos (+ pos 1)))
-
-              ok)))))
-
-(defun hex (text)
-  "Parse the given text as a hex-number, with 0x-prefix required, and return the integer value"
-  (let ((value 0)
-        (len (strlen text))
-        (pos 2))
-
-    (while (< pos len)
-      (set! value
-            (+ (* value 16)
-               (hex-digit (substr text pos 1))))
-
-      (set! pos (+ pos 1)))
-
-    value))
 
 (defun max (xs)
   "Return the maximum integer from the list of numbers supplied."

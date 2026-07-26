@@ -315,11 +315,14 @@
       ;; number?
       ((and numeric seen-digit) (atof token))
 
+      ;; binary number?
+      ((binary? token) (binary token))
+
       ;; hex number?
       ((hex? token) (hex token))
 
-      ;; binary number?
-      ((binary? token) (binary token))
+      ;; octal number?
+      ((octal? token) (octal token))
 
       ;; Keywords become strings.
       ((and (> (strlen token) 0)
