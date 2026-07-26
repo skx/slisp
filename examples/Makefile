@@ -10,7 +10,7 @@ TESTS := $(addsuffix .test,$(PROGRAMS))
 all: $(PROGRAMS)
 
 clean:
-	@rm -f *.s *.o *.out *.test tmp.asm $(PROGRAMS)
+	@rm -f *.asm *.o *.out *.test $(PROGRAMS)
 	@cd bf/ && make clean
 
 test: $(TESTS)

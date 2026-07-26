@@ -132,6 +132,12 @@
 ;; Keep track of packages we've required
 (defvar *required* nil)
 
+(defun required-list ()
+  (let ((nested (global-get "*required*")))
+    (if nested
+        nested
+        *required*)))
+
 (defun global-get (name)
   (tree:get *globals* name))
 
@@ -458,15 +464,17 @@
 
 ;; special form: defvar - return the value
 (defun eval-defvar (expr env)
-  (let ((name (symbol-name (cadr expr)))    ; get the name
-        (result (eval (caddr expr) env)))   ; get the result of the expression
+  (let ((name (symbol-name (cadr expr))))
 
-    ;; remember the result of eval is a list, so use "eval-value" to get the
-    ;; actual value
-    (set! *globals* (env-set *globals* name (eval-value result)))
+    ;; Only initialise if the variable doesn't already exist.
+    (if (not (env-bound? *globals* name))
+        (let ((result (eval (caddr expr) env)))
+          (set! *globals*
+                (env-set *globals* name (eval-value result)))
+          (list (eval-value result) (eval-env result)))
 
-    ;; return list of "value" "env"
-    (list (eval-value result) (eval-env result))))
+        ;; Already defined - just return its current value.
+        (list (env-get *globals* name) env))))
 
 ;; special form: do - run each statement in the list
 (defun eval-do (expr env)
@@ -647,9 +655,12 @@
               (set! filename (require-path (strcat filename ".lisp"))))
           (if filename
               (if (exists? filename)
-                  (if (not (member? *required* filename))
+                  (if (not (member? (required-list) filename))
                       (do
-                       (set! *required* (cons filename *required*))
+                       (let ((new (cons filename (required-list))))
+                         (if (global-get "*required*")
+                             (global-set "*required*" new)
+                             (set! *required* new)))
                        (execute-file filename)))
                   (println "File not found " filename)))))
     (list nil env)))

@@ -214,7 +214,7 @@ Enter :quit to exit.
 
 ; loading "closure2.lisp" will define (defun main)
 ; now we call it via the REPL:
-> (main)
+> (main (list "closure2"))
 25
 35
 5
@@ -223,21 +223,16 @@ Enter :quit to exit.
 40
 ```
 
-We have a series of test-cases located with `test/`, by default we compile each and execute them to ensure their output matches known-good results.  All the tests are usually run with `make test`:
+> **NOTE**: `(main)` takes an argument which is a list of CLI arguments the binary should have received, including the name of the binary as the first argument.
 
-```
-cd test/
-make test
-```
-
-However we can also run all the test-cases using inception:
+We have a series of test-cases located with `test/`, by default we compile each and execute them to ensure their output matches known-good results.  All the tests are usually run with `make test` however we can also run all the test-cases using inception:
 
 ```
 cd test/
 make test-inception
 ```
 
-In addition to that we can run our example files too, for example [examples/nqueens.lisp](examples/nqueens.lisp):
+In addition to that we can run each of our example files too, for example [examples/nqueens.lisp](examples/nqueens.lisp):
 
 ```
 $ cd examples/ ; make inception
@@ -271,7 +266,7 @@ But this doesn't work, if it did we'd have a recursion problem too of course:
     (alias! string x)
     (string "steve")
 
-Inception does contain our standard library `stdlib.slisp` and the embedded packages contained within `packages/` so there is no longer a feature gap there.  The standard library is always loaded, and the optional packages my be loaded on demand with `(require NAME)` as you would expect.
+Inception loads the standard library `stdlib.slisp` on startup, to ensure that programs executed by it have the same supporting-functions available as when compiled.  The embedded packages contained within `packages/` are also available at run-time with `(require NAME)` as you would expect.
 
 The interpreter is obviously much slower than our compiled binaries, due to the overhead of interpreting everything manually.  Sometimes this slowdown is minor, other times it is signification, it really depends upon the nature of the program:
 
@@ -286,7 +281,7 @@ That said, and as demonstrated above, the interpreter can run many of the same p
 
 <details>
 <summary>To achieve true inception you need to run the interpreter with itself</summary>
-
+<br>
 
 You can of course use the interpreter to run itself, which provides true inception!  You can then go on to run a third second program, using the nested interpreter:
 
@@ -294,14 +289,23 @@ You can of course use the interpreter to run itself, which provides true incepti
      Welcome to lisp in slisp!
      Enter :quit to exit.
 
-     > (main (list "x" "--repl"))         ; Launch the second copy of inception.
-     > (execute-file "brainfuck.lisp")    ; Using that load the brainfuck program.
+     > (main (list "a.out" "--repl"))            ; Start the second copy of inception.
+     Loaded stdlib.lisp in 15690ms.
+
+     Welcome to lisp in slisp; Inception!
+     Enter :quit to exit.
+
+     self-hosted> (require brainfuck)            ; Using that load brainfuck.lisp
      Loading .. brainfuck.lisp
-     ((symbol main) <nil>)
-     > (main)                             ; And run it without args..
+     <nil>
+     self-hosted> (main)                         ; And launch it
+     main: too few arguments supplied
      Hello World!
      106
-     > (exit)
+     self-hosted> :quit                          ; Exit the nested interpreter
+     <nil>
+     > :quit                                     ; Exit the compiled interpreter
+     $
 
 You could also try this:
 
