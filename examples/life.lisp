@@ -75,11 +75,12 @@
         (set! y (+ y 1)))))
   (println "generation " generation " heap size:" (sys-heap-bytes))
 
+  (print "\e[?25h") ; restore cursor
+
   ;; allow execution to terminate when testing
   (if (> generation limit)
       (exit 0))
 
-  (print "\e[?25h") ; restore cursor
 )
 
 
