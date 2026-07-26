@@ -559,11 +559,11 @@ func (c *Compiler) Compile() (string, error) {
 	}
 
 	//
-	// Generate assets
+	// Generate assets from the files we embed in packages/
 	//
 	assets := []Asset{}
 
-	fs.WalkDir(c.fs, ".", func(path string, d fs.DirEntry, err error) error {
+	err = fs.WalkDir(c.fs, ".", func(path string, d fs.DirEntry, err error) error {
 		if d.Type().IsRegular() {
 			data, err := c.fs.ReadFile(path)
 			if err != nil {
@@ -597,6 +597,9 @@ func (c *Compiler) Compile() (string, error) {
 		}
 		return nil
 	})
+	if err != nil {
+		return "", err
+	}
 
 	//
 	// Sort assets by name: in reverse because "packages" will
