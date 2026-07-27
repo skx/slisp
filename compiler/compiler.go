@@ -518,33 +518,38 @@ func (c *Compiler) Compile() (string, error) {
 	lambdas := getCompiled()
 
 	//
-	// Build up a data-section for our string tables
+	// Define a structure to hold static strings,
+	// from our string-table
 	//
-	c.emitln("section .data")
+	type String struct {
+		Name  string
+		Value string
+	}
+
+	stringLiterals := []String{}
 	for id, str := range c.strings {
-		c.emitln("align 16")
-		c.emitln(id + ":")
-
-		// escape the "`" which are wrapped around the string.
-		str = strings.ReplaceAll(str, "`", "\\`")
-
-		c.emitln(fmt.Sprintf("     db `%s`, 0", str))
+		stringLiterals = append(stringLiterals,
+			String{
+				Name:  id,
+				Value: strings.ReplaceAll(str, "`", "\\`"),
+			})
 	}
 
-	// Now as a simple string
-	stringTable := getCompiled()
+	//
+	// Define a structure to hold static floats,
+	// from our float-table
+	//
+	type Float struct {
+		Name  string
+		Value float64
+	}
 
-	//
-	// Build up a data-section for our user-defined float
-	// literals
-	//
-	c.emitln("section .data")
+	floatLiterals := []Float{}
 	for id, str := range c.floats {
-		c.emitln("align 16")
-		c.emitln(id + ":")
-		c.emitln(fmt.Sprintf("     dq %f", str))
+		floatLiterals = append(floatLiterals, Float{
+			Name:  id,
+			Value: str})
 	}
-	floatTable := getCompiled()
 
 	//
 	// Define a structure to hold embedded assets
@@ -632,6 +637,9 @@ func (c *Compiler) Compile() (string, error) {
 		// The defintions of defun's we've seen.
 		Defuns string
 
+		// Floattable holds our floating point constants
+		FloatTable []Float
+
 		// Lambdas has all the lambda expressions we've seen.
 		Lambdas string
 
@@ -642,13 +650,10 @@ func (c *Compiler) Compile() (string, error) {
 		Globals []string
 
 		// StringTable contains the strings we've seen.
-		StringTable string
+		StringTable []String
 
 		// Stdlib embeds our standard library
 		StdLib string
-
-		// FloatTable contains the floating point literals we've seen.
-		FloatTable string
 	}
 
 	// Trim our standard library
@@ -669,8 +674,8 @@ func (c *Compiler) Compile() (string, error) {
 		InitGlobals: initGlobals,
 		Lambdas:     lambdas,
 		StdLib:      stdLib,
-		StringTable: stringTable,
-		FloatTable:  floatTable,
+		StringTable: stringLiterals,
+		FloatTable:  floatLiterals,
 	}
 
 	// Create a buffer to render the template to.
