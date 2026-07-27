@@ -3687,8 +3687,7 @@ section .data
 {{ range .StringTable }}
 align 16
 {{ .Name }}:
-        db `{{ .Value }}`
-        db 0x00
+        db `{{ .Value }}`, 0x00
 {{end}}
 
 
@@ -3699,9 +3698,9 @@ align 16
 
 section .data
 
+{{ range .FloatTable }}
 align 16
-
-{{ range .FloatTable }}{{ .Name }}:
+{{ .Name }}:
         dq {{ .Value }}
 {{end}}
 

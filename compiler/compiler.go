@@ -128,7 +128,14 @@ func New(src string) *Compiler {
 }
 
 // SetStdLib allows embedding the standard library
-func (c *Compiler) SetStdLib(s string) {
+func (c *Compiler) SetStdLib(s string) error {
+
+	// Before we encoded it strip the comments.
+	s, err := c.trimComments(s)
+	if err != nil {
+		return err
+	}
+
 	var b strings.Builder
 
 	b.WriteString("db ")
@@ -141,6 +148,7 @@ func (c *Compiler) SetStdLib(s string) {
 	}
 
 	c.stdlib = b.String() + "\ndb 0x00\n"
+	return nil
 }
 
 // trimComments processes the given text, and returns a copy without
@@ -156,7 +164,14 @@ func (c *Compiler) trimComments(str string) (string, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, ";") {
+
+		// Remove trailing comment.
+		if idx := strings.IndexRune(line, ';'); idx >= 0 {
+			line = line[:idx]
+		}
+
+		line = strings.TrimSpace(line)
+		if line == "" {
 			continue
 		}
 
@@ -656,11 +671,6 @@ func (c *Compiler) Compile() (string, error) {
 		StdLib string
 	}
 
-	// Trim our standard library
-	stdLib, err1 := c.trimComments(c.stdlib)
-	if err1 != nil {
-		return "", err1
-	}
 	//
 	// Create an instance of that internal structure, which we
 	// can then pass to the template processor to fill out into
@@ -673,7 +683,7 @@ func (c *Compiler) Compile() (string, error) {
 		Globals:     globals,
 		InitGlobals: initGlobals,
 		Lambdas:     lambdas,
-		StdLib:      stdLib,
+		StdLib:      c.stdlib,
 		StringTable: stringLiterals,
 		FloatTable:  floatLiterals,
 	}
