@@ -128,7 +128,14 @@ func New(src string) *Compiler {
 }
 
 // SetStdLib allows embedding the standard library
-func (c *Compiler) SetStdLib(s string) {
+func (c *Compiler) SetStdLib(s string) error {
+
+	// Before we encoded it strip the comments.
+	s, err := c.trimComments(s)
+	if err != nil {
+		return err
+	}
+
 	var b strings.Builder
 
 	b.WriteString("db ")
@@ -141,6 +148,7 @@ func (c *Compiler) SetStdLib(s string) {
 	}
 
 	c.stdlib = b.String() + "\ndb 0x00\n"
+	return nil
 }
 
 // trimComments processes the given text, and returns a copy without
@@ -156,7 +164,14 @@ func (c *Compiler) trimComments(str string) (string, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, ";") {
+
+		// Remove trailing comment.
+		if idx := strings.IndexRune(line, ';'); idx >= 0 {
+			line = line[:idx]
+		}
+
+		line = strings.TrimSpace(line)
+		if line == "" {
 			continue
 		}
 
@@ -518,33 +533,38 @@ func (c *Compiler) Compile() (string, error) {
 	lambdas := getCompiled()
 
 	//
-	// Build up a data-section for our string tables
+	// Define a structure to hold static strings,
+	// from our string-table
 	//
-	c.emitln("section .data")
+	type String struct {
+		Name  string
+		Value string
+	}
+
+	stringLiterals := []String{}
 	for id, str := range c.strings {
-		c.emitln("align 16")
-		c.emitln(id + ":")
-
-		// escape the "`" which are wrapped around the string.
-		str = strings.ReplaceAll(str, "`", "\\`")
-
-		c.emitln(fmt.Sprintf("     db `%s`, 0", str))
+		stringLiterals = append(stringLiterals,
+			String{
+				Name:  id,
+				Value: strings.ReplaceAll(str, "`", "\\`"),
+			})
 	}
 
-	// Now as a simple string
-	stringTable := getCompiled()
+	//
+	// Define a structure to hold static floats,
+	// from our float-table
+	//
+	type Float struct {
+		Name  string
+		Value string
+	}
 
-	//
-	// Build up a data-section for our user-defined float
-	// literals
-	//
-	c.emitln("section .data")
+	floatLiterals := []Float{}
 	for id, str := range c.floats {
-		c.emitln("align 16")
-		c.emitln(id + ":")
-		c.emitln(fmt.Sprintf("     dq %f", str))
+		floatLiterals = append(floatLiterals, Float{
+			Name:  id,
+			Value: fmt.Sprintf("%f", str)})
 	}
-	floatTable := getCompiled()
 
 	//
 	// Define a structure to hold embedded assets
@@ -632,6 +652,9 @@ func (c *Compiler) Compile() (string, error) {
 		// The defintions of defun's we've seen.
 		Defuns string
 
+		// Floattable holds our floating point constants
+		FloatTable []Float
+
 		// Lambdas has all the lambda expressions we've seen.
 		Lambdas string
 
@@ -642,20 +665,12 @@ func (c *Compiler) Compile() (string, error) {
 		Globals []string
 
 		// StringTable contains the strings we've seen.
-		StringTable string
+		StringTable []String
 
 		// Stdlib embeds our standard library
 		StdLib string
-
-		// FloatTable contains the floating point literals we've seen.
-		FloatTable string
 	}
 
-	// Trim our standard library
-	stdLib, err1 := c.trimComments(c.stdlib)
-	if err1 != nil {
-		return "", err1
-	}
 	//
 	// Create an instance of that internal structure, which we
 	// can then pass to the template processor to fill out into
@@ -668,9 +683,9 @@ func (c *Compiler) Compile() (string, error) {
 		Globals:     globals,
 		InitGlobals: initGlobals,
 		Lambdas:     lambdas,
-		StdLib:      stdLib,
-		StringTable: stringTable,
-		FloatTable:  floatTable,
+		StdLib:      c.stdlib,
+		StringTable: stringLiterals,
+		FloatTable:  floatLiterals,
 	}
 
 	// Create a buffer to render the template to.

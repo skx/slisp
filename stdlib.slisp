@@ -879,7 +879,7 @@ Uses (environment) to get all environmental variables, and filters."
     text))
 
 (defun system(cmd)
-  "Run a command and return the output; nil on failure."
+  "Run a command and return the output."
   (let ((tmp     "/tmp/mktmp")         ; tmp file for output
         (res     (sys_run cmd tmp))    ; run command
         (handle  (fopen tmp "r"))      ; open file

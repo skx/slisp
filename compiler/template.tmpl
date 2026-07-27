@@ -3684,7 +3684,12 @@ gc_scan_stack:
 
 section .data
 
-{{ .StringTable }}
+{{ range .StringTable }}
+align 16
+{{ .Name }}:
+        db `{{ .Value }}`, 0x00
+{{end}}
+
 
 
 
@@ -3693,8 +3698,11 @@ section .data
 
 section .data
 
-{{ .FloatTable }}
-
+{{ range .FloatTable }}
+align 16
+{{ .Name }}:
+        dq {{ .Value }}
+{{end}}
 
 
 ;;; 9. global variables
