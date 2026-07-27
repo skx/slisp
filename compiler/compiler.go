@@ -541,14 +541,14 @@ func (c *Compiler) Compile() (string, error) {
 	//
 	type Float struct {
 		Name  string
-		Value float64
+		Value string
 	}
 
 	floatLiterals := []Float{}
 	for id, str := range c.floats {
 		floatLiterals = append(floatLiterals, Float{
 			Name:  id,
-			Value: str})
+			Value: fmt.Sprintf("%f", str)})
 	}
 
 	//
