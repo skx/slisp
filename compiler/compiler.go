@@ -522,12 +522,11 @@ func (c *Compiler) Compile() (string, error) {
 	//
 	// Compile each known lambda function.
 	//
-	for _, l := range c.lambdas {
-		err = c.emitCallable(l)
+	for i := 0; i < len(c.lambdas); i++ {
+		err := c.emitCallable(c.lambdas[i])
 		if err != nil {
 			return "", err
 		}
-
 		c.emitln("")
 	}
 
@@ -852,6 +851,32 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				c.emitln("jne type_error")
 
 				// call the lambda
+				c.emitln("UNTAG_REG rax")
+				c.emitln("mov r15, rax")
+				c.emitln("mov rax, [r15]")
+				c.emitln("call rax")
+
+				return nil
+			}
+
+			//
+			// The lambda might be stored in a captured-variable,
+			// or closure, and that's valid too.
+			//
+			// We need this for the Z-combinator..
+			//
+			if offset, ok := ev.LookupCapture(name); ok {
+
+				c.emitln(fmt.Sprintf(
+					"    mov rax,[r15+%d]",
+					offset+8,
+				))
+
+				c.emitln("mov rbx,rax")
+				c.emitln("GET_TAG_BITS rbx")
+				c.emitln("cmp rbx, TAG_ID_LAMBDA")
+				c.emitln("jne type_error")
+
 				c.emitln("UNTAG_REG rax")
 				c.emitln("mov r15, rax")
 				c.emitln("mov rax, [r15]")
