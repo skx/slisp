@@ -37,7 +37,7 @@
 ;; Internal helper routines
 ;;
 (defun arg-parser:files (a)
-  "Return non-flag arguments, i.e. files"
+  "Return non-flag arguments, i.e. files."
   (filter a
           (lambda (arg)
             (if (> (length arg) 0)

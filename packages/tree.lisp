@@ -116,6 +116,7 @@
 
 ;; Constructor.
 (defun tree:new()
+  "Create a new empty tree."
   nil)
 
 ;; Is there a key with the given name in the tree?
@@ -123,6 +124,7 @@
 ;; Since we can set a nil value it isn't enough to do a lookup
 ;; of the key, as that would imply the item wasn't found.
 (defun tree:bound? (tree key)
+  "Does the given key exist within the tree?"
   (if (nil? tree)
       nil
       (if (= key (node-key tree))
@@ -133,6 +135,7 @@
 
 ;; Get keys in our tree
 (defun tree:keys (tree)
+  "Return all known keys contained within the tree."
   (tree:keys-aux tree nil))
 
 (defun tree:keys-aux (tree acc)
@@ -145,6 +148,7 @@
 
 ;; Get an item from the tree
 (defun tree:get (tree key)
+  "Get the value of the given key from the tree, if present."
   (if (nil? key)
       nil
       (if (nil? tree)
@@ -158,6 +162,7 @@
 
 ;; Put an item in the tree
 (defun tree:put (tree key value)
+  "Store the given key/value pair within the tree."
   (if (nil? tree)
       (make-node key value nil nil)
       (if (= key (node-key tree))
