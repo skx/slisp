@@ -166,8 +166,12 @@ func (c *Compiler) trimComments(str string) (string, error) {
 		line = strings.TrimSpace(line)
 
 		// Remove trailing comment.
-		if idx := strings.IndexRune(line, ';'); idx >= 0 {
-			line = line[:idx]
+		if strings.HasPrefix(line, ";") {
+			line = strings.TrimPrefix(line, ";")
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
 		}
 
 		line = strings.TrimSpace(line)
