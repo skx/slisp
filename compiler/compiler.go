@@ -522,12 +522,11 @@ func (c *Compiler) Compile() (string, error) {
 	//
 	// Compile each known lambda function.
 	//
-	for _, l := range c.lambdas {
-		err = c.emitCallable(l)
+	for i := 0; i < len(c.lambdas); i++ {
+		err := c.emitCallable(c.lambdas[i])
 		if err != nil {
 			return "", err
 		}
-
 		c.emitln("")
 	}
 
