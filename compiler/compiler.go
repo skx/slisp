@@ -859,6 +859,32 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				return nil
 			}
 
+			//
+			// The lambda might be stored in a captured-variable,
+			// or closure, and that's valid too.
+			//
+			// We need this for the Z-combinator..
+			//
+			if offset, ok := ev.LookupCapture(name); ok {
+
+				c.emitln(fmt.Sprintf(
+					"    mov rax,[r15+%d]",
+					offset+8,
+				))
+
+				c.emitln("mov rbx,rax")
+				c.emitln("GET_TAG_BITS rbx")
+				c.emitln("cmp rbx, TAG_ID_LAMBDA")
+				c.emitln("jne type_error")
+
+				c.emitln("UNTAG_REG rax")
+				c.emitln("mov r15, rax")
+				c.emitln("mov rax, [r15]")
+				c.emitln("call rax")
+
+				return nil
+			}
+
 			// Similar story here - a lambda that is stored in a global
 			// variable instead of a local one
 			if _, ok := c.globals[name]; ok {
