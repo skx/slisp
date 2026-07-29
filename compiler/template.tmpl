@@ -371,7 +371,7 @@ fn_init_globals:
     push rbp
     mov rbp, rsp
     push fn_fn_init_globals_gc
-    sub rsp, 64
+    sub rsp, {{ .InitGlobalsFrameSize }}
     {{ .InitGlobals }}
     leave
     ret
@@ -379,7 +379,7 @@ fn_init_globals:
 section .data
 fn_fn_init_globals_gc:
     dq 0x47430001
-    dq 48        ; root bytes
+    dq {{ .InitGlobalsRootBytes }}        ; root bytes
 
 section .text
 

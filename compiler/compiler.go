@@ -460,6 +460,18 @@ func (c *Compiler) Compile() (string, error) {
 	initGlobals := getCompiled()
 
 	//
+	// Compute the frame size, and the number of root-bytes the GC
+	// should scan for the variables setup as globals.  Just like we
+	// do for functions.
+	//
+	initGlobalsLocals := e.MaxOffset()
+	initGlobalsFrameSize := (initGlobalsLocals + 15) &^ 15
+	initGlobalsRootBytes := initGlobalsLocals - 8
+	if initGlobalsRootBytes < 0 {
+		initGlobalsRootBytes = 0
+	}
+
+	//
 	// Have we seen a "main" function, at the top-level
 	// (i.e. outside a package).
 	//
@@ -664,6 +676,16 @@ func (c *Compiler) Compile() (string, error) {
 		// InitGlobals is the thing that loads global variables
 		InitGlobals string
 
+		// InitGlobalsFrameSize is the stack frame size required
+		// for the global variables, setup ahead of main.
+		InitGlobalsFrameSize int
+
+		// InitGlobalsRootBytes similar story, bytes vs. size.
+		//
+		// To be honest this stuff needs to be reworked for all the
+		// places we care about stack size/bytes. (i.e. emitCallable).
+		InitGlobalsRootBytes int
+
 		// Globals has global variables
 		Globals []string
 
@@ -680,15 +702,17 @@ func (c *Compiler) Compile() (string, error) {
 	// the template appropriately.
 	//
 	x := &Generated{
-		Assets:      assets,
-		AssetCount:  len(assets),
-		Defuns:      defuns,
-		Globals:     globals,
-		InitGlobals: initGlobals,
-		Lambdas:     lambdas,
-		StdLib:      c.stdlib,
-		StringTable: stringLiterals,
-		FloatTable:  floatLiterals,
+		AssetCount:           len(assets),
+		Assets:               assets,
+		Defuns:               defuns,
+		FloatTable:           floatLiterals,
+		Globals:              globals,
+		InitGlobals:          initGlobals,
+		InitGlobalsFrameSize: initGlobalsFrameSize,
+		InitGlobalsRootBytes: initGlobalsRootBytes,
+		Lambdas:              lambdas,
+		StdLib:               c.stdlib,
+		StringTable:          stringLiterals,
 	}
 
 	// Create a buffer to render the template to.
@@ -1395,7 +1419,7 @@ func (c *Compiler) emitVariadicCall(name string, expected int, args []parser.Exp
 
 		c.emitln("    mov rdi,rax")
 		c.emitln(fmt.Sprintf("    mov rsi, [rbp-%d]", listTmp))
-		c.emitln("    call fn_cons")
+		c.emitln("    call fn_sys_cons_NOGC ; No GC during this operation")
 		c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", listTmp))
 	}
 
@@ -1424,8 +1448,8 @@ func (c *Compiler) emitCallable(obj any) error {
 	// create new environment
 	ev := env.New(nil)
 
-	// Case the incoming object into a Defun,
-	// because the Lambda node actually embeds on.
+	// Cast the incoming object into a Defun, because the
+	// Lambda node actually embeds one and they are largely identical.
 	//
 	// We do need to add some lambda-specific generation
 	// between the prologue and epilogue, but that's small.
