@@ -8,6 +8,8 @@
 
 ;; Contents of this file:
 ;;
+;; This is quite a large file, but in brief we have the following sections:
+;;
 ;; 0. definitions
 ;; 1. macros
 ;; 2. User-defined functions (defuns)
@@ -24,6 +26,13 @@
 ;; 7. string literals
 ;; 8. floating-point literals
 ;; 9. global variables
+;;
+;; In order to keep the indentation consistent I've been using this handy one-liner:
+;;
+;;     perl -pi -e 's/^\h+/    /' template.tmpl
+;;
+;; I don't always remember, but it's a good thing to bear in mind.
+;;
 
 
 
@@ -146,13 +155,6 @@ RLIMIT_STACK  equ 3
     and %1, 7
 %endmacro
 
-; Store a NIL value, tagged, in a register.
-%macro STORE_NIL_REG 1
-    xor %1,%1
-    TAG_NIL_REG %1
-%endmacro
-
-
 ; Is this value an immediate?
 ;
 ; We use this for GC purposes - because immediate objects are stored
@@ -173,6 +175,13 @@ RLIMIT_STACK  equ 3
     mov r11, 1
 %%done:
 %endmacro
+
+; Set the given register to a NIL value
+%macro STORE_NIL_REG 1
+    xor %1,%1
+    TAG_NIL_REG %1
+%endmacro
+
 
 ; Our memory allocator secretly prefixes all allocation-requests with a small
 ; header - the header contains some extra fields which ease the handling of the
@@ -225,15 +234,19 @@ TAG_ID_NIL     equ 0b111  ; 7
 
 
 ;;
-;; Declare a function which will record itself as having
-;; been started.
+;; Declare a function which will record itself as having  been started.
 ;;
-;; The function will be in its own section, which allows
-;; easy dead-code elimination by the linker.
+;; The function will also be be in its own section, which allows easy
+;; dead-code elimination by the linker.
 ;;
-;; We use this for almost all of our standard library,
-;; BUT NOT the printing functions, or functions that
-;; accept any type.
+;; We use this for almost all of our standard library, BUT NOT the printing
+;; functions, or functions that accept any type.
+;;
+;; The intent here is that in an error condition we can then say "This
+;; happened in $last_function". So this macro always updates the
+;; last_function pointer to point to the string version of the function name.
+;;
+;; This is awesome.
 ;;
 %macro FUNC 1
     %defstr __fname %1    ; Define a string
@@ -314,7 +327,7 @@ _start:
     ;
     ; Life is hard.
     ;
-    STORE_NIL_REG r12          ;  accumulated list - starts with NIL
+    STORE_NIL_REG r12
 
 .loop:
     test rcx, rcx
@@ -345,11 +358,12 @@ _start:
 
 .done:
     mov rdi, r12               ; args list
-    call fn_init_globals
+    call fn_init_globals       ; initialize global variables (i.e. top-level defvar/defconst.)
+
     mov rdi, r12               ; args again if main takes it
 
-    push rdi
-    mov rax, SYS_prlimit64
+    push rdi                   ; Get the stack limit, if any.
+    mov rax, SYS_prlimit64     ; we use this to abort if it is nearly exhausted.
     xor edi, edi               ; pid = 0
     mov esi, RLIMIT_STACK
     xor edx, edx               ; new_limit = NULL
@@ -357,7 +371,8 @@ _start:
     syscall
     pop rdi
 
-    call fn_main
+    call fn_main               ; Call the user's code.
+
     mov rdi, rax               ; exit code is the last expression
     UNTAG_REG rdi
     mov rax, SYS_exit
@@ -490,6 +505,7 @@ strlen:
 
 ;; copy string from RDI into RDX, return RDX pointing after the copy
 strcpy:
+    push rbx
 .loop:
     mov bl,[rdi]
     test bl,bl
@@ -499,6 +515,7 @@ strcpy:
     inc rdx
     jmp .loop
 .over:
+    pop rbx
     ret
 
 
@@ -1191,7 +1208,7 @@ FUNC fn_sysMINUSheapMINUSdata
     mov     r12, [from_space]
     mov     r13, [alloc_ptr]
 
-    STORE_NIL_REG r15                 ; result list
+    STORE_NIL_REG r15
 
 .loop:
     cmp     r12, r13
@@ -1552,93 +1569,76 @@ FUNC fn_sys_entries
 
     UNTAG_REG rdi
 
-    mov eax, SYS_open                     ; Open the directory for processing.
+    mov eax, SYS_open
     mov esi, O_RDONLY | O_DIRECTORY
     xor edx, edx
     syscall
     test rax, rax
     js .failure
 
-    mov r12, rax                           ; directory fd
-
-    STORE_NIL_REG r13                      ; End of the list will have NIL in it.
+    mov r12, rax                     ; directory fd
+    STORE_NIL_REG r13                     ; head of list
 
 .read_directory:
-    mov eax, SYS_getdents64                ; Read the entries
+
+    mov eax, SYS_getdents64
     mov rdi, r12
     mov rsi, dir_buffer
-    mov edx, dir_buffer_end - dir_buffer
+    mov edx, dir_buffer_end-dir_buffer
     syscall
+
     test rax, rax
     js .close_failure
     test rax, rax
     jz .done_reading
 
-    mov r14, dir_buffer                    ; Process each entry in a loop
-    lea r15, [dir_buffer + rax]
+    mov r14, dir_buffer
+    lea r15, [dir_buffer+rax]
+
 .next_entry:
     cmp r14, r15
     jae .read_directory
 
+    movzx ebx, word [r14+16]         ; record length
 
-    movzx ebx, word [r14+16]               ; Save record length
-    lea r8, [r14+19]                       ; Get the filename
-
-    xor r9, r9                             ; Get the length of the filename in r9
-.length_loop:
-    cmp byte [r8+r9], 0
-    je .length_done
-    inc r9
-    jmp .length_loop
-
-.length_done:
-    mov r10, r9                             ; Allocate length+1 (rounded)
-    inc r10
-
-    push rax         ; alloc save
-    mov rax, r10     ; length
+    lea rdi, [r14+19]
+    call strlen
+    inc rax                          ; include terminating NUL
     push rbx
     mov rbx, TAG_ID_STRING
-    call alloc       ; allocate
+    call alloc
     pop rbx
-    mov r11, rax     ; into reg
-    pop rax          ; restore
+    mov r11, rax                     ; destination buffer
 
-    mov rdi, r11                            ; Copy string into newly allocated memory in R11
-    mov rsi, r8
-.copy:
-    mov al, [rsi]
-    mov [rdi], al
-    inc rsi
-    inc rdi
-    test al, al
-    jne .copy
+    lea rdi, [r14+19]                ; recompute source
+    mov rdx, r11
+    call strcpy
 
-    mov rdi, r11                            ; The entry is a string
+    mov byte [rdx], 0
+
+    mov rdi, r11
     TAG_STRING_REG rdi
-
-    mov rsi, r13                            ; Add to our list
-    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
-
-    mov r13, rax                            ; Save the updated list head
-
-    add r14, rbx                            ; Process the next entry
+    mov rsi, r13
+    call fn_sys_cons_NOGC
+    mov r13, rax
+    add r14, rbx
     jmp .next_entry
 
 .done_reading:
-    mov eax, SYS_close                      ; Close the directory
+    mov eax, SYS_close
     mov rdi, r12
     syscall
-    mov rax, r13                            ; Return the list
+    mov rax, r13
     ret
+
 .close_failure:
     mov eax, SYS_close
     mov rdi, r12
     syscall
+
 .failure:
     STORE_NIL_REG rax
     ret
-
 
 
 
@@ -2269,7 +2269,7 @@ FUNC fn_sys_package
 
 ;; Return a list of all embedded package names.
 FUNC fn_sys_packages
-    STORE_NIL_REG r13              ; Tail of list
+    STORE_NIL_REG r13          ; list head
     mov rcx, asset_count
     test rcx, rcx
     jz .done
@@ -2449,8 +2449,7 @@ FUNC fn_sys_split
     TAG_STRING_REG rax
     mov r11, rax
 
-    STORE_NIL_REG rax           ; right
-
+    STORE_NIL_REG rax                ; right
     push rax
     mov rax, 16                 ; allocate 16 bytes
     mov rbx, TAG_ID_CONS
@@ -2557,7 +2556,8 @@ FUNC fn_sys_stat
     xor edx,edx                        ; unknown -> regular file
 
 .type_done:
-    STORE_NIL_REG r13          ; create nil for end of list
+    STORE_NIL_REG r13               ; list tail
+
     mov eax,ecx                ; add mode
     and eax,0777o
     TAG_INTEGER_REG rax
@@ -2595,62 +2595,53 @@ FUNC fn_sys_stdlib
 
 ;; join the two given strings and return a new one.
 FUNC fn_sys_strcat
-    mov rbx, rdi            ; type-check arg1: str
+    mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
     jne type_error
-    mov rbx, rsi            ; type-check arg2: str
+
+    mov rbx, rsi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
     jne type_error
 
     UNTAG_REG rdi
     UNTAG_REG rsi
-    push rdi
-    push rsi
 
-    mov rax, rdi
-.len1:
-    cmp byte [rax],0
-    je .len1_done
+    push rdi                ; preserve lhs
+    push rsi                ; preserve rhs
+
+    ; len(lhs)
+    call strlen
+    mov r8, rax
+
+    ; len(rhs)
+    mov rdi, rsi
+    call strlen
+    mov r9, rax
+
+    ; allocate len1+len2+1
+    mov rax, r8
+    add rax, r9
     inc rax
-    jmp .len1
-.len1_done:
-    sub rax,rdi
-    mov r8,rax         ; r8 to save strlen(a)
 
-    mov rax,rsi
-.len2:
-    cmp byte [rax],0
-    je .len2_done
-    inc rax
-    jmp .len2
-.len2_done:
-    sub rax,rsi
-    mov r9,rax         ; r9 to save strlen(b)
-
-    ; allocate
-    mov rcx,r8
-    add rcx,r9
-    inc rcx                  ; +1 for '\0'
-    mov rax, rcx             ; size in rax
     mov rbx, TAG_ID_STRING
-    call alloc               ; make the allocation
+    call alloc
 
-    mov rdx,rax              ; destination
-    pop rsi                  ; restore strings
-    pop rdi
+    mov rdx, rax            ; destination
 
-    call strcpy              ; copy first string
+    pop rsi                 ; restore rhs
+    pop rdi                 ; restore lhs
 
-    mov rdi, rsi             ; copy second string
-    call strcpy
+    call strcpy             ; copies lhs, advances RDX
 
-.done:                       ; terminate and return
+    mov rdi, rsi
+    call strcpy             ; copies rhs, advances RDX
+
     mov byte [rdx],0
+
     TAG_STRING_REG rax
     ret
-
 
 
 ;; Return a heap-allocated copy of the given string
