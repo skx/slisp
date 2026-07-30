@@ -435,7 +435,7 @@ alloc:
 
     mov [alloc_ptr], rdx     ; store
 
-                                     ; add the header details
+    ; add the header details
     mov       [rcx+OBJ_SIZE], rax    ; size (after rounding)
     mov qword [rcx+OBJ_FORWARD], 0   ; forwarding
     mov       [rcx+OBJ_TYPE], rbx    ; type
@@ -595,12 +595,12 @@ is_numeric:
 ;;
 ;; We use these for maths/comparison operations.
 are_both_integers:
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; both integers? == 0
-   ret
+    mov rax, rdi
+    mov rbx, rsi
+    GET_TAG_BITS rbx     ; type of arg
+    GET_TAG_BITS rax     ; type of arg
+    add rax, rbx         ; both integers? == 0
+    ret
 
 ;; helper - load both floating point numbers.
 ;;
@@ -614,16 +614,16 @@ are_both_integers:
 ;; When this function returns xmm0 and xmm1 will
 ;; have the two arguments anyway.
 load_both_floats:
-   mov rcx, rdi
-   UNTAG_REG rdi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_one_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_one_int
-   cmp rcx, TAG_ID_CHAR
-   je .arg_one_int
-   jmp type_error
+    mov rcx, rdi
+    UNTAG_REG rdi
+    GET_TAG_BITS rcx
+    cmp rcx, TAG_ID_FLOAT
+    jz .arg_one_float
+    cmp rcx, TAG_ID_INTEGER
+    jz .arg_one_int
+    cmp rcx, TAG_ID_CHAR
+    je .arg_one_int
+    jmp type_error
 
 .arg_one_int:
     cvtsi2sd xmm0, rdi ; convert to float
@@ -633,118 +633,118 @@ load_both_floats:
     ; jmp .arg_two     ; fall through
 
 .arg_two:
-   mov rcx, rsi
-   UNTAG_REG rsi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_two_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_two_int
-   cmp rcx, TAG_ID_CHAR
-   jz .arg_two_int
-   jmp type_error
+    mov rcx, rsi
+    UNTAG_REG rsi
+    GET_TAG_BITS rcx
+    cmp rcx, TAG_ID_FLOAT
+    jz .arg_two_float
+    cmp rcx, TAG_ID_INTEGER
+    jz .arg_two_int
+    cmp rcx, TAG_ID_CHAR
+    jz .arg_two_int
+    jmp type_error
 
 .arg_two_int:
-   cvtsi2sd xmm1, rsi ; convert to float
-   ret
+    cvtsi2sd xmm1, rsi ; convert to float
+    ret
 .arg_two_float:
-   movq xmm1, [rsi]      ; load
-   ret
+    movq xmm1, [rsi]      ; load
+    ret
 
 
 ;; +
 FUNC fn_sys_plus
-   call are_both_integers
-   jz plus_integer
+    call are_both_integers
+    jz plus_integer
 
-   call load_both_floats
-   addsd xmm0, xmm1        ; add
-   jmp return_float
+    call load_both_floats
+    addsd xmm0, xmm1        ; add
+    jmp return_float
 
 plus_integer:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-   mov rax, rdi
-   add rax, rsi
-   TAG_INTEGER_REG rax
-   ret
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    mov rax, rdi
+    add rax, rsi
+    TAG_INTEGER_REG rax
+    ret
 
 
 
 ;; -
 FUNC fn_sys_minus
-   call are_both_integers
-   jz integer_minus
+    call are_both_integers
+    jz integer_minus
 
-   call load_both_floats
-   subsd xmm0, xmm1        ; subtrack
-   jmp return_float
+    call load_both_floats
+    subsd xmm0, xmm1        ; subtrack
+    jmp return_float
 
 integer_minus:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-   sub rdi, rsi
-   mov rax, rdi
-   TAG_INTEGER_REG rax
-   ret
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    sub rdi, rsi
+    mov rax, rdi
+    TAG_INTEGER_REG rax
+    ret
 
 
 
 ;; /
 FUNC fn_sys_divide
-   call are_both_integers
-   jz integer_divide
+    call are_both_integers
+    jz integer_divide
 
-   call load_both_floats
-   divsd xmm0, xmm1        ; divide
-   jmp return_float
+    call load_both_floats
+    divsd xmm0, xmm1        ; divide
+    jmp return_float
 
 integer_divide:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-   mov rax, rdi
-   cqo
-   idiv rsi
-   TAG_INTEGER_REG rax
-   ret
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    mov rax, rdi
+    cqo
+    idiv rsi
+    TAG_INTEGER_REG rax
+    ret
 
 
 
 ;; *
 FUNC fn_sys_multiply
-   call are_both_integers
-   jz integer_multiply
+    call are_both_integers
+    jz integer_multiply
 
-   call load_both_floats
-   mulsd xmm0, xmm1        ; multiply
-   jmp return_float
+    call load_both_floats
+    mulsd xmm0, xmm1        ; multiply
+    jmp return_float
 
 integer_multiply:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-   mov rax, rdi
-   mov rbx, rsi
-   imul rbx, rax
-   mov rax, rbx
-   TAG_INTEGER_REG rax
-   ret
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    mov rax, rdi
+    mov rbx, rsi
+    imul rbx, rax
+    mov rax, rbx
+    TAG_INTEGER_REG rax
+    ret
 
 
 
 ;; %
 FUNC fn_sys_PERCENT
-   call are_both_integers
-   jz modulus_integer
-   jmp type_error       ; type error
+    call are_both_integers
+    jz modulus_integer
+    jmp type_error       ; type error
 modulus_integer:
-   UNTAG_REG rdi
-   UNTAG_REG rsi        ; untag arguments
-   mov rax, rdi         ; do the magic
-   cqo
-   idiv rsi
-   mov rax, rdx         ; result is an integer
-   TAG_INTEGER_REG rax
-   ret
+    UNTAG_REG rdi
+    UNTAG_REG rsi        ; untag arguments
+    mov rax, rdi         ; do the magic
+    cqo
+    idiv rsi
+    mov rax, rdx         ; result is an integer
+    TAG_INTEGER_REG rax
+    ret
 
 
 
@@ -821,13 +821,13 @@ FUNC fn_sys_EQUALS
 ;;
 FUNC fn_sys_LTEQUALS
 
-   call are_both_integers
-   jz lte_integer
+    call are_both_integers
+    jz lte_integer
 
-   call load_both_floats
-   ucomisd xmm0, xmm1
-   jbe lte_integer.true
-   jmp lte_integer.false
+    call load_both_floats
+    ucomisd xmm0, xmm1
+    jbe lte_integer.true
+    jmp lte_integer.false
 
 lte_integer:
     UNTAG_REG rdi
@@ -847,13 +847,13 @@ lte_integer:
 
 ;; >=
 FUNC fn_sys_GTEQUALS
-   call are_both_integers
-   jz gte_integer
+    call are_both_integers
+    jz gte_integer
 
-   call load_both_floats
-   ucomisd xmm0, xmm1
-   jb  gte_integer.false
-   jmp gte_integer.true
+    call load_both_floats
+    ucomisd xmm0, xmm1
+    jb  gte_integer.false
+    jmp gte_integer.true
 
 gte_integer:
     UNTAG_REG rdi
@@ -942,25 +942,25 @@ fn_printfloat:
 ;; On return RSI pointing to the formatted result,
 ;; with RCX holding the length.
 fn_printfloat_format:
-     xor r8, r8
-     ucomisd xmm0, xmm0
-     jp .nan
+    xor r8, r8
+    ucomisd xmm0, xmm0
+    jp .nan
 
-     movq rax, xmm0
+    movq rax, xmm0
 
-     mov rcx, rax
-     mov rdx, 0x7ff0000000000000
-     and rcx, rdx
-     cmp rcx, rdx
-     jne .finite
+    mov rcx, rax
+    mov rdx, 0x7ff0000000000000
+    and rcx, rdx
+    cmp rcx, rdx
+    jne .finite
 
-     mov rcx, rax
-     mov rdx, 0x000fffffffffffff
-     and rcx, rdx
-     jnz .nan
+    mov rcx, rax
+    mov rdx, 0x000fffffffffffff
+    and rcx, rdx
+    jnz .nan
 
-     bt rax,63
-     jc .minus_inf
+    bt rax,63
+    jc .minus_inf
 ;;      jmp .plus_inf              ; fall through
 
 
@@ -1401,11 +1401,11 @@ FUNC fn_sysMINUSheapMINUSobjects
 
 ;; Force a garbage-collection to happen.
 FUNC fn_sysMINUSgc
-     mov [gc_stack_base], rbp    ; save caller's rbp (we have no prologue, so rbp is still theirs)
-     mov qword [gc_forward_regs], 0
-     call gc_collect
-     TAG_NIL_REG rax
-     ret
+    mov [gc_stack_base], rbp    ; save caller's rbp (we have no prologue, so rbp is still theirs)
+    mov qword [gc_forward_regs], 0
+    call gc_collect
+    TAG_NIL_REG rax
+    ret
 
 
 ;; Get the first item in the cons cell.
@@ -1782,31 +1782,31 @@ FUNC fn_sys_fopen
     ret
 
 .fopen_append:
-        mov rax, SYS_open
-        mov rsi, 1089       ; O_WRONLY|O_CREAT|O_APPEND
-        mov rdx, 0o644
-        syscall
-        jmp .fopen_done
+    mov rax, SYS_open
+    mov rsi, 1089       ; O_WRONLY|O_CREAT|O_APPEND
+    mov rdx, 0o644
+    syscall
+    jmp .fopen_done
 .fopen_read:
-        mov rax, SYS_open
-        mov rsi, 0          ; O_RDONLY
-        xor rdx, rdx
-        syscall
-        jmp .fopen_done
+    mov rax, SYS_open
+    mov rsi, 0          ; O_RDONLY
+    xor rdx, rdx
+    syscall
+    jmp .fopen_done
 .fopen_write:
-        mov rax, SYS_open
-        mov rsi, 577        ; O_WRONLY|O_CREAT|O_TRUNC
-        mov rdx, 0o644
-        syscall
+    mov rax, SYS_open
+    mov rsi, 577        ; O_WRONLY|O_CREAT|O_TRUNC
+    mov rdx, 0o644
+    syscall
 .fopen_done:
-        test rax, rax
-        js .fopen_syscall_fail
-        TAG_INTEGER_REG rax
-        ret
+    test rax, rax
+    js .fopen_syscall_fail
+    TAG_INTEGER_REG rax
+    ret
 .fopen_syscall_fail:
-        xor rax, rax
-        TAG_NIL_REG rax
-        ret
+    xor rax, rax
+    TAG_NIL_REG rax
+    ret
 
 
 
@@ -1815,87 +1815,87 @@ FUNC fn_sys_fopen
 ;; As a special case reading from a nil-filehandle
 ;; will return nil.
 FUNC fn_sys_fread
-        mov rbx, rdi             ; type-check arg1
-        GET_TAG_BITS rbx
-        cmp rbx, TAG_ID_NIL      ; special case the nil-handle
-        je .fread_return_nil
-        cmp rbx, TAG_ID_INTEGER
-        jne type_error
+    mov rbx, rdi             ; type-check arg1
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_NIL      ; special case the nil-handle
+    je .fread_return_nil
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
 
-        UNTAG_REG rdi
-        mov [random_buffer], rdi   ; save file handle
+    UNTAG_REG rdi
+    mov [random_buffer], rdi   ; save file handle
 
-        mov rax, SYS_lseek
-        xor rsi, rsi               ; offset = 0
-        mov rdx, 2                 ; SEEK_END
-        syscall
+    mov rax, SYS_lseek
+    xor rsi, rsi               ; offset = 0
+    mov rdx, 2                 ; SEEK_END
+    syscall
 
-        test rax, rax
-        js .fread_seek_end_fail
+    test rax, rax
+    js .fread_seek_end_fail
 
-        mov rbx, rax                ; file size
-        push rbx                    ; save size
+    mov rbx, rax                ; file size
+    push rbx                    ; save size
 
-        ; allocate size+1 bytes
-        mov rdi, rbx
-        inc rdi
+    ; allocate size+1 bytes
+    mov rdi, rbx
+    inc rdi
 
-        mov rax, rdi              ; size to allocate
-        mov rbx, TAG_ID_STRING
-        call alloc                ; Allocate memory, result in RAX
+    mov rax, rdi              ; size to allocate
+    mov rbx, TAG_ID_STRING
+    call alloc                ; Allocate memory, result in RAX
 
-        pop rbx                   ; restore size
-        mov r12, rax              ; data pointer in r12.
+    pop rbx                   ; restore size
+    mov r12, rax              ; data pointer in r12.
 
-        mov rax, 8                ; seek to start of file
-        mov rdi,[random_buffer]   ; saved file handle
-        xor rsi, rsi
-        xor rdx, rdx              ; SEEK_SET
-        syscall
+    mov rax, 8                ; seek to start of file
+    mov rdi,[random_buffer]   ; saved file handle
+    xor rsi, rsi
+    xor rdx, rdx              ; SEEK_SET
+    syscall
 
-        test rax, rax
-        js .fread_seek_start_fail
+    test rax, rax
+    js .fread_seek_start_fail
 
-        ; Read until we've consumed the entire file.
-        xor r13, r13       ; bytes_read_so_far = 0
+    ; Read until we've consumed the entire file.
+    xor r13, r13       ; bytes_read_so_far = 0
 
 .read_loop:
 
-        cmp r13, rbx                ; got all the file?  Yay!
-        je .read_complete
+    cmp r13, rbx                ; got all the file?  Yay!
+    je .read_complete
 
-        mov rdi, [random_buffer]    ; file handle
-        lea rsi, [r12+r13]          ; destination offset
+    mov rdi, [random_buffer]    ; file handle
+    lea rsi, [r12+r13]          ; destination offset
 
-        mov rdx, rbx
-        sub rdx, r13                ; remaining bytes
+    mov rdx, rbx
+    sub rdx, r13                ; remaining bytes
 
-        mov rax, SYS_read
-        syscall
+    mov rax, SYS_read
+    syscall
 
-        test rax, rax               ; failed to read
-        js .fread_read_fail
+    test rax, rax               ; failed to read
+    js .fread_read_fail
 
-        test rax, rax
-        je .fread_short_read         ; unexpected EOF
+    test rax, rax
+    je .fread_short_read         ; unexpected EOF
 
-        add r13, rax
-        jmp .read_loop
+    add r13, rax
+    jmp .read_loop
 
 .read_complete:
-        mov byte [r12+r13], 0   ; null-terminate
-        mov rax, r12
-        TAG_STRING_REG rax
-        ret
+    mov byte [r12+r13], 0   ; null-terminate
+    mov rax, r12
+    TAG_STRING_REG rax
+    ret
 
 .fread_short_read:
 .fread_read_fail:
 .fread_seek_start_fail:
 .fread_seek_end_fail:
 .fread_return_nil:
-        xor rax,rax
-        TAG_NIL_REG rax
-        ret
+    xor rax,rax
+    TAG_NIL_REG rax
+    ret
 
 
 
@@ -1907,58 +1907,58 @@ FUNC fn_sys_fread
 ;; As a special case writing to a nil-filehandle
 ;; will return nil.
 FUNC fn_sys_fwrite
-        mov rbx, rdi             ; type-check arg1: int
-        GET_TAG_BITS rbx
-        cmp rbx, TAG_ID_NIL      ; special case the nil-handle
-        je .fwrite_return_nil
-        cmp rbx, TAG_ID_INTEGER
-        jne type_error
+    mov rbx, rdi             ; type-check arg1: int
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_NIL      ; special case the nil-handle
+    je .fwrite_return_nil
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
 
-        mov rbx, rsi             ; type-check arg2: str
-        GET_TAG_BITS rbx
-        cmp rbx, TAG_ID_STRING
-        jne type_error
+    mov rbx, rsi             ; type-check arg2: str
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
 
-        mov rbx, rdx             ; type-check arg3: int
-        GET_TAG_BITS rbx
-        cmp rbx, TAG_ID_INTEGER
-        jne type_error
+    mov rbx, rdx             ; type-check arg3: int
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
 
-        UNTAG_REG rsi
-        UNTAG_REG rdi
-        UNTAG_REG rdx
+    UNTAG_REG rsi
+    UNTAG_REG rdi
+    UNTAG_REG rdx
 
-        mov rax, SYS_write
-        syscall
-        TAG_INTEGER_REG rax
-        ret
+    mov rax, SYS_write
+    syscall
+    TAG_INTEGER_REG rax
+    ret
 
 .fwrite_return_nil:
-        xor rax,rax
-        TAG_NIL_REG rax
-        ret
+    xor rax,rax
+    TAG_NIL_REG rax
+    ret
 
 
 
 ;; Read an ASCII character from STDIN, return NIL on failure.
 FUNC fn_sys_getc
-     mov     rax, SYS_read
-     mov     rdi, 0        ; STDIN
-     mov rsi, random_buffer
-     mov     rdx, 1        ; 1 byte
-     syscall
+    mov     rax, SYS_read
+    mov     rdi, 0        ; STDIN
+    mov rsi, random_buffer
+    mov     rdx, 1        ; 1 byte
+    syscall
 
-     cmp rax, 1
-     jne .getc_failed
+    cmp rax, 1
+    jne .getc_failed
 
-     xor rax,rax
-     mov al, byte [random_buffer]
-     TAG_INTEGER_REG rax
-     ret
+    xor rax,rax
+    mov al, byte [random_buffer]
+    TAG_INTEGER_REG rax
+    ret
 .getc_failed:
-     xor rax, rax
-     TAG_INTEGER_REG rax
-     ret
+    xor rax, rax
+    TAG_INTEGER_REG rax
+    ret
 
 
 
@@ -2704,10 +2704,10 @@ FUNC fn_sys_strdup
 
 ;; Increase every time the standard library is loaded
 FUNC fn_sysMINUSstdlibMINUSloaded
-     inc qword [stdlib_loaded]
-     mov rax, [stdlib_loaded]
-     TAG_INTEGER_REG rax
-     ret
+    inc qword [stdlib_loaded]
+    mov rax, [stdlib_loaded]
+    TAG_INTEGER_REG rax
+    ret
 
 ;; Compare the two specified strings.
 FUNC fn_sys_strcmp
@@ -3070,74 +3070,74 @@ type_table:
 
 ;; Also used by gc-heap-dump
 tab_char:
-   db 9
+    db 9
 newline:
-   db 10
+    db 10
 type_char:
-   db '?'
+    db '?'
 
 
 ;; used by fn_string
 align 16
 empty_str:
-     db 0x00
+    db 0x00
 
 ;; used by fn_string
 align 16
 nil_str:
-     db `<nil>`
-     db 0x00
+    db `<nil>`
+    db 0x00
 
 ;; error message for setNth
 align 16
 out_of_range_msg:
-        db `Out of bounds access.  Aborted inside `
-        db 00
+    db `Out of bounds access.  Aborted inside `
+    db 00
 
 ;; error message for heap exhaustion
 align 16
 heap_error_msg:
-        db `Heap exhausted! Aborted inside `
-        db 00
+    db `Heap exhausted! Aborted inside `
+    db 00
 
 ;; stack exhastued
 align 16
 stack_error_msg:
-        db `Stack overflow, run 'ulimit -s unlimited' and try again!\n`
-        db 00
+    db `Stack overflow, run 'ulimit -s unlimited' and try again!\n`
+    db 00
 
 ;; error message for type-errors
 align 16
 type_error_msg:
-        db `Type error! Aborted inside `
-        db 00
+    db `Type error! Aborted inside `
+    db 00
 
 ;; used by fn_printfloat
 align 16
 million:
-        dq 1000000.0
+    dq 1000000.0
 
 ;; used by fn_printfloat
 align 16
 minusmask:
-        dq 0x8000000000000000
+    dq 0x8000000000000000
 
 ;; used by fn_printfloat
 align 16
 inf_msg:
-        db "+Inf"
+    db "+Inf"
 inf_msg_end:
 
 ;; used by fn_printfloat
 align 16
 minus_inf_msg:
-        db "-Inf"
+    db "-Inf"
 minus_inf_msg_end:
 
 ;; used by fn_printfloat
 align 16
 nan_msg:
-        db "NaN"
+    db "NaN"
 nan_msg_end:
 
 ;; Used by sys_run
@@ -3503,9 +3503,9 @@ gc_collect:
     push rsi                        ; Print a caret when we GC
     push rdi
     push rdx
-     mov rdi,'^'
-     TAG_INTEGER_REG rdi
-     call fn_sys_putc
+    mov rdi,'^'
+    TAG_INTEGER_REG rdi
+    call fn_sys_putc
     pop rdx
     pop rdi
     pop rsi
@@ -3518,14 +3518,14 @@ gc_collect:
     push rsi                        ; Print a ! when GC was disabled
     push rdi
     push rdx
-     mov rdi,'!'
-     TAG_INTEGER_REG rdi
-     call fn_sys_putc
+    mov rdi,'!'
+    TAG_INTEGER_REG rdi
+    call fn_sys_putc
     pop rdx
     pop rdi
     pop rsi
 %endif
-     ret
+    ret
 
 .run_gc:
     mov qword [alloc_count], 0      ; reset the count of allocations now GC is running/has run.
@@ -3708,7 +3708,7 @@ section .data
 {{ range .StringTable }}
 align 16
 {{ .Name }}:
-        db `{{ .Value }}`, 0x00
+    db `{{ .Value }}`, 0x00
 {{end}}
 
 
@@ -3722,7 +3722,7 @@ section .data
 {{ range .FloatTable }}
 align 16
 {{ .Name }}:
-        dq {{ .Value }}
+    dq {{ .Value }}
 {{end}}
 
 
@@ -3733,7 +3733,7 @@ align 16
 globals_start:
 {{ range .Globals }}
 {{ . }}:
-        dq 0x0000
+    dq 0x0000
 {{end}}
 globals_end:
 
@@ -3762,10 +3762,10 @@ section .rodata.packages,"aw",@progbits
 ;; Names and data for each embedded file entry
 {{ range $i, $e := .Assets }}
 align 16
- asset_{{ $i }}_name: db "{{ .Name }}", 0
- asset_{{ $i }}_data: db {{ .Data }}
- db 0x00
- asset_{{ $i }}_size: equ $ - asset_{{ $i }}_data
+    asset_{{ $i }}_name: db "{{ .Name }}", 0
+    asset_{{ $i }}_data: db {{ .Data }}
+    db 0x00
+    asset_{{ $i }}_size: equ $ - asset_{{ $i }}_data
 {{ end }}
 
 
@@ -3776,9 +3776,9 @@ align 16
 align 16
 asset_table:
 {{ range $i, $e := .Assets }}
-  dq asset_{{ $i }}_name
-  dq asset_{{ $i }}_data
-  dq asset_{{ $i }}_size
+    dq asset_{{ $i }}_name
+    dq asset_{{ $i }}_data
+    dq asset_{{ $i }}_size
 {{ end }}
 
 ;; The count of assets
