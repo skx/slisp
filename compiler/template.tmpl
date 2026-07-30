@@ -146,6 +146,13 @@ RLIMIT_STACK  equ 3
     and %1, 7
 %endmacro
 
+; Store a NIL value, tagged, in a register.
+%macro STORE_NIL_REG 1
+    xor %1,%1
+    TAG_NIL_REG %1
+%endmacro
+
+
 ; Is this value an immediate?
 ;
 ; We use this for GC purposes - because immediate objects are stored
@@ -307,8 +314,7 @@ _start:
     ;
     ; Life is hard.
     ;
-    xor r12, r12
-    TAG_NIL_REG r12          ; r12 = accumulated list - starts with NIL
+    STORE_NIL_REG r12          ;  accumulated list - starts with NIL
 
 .loop:
     test rcx, rcx
@@ -511,8 +517,7 @@ is_type:
     TAG_INTEGER_REG rax
     ret
 .nil:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -560,8 +565,7 @@ fn_numericQUESTION:
     cmp rax, 0
     jnz .true
 .nil:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 .true:
     mov rax, 1
@@ -809,8 +813,7 @@ FUNC fn_sys_EQUALS
     TAG_INTEGER_REG rax
     ret
 .nil:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -835,8 +838,7 @@ lte_integer:
     cmp rdi, rsi
     jle .true
 .false:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 .true:
     mov rax, 1
@@ -861,8 +863,7 @@ gte_integer:
     cmp rdi, rsi
     jge .true
 .false:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 .true:
     mov rax, 1
@@ -902,8 +903,7 @@ FUNC fn_sys_newline
     mov byte [rsi], 10      ; add a newline character there
     mov rdx, 1
     syscall
-    xor rax,rax             ; return nil
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -926,8 +926,7 @@ fn_printfloat:
     mov rdx, rcx
     syscall
 
-    xor rax,rax           ; return nil
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -1070,8 +1069,7 @@ fn_printint:
     mov rdx, rcx
     syscall
 
-    xor rax,rax           ; return nil
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 ;; convert the (untagged) integer in RAX into a string.
@@ -1127,8 +1125,7 @@ fn_printstr:
     mov rdi, 1                ; stdout
     syscall
 
-    xor rax,rax               ; return nil
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -1194,8 +1191,7 @@ FUNC fn_sysMINUSheapMINUSdata
     mov     r12, [from_space]
     mov     r13, [alloc_ptr]
 
-    xor     r15, r15
-    TAG_NIL_REG r15              ; result list
+    STORE_NIL_REG r15                 ; result list
 
 .loop:
     cmp     r12, r13
@@ -1214,8 +1210,8 @@ FUNC fn_sysMINUSheapMINUSdata
     shl     rcx, 3
 
     mov     rdi, r14          ; object
-    xor     rsi, rsi
-    TAG_NIL_REG rsi
+    STORE_NIL_REG rsi
+
     call    fn_sys_cons_NOGC  ; No GC during this
     mov     r14, rax
 
@@ -1239,8 +1235,7 @@ FUNC fn_sysMINUSheapMINUSdata
     jmp     .loop
 
 .reverse:
-    xor     r14, r14
-    TAG_NIL_REG r14
+    STORE_NIL_REG r14
 
 .rev_loop:
     mov     rax, r15
@@ -1379,7 +1374,7 @@ FUNC fn_sysMINUSheapMINUSdump
     jmp     .loop
 
 .done:
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -1404,7 +1399,7 @@ FUNC fn_sysMINUSgc
     mov [gc_stack_base], rbp    ; save caller's rbp (we have no prologue, so rbp is still theirs)
     mov qword [gc_forward_regs], 0
     call gc_collect
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -1421,8 +1416,7 @@ FUNC fn_sys_car
     mov rax, [rdi]
     ret
 .nil:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -1440,8 +1434,7 @@ FUNC fn_sys_cdr
     mov rax, [rdi + 8]
     ret
 .nil:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -1568,8 +1561,7 @@ FUNC fn_sys_entries
 
     mov r12, rax                           ; directory fd
 
-    xor r13, r13                           ; End of the list will have NIL in it.
-    TAG_NIL_REG r13
+    STORE_NIL_REG r13                      ; End of the list will have NIL in it.
 
 .read_directory:
     mov eax, SYS_getdents64                ; Read the entries
@@ -1644,8 +1636,7 @@ FUNC fn_sys_entries
     mov rdi, r12
     syscall
 .failure:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -1662,8 +1653,7 @@ FUNC fn_sys_environment
     inc rcx
     jmp .count
 .build:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
 .loop:
     test rcx, rcx
     jz .done
@@ -1706,8 +1696,7 @@ FUNC fn_sys_explode
     pop rdi
     lea rsi, [rdi+rax] ; So now RSI points to the end of the string.
 
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
 .loop:
     ; reached beginning?
     cmp rsi, rdi
@@ -1747,7 +1736,7 @@ FUNC fn_sys_fclose
     syscall
     xor rax, rax          ; return nil
 .fclose_return_nil:
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -1777,8 +1766,7 @@ FUNC fn_sys_fopen
     je .fopen_write
 
     ; fall through to bad mode
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 .fopen_append:
@@ -1804,8 +1792,7 @@ FUNC fn_sys_fopen
     TAG_INTEGER_REG rax
     ret
 .fopen_syscall_fail:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -1893,8 +1880,7 @@ FUNC fn_sys_fread
 .fread_seek_start_fail:
 .fread_seek_end_fail:
 .fread_return_nil:
-    xor rax,rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -1934,8 +1920,7 @@ FUNC fn_sys_fwrite
     ret
 
 .fwrite_return_nil:
-    xor rax,rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -2088,8 +2073,7 @@ FUNC fn_sys_mkdir
     TAG_INTEGER_REG rax
     ret
 .failure:
-    xor rax,rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -2125,8 +2109,7 @@ FUNC fn_sys_not
     GET_TAG_BITS rax
     cmp rax, TAG_ID_NIL
     jz .nil
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 .nil:
     mov rax, 1
@@ -2280,15 +2263,13 @@ FUNC fn_sys_package
     TAG_STRING_REG rax
     ret
 .not_found:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
 ;; Return a list of all embedded package names.
 FUNC fn_sys_packages
-    xor r13, r13
-    TAG_NIL_REG r13
+    STORE_NIL_REG r13              ; Tail of list
     mov rcx, asset_count
     test rcx, rcx
     jz .done
@@ -2366,8 +2347,7 @@ FUNC fn_sys_rmdir
     TAG_INTEGER_REG rax
     ret
 .failure:
-    xor rax,rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -2402,8 +2382,7 @@ FUNC fn_sys_split
     jmp .find
 
 .not_found:                   ; separator not found in string -> nil
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 .found:
@@ -2470,8 +2449,8 @@ FUNC fn_sys_split
     TAG_STRING_REG rax
     mov r11, rax
 
-    xor rax, rax                ; right
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax           ; right
+
     push rax
     mov rax, 16                 ; allocate 16 bytes
     mov rbx, TAG_ID_CONS
@@ -2578,9 +2557,7 @@ FUNC fn_sys_stat
     xor edx,edx                        ; unknown -> regular file
 
 .type_done:
-    xor r13,r13                ; create nil for end of list
-    TAG_NIL_REG r13
-
+    STORE_NIL_REG r13          ; create nil for end of list
     mov eax,ecx                ; add mode
     and eax,0777o
     TAG_INTEGER_REG rax
@@ -2606,8 +2583,7 @@ FUNC fn_sys_stat
 
 .failure:
     add rsp, 160               ; restore stack
-    xor rax,rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -2987,8 +2963,7 @@ FUNC fn_sys_run
     syscall
 
 .error:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -3007,8 +2982,7 @@ FUNC fn_sys_unlink
     TAG_INTEGER_REG rax
     ret
 .failure:
-    xor rax,rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
