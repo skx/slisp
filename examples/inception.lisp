@@ -307,6 +307,7 @@
   (register-builtin "sys_stdlib" (lambda (args) (sys_stdlib)))
   (register-builtin "sys_strcat" (lambda (args) (sys_strcat (car args) (cadr args))))
   (register-builtin "sys_strcmp" (lambda (args) (sys_strcmp (car args) (cadr args))))
+  (register-builtin "sys_strdup" (lambda (args) (sys_strdup (car args))))
   (register-builtin "sys_strlen" (lambda (args) (sys_strlen (car args))))
   (register-builtin "sys_substr" (lambda (args) (sys_substr (car args) (cadr args) (caddr args))))
   (register-builtin "sys_unlink" (lambda (args) (sys_unlink (car args))))

@@ -177,6 +177,8 @@ added to them too.
     * Join two strings together and return them.
   * `strcmp`
     * Compare the two given strings, like the C-function this returns zero on equality.
+  * `strdup`
+    * Return a copy of the given string.
   * `string`
      * Convert characters, integers, and floats to strings.
      * Everything else returns an empty string.
