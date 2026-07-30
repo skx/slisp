@@ -381,6 +381,8 @@ _start:
     leave                      ; never reached
     ret
 
+
+
 section .text.fn_init_globals,"ax",@progbits
 
 fn_init_globals:
@@ -398,6 +400,9 @@ fn_fn_init_globals_gc:
     dq {{ .InitGlobalsRootBytes }}        ; root bytes
 
 section .text
+
+
+
 
 ;;; 5. stdlib
 
@@ -418,23 +423,7 @@ section .text
 ;;       This is the address we return to the caller, the prefixed header is only relevant to us and GC machinery.
 ;;
 alloc:
-    push rax                    ; Test our stack size limit
-    push rcx
-    mov rcx, [rlimit]           ; limit
-    cmp rcx, -1                 ; unlimited?
-    je  .ok                     ; no limit
-    sub rcx, 65536              ; reserve safety margin
-
-    mov rax, [initial_rsp]
-    sub rax, rsp                ; bytes used
-
-    cmp rax, rcx
-
-    jae stack_too_deep
-
-.ok:
-    pop rcx
-    pop rax
+    call check_stack_limit    ; Check we're not in danger of blowing the stack limit
 
     inc qword [alloc_count]   ; count allocations
 
@@ -471,15 +460,31 @@ alloc:
     pop rcx
     jmp heap_exhausted
 
-stack_too_deep:
+
+
+;; check stack limit checks to makes ure we're not in danger of running
+;; out of stack-space.
+;;
+;; We get the size of the stack on startup, and save that in `initial_rsp`,
+;; we also discover the limit configured and save that in `rlimit`.
+;;
+;; Compare the two and abort if there is danger of running out of space.
+;;
+check_stack_limit:
+    push rax                    ; Test our stack size limit
+    push rcx
+    mov rcx, [rlimit]           ; limit
+    cmp rcx, -1                 ; unlimited?
+    je  .ok                     ; no limit
+    sub rcx, 65536              ; reserve safety margin
+    mov rax, [initial_rsp]
+    sub rax, rsp                ; bytes used
+    cmp rax, rcx
+    jae stack_limit             ; limit exceeded; abort.
+.ok:
     pop rcx
     pop rax
-    mov rdi, stack_error_msg             ; show the error
-    TAG_STRING_REG rdi
-    call fn_printstr
-    mov rdi, 1                           ; exit-code
-    jmp fn_exit
-
+    ret
 
 
 
@@ -1485,42 +1490,8 @@ FUNC fn_sys_chr
 ;; need to be careful of that.
 ;;
 FUNC fn_sys_cons
-    push rsi                        ; Preserve these registers so "(explode..)" "(environment .." etc
-    push rdi                        ; are safe when we sometimes call GC
-    push rdx
-    push rcx
-    push rbx
-    push rax
+    call possibly_trigger_gc ; Trigger garbage collection, maybe.
 
-    mov rax, [alloc_count]
-    cmp rax, 64000                  ; Bill Gate's constant
-
-    jle .ignore_gc
-    mov [gc_stack_base], rbp        ; save caller's rbp (we have no prologue, so rbp is still theirs)
-    mov qword [gc_forward_regs], 1  ; forward RSI and RDI
-    mov [gc_saved_rdi],rdi          ; register value to be forwarded
-    mov [gc_saved_rsi],rsi          ; register value to be forwarded.
-
-    call gc_collect
-
-    pop rax                         ; restore registers but ensure we have
-    pop rbx                         ; updated forwarded registers for arg 1&2.
-    pop rcx
-    pop rdx
-    pop rdi
-    pop rsi
-    mov rdi, [gc_saved_rdi]         ; updated value
-    mov rsi, [gc_saved_rsi]         ; updated value
-    jmp .gc_over
-
-.ignore_gc:
-    pop rax
-    pop rbx
-    pop rcx
-    pop rdx
-    pop rdi
-    pop rsi
-.gc_over:
     mov rax, 16              ; size to allocate
     push rbx
     mov rbx, TAG_ID_CONS
@@ -3020,6 +2991,21 @@ type_error:
 
 
 
+section .text.stack_limit,"ax",@progbits
+
+;;
+;; This function is called with a couple of preserved registers
+;; on the stack, but all things considered we can ignore that
+;; as we're going to terminate execution afterwards.
+;;
+stack_limit:
+    mov rdi, stack_error_msg             ; show the error
+    TAG_STRING_REG rdi
+    call fn_printstr
+    mov rdi, 1                           ; exit-code
+    jmp fn_exit
+
+
 section .data
 
 ;; used by sys-heap-dump
@@ -3261,6 +3247,54 @@ section .text
 ;; There are some niggles, and details about using "forwarding" pointers, but in-brief that's how
 ;; it works.
 ;;
+
+
+;;
+;; This function is called by our (cons..) primitive.
+;;
+;; Decide if we should trigger garbage collection, and do
+;; so if we should.
+;;
+possibly_trigger_gc:
+
+    push rsi                        ; Preserve these registers so "(explode..)" "(environment .." etc
+    push rdi                        ; are safe when we sometimes call GC
+    push rdx
+    push rcx
+    push rbx
+    push rax
+
+    mov rax, [alloc_count]
+    cmp rax, 64000                  ; Bill Gate's constant
+
+    jle .ignore_gc
+    mov [gc_stack_base], rbp        ; save caller's rbp (we have no prologue, so rbp is still theirs)
+    mov qword [gc_forward_regs], 1  ; forward RSI and RDI
+
+    mov [gc_saved_rdi],rdi          ; register value to be forwarded
+    mov [gc_saved_rsi],rsi          ; register value to be forwarded.
+
+    call gc_collect
+
+    pop rax                         ; restore registers but ensure we have
+    pop rbx                         ; updated forwarded registers for arg 1&2.
+    pop rcx
+    pop rdx
+    pop rdi
+    pop rsi
+    mov rdi, [gc_saved_rdi]         ; updated value
+    mov rsi, [gc_saved_rsi]         ; updated value
+    ret
+
+.ignore_gc:
+    pop rax
+    pop rbx
+    pop rcx
+    pop rdx
+    pop rdi
+    pop rsi
+.gc_over:
+    ret
 
 
 ;;
