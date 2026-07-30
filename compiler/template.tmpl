@@ -688,7 +688,7 @@ FUNC fn_sys_divide
    jz integer_divide
 
    call load_both_floats
-   divsd xmm0, xmm1        ; multiply
+   divsd xmm0, xmm1        ; divide
    jmp return_float
 
 integer_divide:
