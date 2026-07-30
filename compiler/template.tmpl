@@ -64,7 +64,7 @@ SYS_rmdir         equ  84
 SYS_unlink        equ  87
 SYS_getdents64    equ 217
 SYS_clock_gettime equ 228
-SYS_prlimit64     equ 302       ; x86-64
+SYS_prlimit64     equ 302
 SYS_getrandom     equ 318
 
 ;; (entries)
@@ -299,12 +299,11 @@ _start:
     ;
     ; The end result was that our GC code was getting confused and didn't
     ; know what to do when processing the stack-local variables which
-    ; were "args"
+    ; were "args".
     ;
-    ; So here we have to essentially call "strdup" on each arg.  But we
-    ; don't have strdup as a primitive.  So instead we call '(strcat arg "")'
-    ; which has the side-effect of returning a heap-allocated copy of the
-    ; OS-provided argv[i] entry.
+    ; So here create a list of the command-line arguments, but rather than
+    ; using the raw strings we get are passed we have to call "strdup" on
+    ; each one.
     ;
     ; Life is hard.
     ;
@@ -317,19 +316,15 @@ _start:
 
     dec rcx
 
-    ; rdi = ""
-    mov rdi, empty_str
+    ; rdi = argv[i]
+    mov rdi, [rbx + rcx*8]
     TAG_STRING_REG rdi
-
-    ; rsi = argv[i]
-    mov rsi, [rbx + rcx*8]
-    TAG_STRING_REG rsi
 
     push rbx
     push rsi
     push rdi
     push rcx
-    call fn_sys_strcat        ; RAX = heap copy
+    call fn_sys_strdup        ; RAX = heap copy
     pop rcx
     pop rdi
     pop rsi
@@ -485,6 +480,19 @@ strlen:
     inc rax
     jmp .loop
 .done:
+    ret
+
+;; copy string from RDI into RDX, return RDX pointing after the copy
+strcpy:
+.loop:
+    mov bl,[rdi]
+    test bl,bl
+    jz .over
+    mov [rdx],bl
+    inc rdi
+    inc rdx
+    jmp .loop
+.over:
     ret
 
 
@@ -2657,26 +2665,39 @@ FUNC fn_sys_strcat
     pop rsi                  ; restore strings
     pop rdi
 
-.copy1:                      ; copy first
-    mov bl,[rdi]
-    test bl,bl
-    jz .copy2
-    mov [rdx],bl
-    inc rdi
-    inc rdx
-    jmp .copy1
+    call strcpy              ; copy first string
 
-.copy2:                      ; append second
-    mov bl,[rsi]
-    test bl,bl
-    jz .done
-    mov [rdx],bl
-    inc rsi
-    inc rdx
-    jmp .copy2
+    mov rdi, rsi             ; copy second string
+    call strcpy
 
 .done:                       ; terminate and return
     mov byte [rdx],0
+    TAG_STRING_REG rax
+    ret
+
+
+
+;; Return a heap-allocated copy of the given string
+FUNC fn_sys_strdup
+    mov rbx, rdi            ; type-check arg1: str
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    UNTAG_REG rdi
+
+    push rdi
+    call strlen              ; str is already in RDI, result in RAX
+    inc rax                  ; Add one for the NULL
+
+    mov rbx, TAG_ID_STRING
+    call alloc               ; make the allocation
+
+    mov rdx,rax              ; destination
+    pop rdi
+
+    call strcpy              ; Copy
+
+    mov byte [rdx],0         ; NULL terminate
     TAG_STRING_REG rax
     ret
 

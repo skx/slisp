@@ -1,23 +1,12 @@
-(defun pr (xs)
-  "Print each element of a list"
-  (if xs
-      (do
-       (print (car xs))
-       (pr (cdr xs)))))
-
 (defun showLen (x)
-  (pr (list "The length of : '" x "' is " (strlen x)))
-  (newline))
+  (println "The length of : '" x "' is " (strlen x)))
 
 (defun showCmp( a b )
-  (pr (list
+  (println
        "comparing a:" a
        " with b:" b
        " (strcmp a b): " (strcmp a b)
        " (= a b): " (= a b)))
-  (newline)
-  )
-
 
 (defun main (args)
   "Test strlen/strcmp"
@@ -30,8 +19,10 @@
   (showCmp "Steve" "Steve")
   (showCmp "Steve" "Rteve")
 
-  ; These should be identical
+  ; These should be identical even though the addresses will be different
   (showCmp "Hello" (implode (explode "Hello")))
+  (showCmp "Hello" (strdup "Hello"))
+  (showCmp "Hello" (strcat (strdup "Hell") (strdup "o")))
 
   ; string conversion
   (print (string "Hello!\n"))

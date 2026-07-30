@@ -228,6 +228,10 @@ This returns a list of the form (TYPE SIZE MODE)."
   "Compare the two specified strings, return zero if equal."
   (sys_strcmp a b))
 
+(defun strdup(str)
+  "Return a heap-allocated copy of the given string."
+  (sys_strdup str))
+
 (defun string (x)
   "Convert the given item into a string, if possible."
   (sys_string x))
