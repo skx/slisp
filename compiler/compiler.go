@@ -824,7 +824,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 				}
 			}
 
-			if len(n.Args) >= 5 {
+			if len(n.Args) > len(registerArguments) {
 				return fmt.Errorf("%d is more than the maximum number of arguments we support", len(n.Args))
 			}
 
@@ -936,7 +936,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			return nil
 		}
 
-		if len(n.Args) >= 5 {
+		if len(n.Args) > len(registerArguments) {
 			return fmt.Errorf("%d is more than the maximum number of arguments we support", len(n.Args))
 		}
 
@@ -1483,7 +1483,7 @@ func (c *Compiler) emitCallable(obj any) error {
 	c.emitln(fmt.Sprintf("section .text.%s,\"ax\",@progbits", nm))
 	c.emitln(nm + ":")
 
-	if len(d.Params) >= 5 {
+	if len(d.Params) > len(registerArguments) {
 		return fmt.Errorf("%d is more than the maximum number of arguments we support", len(d.Params))
 	}
 
