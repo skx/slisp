@@ -8,6 +8,8 @@
 
 ;; Contents of this file:
 ;;
+;; This is quite a large file, but in brief we have the following sections:
+;;
 ;; 0. definitions
 ;; 1. macros
 ;; 2. User-defined functions (defuns)
@@ -24,6 +26,13 @@
 ;; 7. string literals
 ;; 8. floating-point literals
 ;; 9. global variables
+;;
+;; In order to keep the indentation consistent I've been using this handy one-liner:
+;;
+;;     perl -pi -e 's/^\h+/    /' template.tmpl
+;;
+;; I don't always remember, but it's a good thing to bear in mind.
+;;
 
 
 
@@ -167,6 +176,13 @@ RLIMIT_STACK  equ 3
 %%done:
 %endmacro
 
+; Set the given register to a NIL value
+%macro STORE_NIL_REG 1
+    xor %1,%1
+    TAG_NIL_REG %1
+%endmacro
+
+
 ; Our memory allocator secretly prefixes all allocation-requests with a small
 ; header - the header contains some extra fields which ease the handling of the
 ; GC process.
@@ -218,15 +234,19 @@ TAG_ID_NIL     equ 0b111  ; 7
 
 
 ;;
-;; Declare a function which will record itself as having
-;; been started.
+;; Declare a function which will record itself as having  been started.
 ;;
-;; The function will be in its own section, which allows
-;; easy dead-code elimination by the linker.
+;; The function will also be be in its own section, which allows easy
+;; dead-code elimination by the linker.
 ;;
-;; We use this for almost all of our standard library,
-;; BUT NOT the printing functions, or functions that
-;; accept any type.
+;; We use this for almost all of our standard library, BUT NOT the printing
+;; functions, or functions that accept any type.
+;;
+;; The intent here is that in an error condition we can then say "This
+;; happened in $last_function". So this macro always updates the
+;; last_function pointer to point to the string version of the function name.
+;;
+;; This is awesome.
 ;;
 %macro FUNC 1
     %defstr __fname %1    ; Define a string
@@ -244,10 +264,12 @@ TAG_ID_NIL     equ 0b111  ; 7
 
 
 ;;; 2. User-defined functions (defuns)
+
 {{ .Defuns }}
 
 
 ;;; 3. User-defined lambdas
+
 {{ .Lambdas }}
 
 
@@ -307,8 +329,7 @@ _start:
     ;
     ; Life is hard.
     ;
-    xor r12, r12
-    TAG_NIL_REG r12          ; r12 = accumulated list - starts with NIL
+    STORE_NIL_REG r12
 
 .loop:
     test rcx, rcx
@@ -339,11 +360,12 @@ _start:
 
 .done:
     mov rdi, r12               ; args list
-    call fn_init_globals
+    call fn_init_globals       ; initialize global variables (i.e. top-level defvar/defconst.)
+
     mov rdi, r12               ; args again if main takes it
 
-    push rdi
-    mov rax, SYS_prlimit64
+    push rdi                   ; Get the stack limit, if any.
+    mov rax, SYS_prlimit64     ; we use this to abort if it is nearly exhausted.
     xor edi, edi               ; pid = 0
     mov esi, RLIMIT_STACK
     xor edx, edx               ; new_limit = NULL
@@ -351,7 +373,8 @@ _start:
     syscall
     pop rdi
 
-    call fn_main
+    call fn_main               ; Call the user's code.
+
     mov rdi, rax               ; exit code is the last expression
     UNTAG_REG rdi
     mov rax, SYS_exit
@@ -360,8 +383,16 @@ _start:
     leave                      ; never reached
     ret
 
+
+
 section .text.fn_init_globals,"ax",@progbits
 
+;;
+;; This is where the initialization of the global variables
+;; is inserted.
+;;
+;; This is called just before the user's (defun main..) code
+;;
 fn_init_globals:
     push rbp
     mov rbp, rsp
@@ -377,6 +408,9 @@ fn_fn_init_globals_gc:
     dq {{ .InitGlobalsRootBytes }}        ; root bytes
 
 section .text
+
+
+
 
 ;;; 5. stdlib
 
@@ -397,23 +431,7 @@ section .text
 ;;       This is the address we return to the caller, the prefixed header is only relevant to us and GC machinery.
 ;;
 alloc:
-    push rax                    ; Test our stack size limit
-    push rcx
-    mov rcx, [rlimit]           ; limit
-    cmp rcx, -1                 ; unlimited?
-    je  .ok                     ; no limit
-    sub rcx, 65536              ; reserve safety margin
-
-    mov rax, [initial_rsp]
-    sub rax, rsp                ; bytes used
-
-    cmp rax, rcx
-
-    jae stack_too_deep
-
-.ok:
-    pop rcx
-    pop rax
+    call check_stack_limit    ; Check we're not in danger of blowing the stack limit
 
     inc qword [alloc_count]   ; count allocations
 
@@ -435,7 +453,7 @@ alloc:
 
     mov [alloc_ptr], rdx     ; store
 
-                                     ; add the header details
+    ; add the header details
     mov       [rcx+OBJ_SIZE], rax    ; size (after rounding)
     mov qword [rcx+OBJ_FORWARD], 0   ; forwarding
     mov       [rcx+OBJ_TYPE], rbx    ; type
@@ -450,15 +468,31 @@ alloc:
     pop rcx
     jmp heap_exhausted
 
-stack_too_deep:
+
+
+;; check stack limit checks to makes ure we're not in danger of running
+;; out of stack-space.
+;;
+;; We get the size of the stack on startup, and save that in `initial_rsp`,
+;; we also discover the limit configured and save that in `rlimit`.
+;;
+;; Compare the two and abort if there is danger of running out of space.
+;;
+check_stack_limit:
+    push rax                    ; Test our stack size limit
+    push rcx
+    mov rcx, [rlimit]           ; limit
+    cmp rcx, -1                 ; unlimited?
+    je  .ok                     ; no limit
+    sub rcx, 65536              ; reserve safety margin
+    mov rax, [initial_rsp]
+    sub rax, rsp                ; bytes used
+    cmp rax, rcx
+    jae stack_limit             ; limit exceeded; abort.
+.ok:
     pop rcx
     pop rax
-    mov rdi, stack_error_msg             ; show the error
-    TAG_STRING_REG rdi
-    call fn_printstr
-    mov rdi, 1                           ; exit-code
-    jmp fn_exit
-
+    ret
 
 
 
@@ -471,6 +505,7 @@ return_float:
     TAG_FLOAT_REG rax       ; type
     ret                     ; return
 
+
 ;; rdi points to string, return result in rax
 strlen:
     xor rax, rax
@@ -482,8 +517,10 @@ strlen:
 .done:
     ret
 
+
 ;; copy string from RDI into RDX, return RDX pointing after the copy
 strcpy:
+    push rbx
 .loop:
     mov bl,[rdi]
     test bl,bl
@@ -493,6 +530,7 @@ strcpy:
     inc rdx
     jmp .loop
 .over:
+    pop rbx
     ret
 
 
@@ -511,8 +549,7 @@ is_type:
     TAG_INTEGER_REG rax
     ret
 .nil:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -560,8 +597,7 @@ fn_numericQUESTION:
     cmp rax, 0
     jnz .true
 .nil:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 .true:
     mov rax, 1
@@ -595,12 +631,12 @@ is_numeric:
 ;;
 ;; We use these for maths/comparison operations.
 are_both_integers:
-   mov rax, rdi
-   mov rbx, rsi
-   GET_TAG_BITS rbx     ; type of arg
-   GET_TAG_BITS rax     ; type of arg
-   add rax, rbx         ; both integers? == 0
-   ret
+    mov rax, rdi
+    mov rbx, rsi
+    GET_TAG_BITS rbx     ; type of arg
+    GET_TAG_BITS rax     ; type of arg
+    add rax, rbx         ; both integers? == 0
+    ret
 
 ;; helper - load both floating point numbers.
 ;;
@@ -614,16 +650,16 @@ are_both_integers:
 ;; When this function returns xmm0 and xmm1 will
 ;; have the two arguments anyway.
 load_both_floats:
-   mov rcx, rdi
-   UNTAG_REG rdi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_one_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_one_int
-   cmp rcx, TAG_ID_CHAR
-   je .arg_one_int
-   jmp type_error
+    mov rcx, rdi
+    UNTAG_REG rdi
+    GET_TAG_BITS rcx
+    cmp rcx, TAG_ID_FLOAT
+    jz .arg_one_float
+    cmp rcx, TAG_ID_INTEGER
+    jz .arg_one_int
+    cmp rcx, TAG_ID_CHAR
+    je .arg_one_int
+    jmp type_error
 
 .arg_one_int:
     cvtsi2sd xmm0, rdi ; convert to float
@@ -633,118 +669,114 @@ load_both_floats:
     ; jmp .arg_two     ; fall through
 
 .arg_two:
-   mov rcx, rsi
-   UNTAG_REG rsi
-   GET_TAG_BITS rcx
-   cmp rcx, TAG_ID_FLOAT
-   jz .arg_two_float
-   cmp rcx, TAG_ID_INTEGER
-   jz .arg_two_int
-   cmp rcx, TAG_ID_CHAR
-   jz .arg_two_int
-   jmp type_error
+    mov rcx, rsi
+    UNTAG_REG rsi
+    GET_TAG_BITS rcx
+    cmp rcx, TAG_ID_FLOAT
+    jz .arg_two_float
+    cmp rcx, TAG_ID_INTEGER
+    jz .arg_two_int
+    cmp rcx, TAG_ID_CHAR
+    jz .arg_two_int
+    jmp type_error
 
 .arg_two_int:
-   cvtsi2sd xmm1, rsi ; convert to float
-   ret
+    cvtsi2sd xmm1, rsi ; convert to float
+    ret
 .arg_two_float:
-   movq xmm1, [rsi]      ; load
-   ret
+    movq xmm1, [rsi]      ; load
+    ret
 
 
 ;; +
 FUNC fn_sys_plus
-   call are_both_integers
-   jz plus_integer
+    call are_both_integers
+    jz plus_integer
 
-   call load_both_floats
-   addsd xmm0, xmm1        ; add
-   jmp return_float
+    call load_both_floats
+    addsd xmm0, xmm1        ; add
+    jmp return_float
 
 plus_integer:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-   mov rax, rdi
-   add rax, rsi
-   TAG_INTEGER_REG rax
-   ret
-
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    mov rax, rdi
+    add rax, rsi
+    TAG_INTEGER_REG rax
+    ret
 
 
 ;; -
 FUNC fn_sys_minus
-   call are_both_integers
-   jz integer_minus
+    call are_both_integers
+    jz integer_minus
 
-   call load_both_floats
-   subsd xmm0, xmm1        ; subtrack
-   jmp return_float
+    call load_both_floats
+    subsd xmm0, xmm1        ; subtrack
+    jmp return_float
 
 integer_minus:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-   sub rdi, rsi
-   mov rax, rdi
-   TAG_INTEGER_REG rax
-   ret
-
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    sub rdi, rsi
+    mov rax, rdi
+    TAG_INTEGER_REG rax
+    ret
 
 
 ;; /
 FUNC fn_sys_divide
-   call are_both_integers
-   jz integer_divide
+    call are_both_integers
+    jz integer_divide
 
-   call load_both_floats
-   divsd xmm0, xmm1        ; divide
-   jmp return_float
+    call load_both_floats
+    divsd xmm0, xmm1        ; divide
+    jmp return_float
 
 integer_divide:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-   mov rax, rdi
-   cqo
-   idiv rsi
-   TAG_INTEGER_REG rax
-   ret
-
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    mov rax, rdi
+    cqo
+    idiv rsi
+    TAG_INTEGER_REG rax
+    ret
 
 
 ;; *
 FUNC fn_sys_multiply
-   call are_both_integers
-   jz integer_multiply
+    call are_both_integers
+    jz integer_multiply
 
-   call load_both_floats
-   mulsd xmm0, xmm1        ; multiply
-   jmp return_float
+    call load_both_floats
+    mulsd xmm0, xmm1        ; multiply
+    jmp return_float
 
 integer_multiply:
-   UNTAG_REG rdi
-   UNTAG_REG rsi
-   mov rax, rdi
-   mov rbx, rsi
-   imul rbx, rax
-   mov rax, rbx
-   TAG_INTEGER_REG rax
-   ret
-
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    mov rax, rdi
+    mov rbx, rsi
+    imul rbx, rax
+    mov rax, rbx
+    TAG_INTEGER_REG rax
+    ret
 
 
 ;; %
 FUNC fn_sys_PERCENT
-   call are_both_integers
-   jz modulus_integer
-   jmp type_error       ; type error
+    call are_both_integers
+    jz modulus_integer
+    jmp type_error       ; type error
 modulus_integer:
-   UNTAG_REG rdi
-   UNTAG_REG rsi        ; untag arguments
-   mov rax, rdi         ; do the magic
-   cqo
-   idiv rsi
-   mov rax, rdx         ; result is an integer
-   TAG_INTEGER_REG rax
-   ret
+    UNTAG_REG rdi
+    UNTAG_REG rsi        ; untag arguments
+    mov rax, rdi         ; do the magic
+    cqo
+    idiv rsi
+    mov rax, rdx         ; result is an integer
+    TAG_INTEGER_REG rax
+    ret
 
 
 
@@ -809,10 +841,8 @@ FUNC fn_sys_EQUALS
     TAG_INTEGER_REG rax
     ret
 .nil:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
-
 
 
 ;; <= - Work with either integers, floats, or both.
@@ -821,13 +851,13 @@ FUNC fn_sys_EQUALS
 ;;
 FUNC fn_sys_LTEQUALS
 
-   call are_both_integers
-   jz lte_integer
+    call are_both_integers
+    jz lte_integer
 
-   call load_both_floats
-   ucomisd xmm0, xmm1
-   jbe lte_integer.true
-   jmp lte_integer.false
+    call load_both_floats
+    ucomisd xmm0, xmm1
+    jbe lte_integer.true
+    jmp lte_integer.false
 
 lte_integer:
     UNTAG_REG rdi
@@ -835,8 +865,7 @@ lte_integer:
     cmp rdi, rsi
     jle .true
 .false:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 .true:
     mov rax, 1
@@ -844,16 +873,15 @@ lte_integer:
     ret
 
 
-
 ;; >=
 FUNC fn_sys_GTEQUALS
-   call are_both_integers
-   jz gte_integer
+    call are_both_integers
+    jz gte_integer
 
-   call load_both_floats
-   ucomisd xmm0, xmm1
-   jb  gte_integer.false
-   jmp gte_integer.true
+    call load_both_floats
+    ucomisd xmm0, xmm1
+    jb  gte_integer.false
+    jmp gte_integer.true
 
 gte_integer:
     UNTAG_REG rdi
@@ -861,14 +889,12 @@ gte_integer:
     cmp rdi, rsi
     jge .true
 .false:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 .true:
     mov rax, 1
     TAG_INTEGER_REG rax
     ret
-
 
 
 ;; < - this is the inverse of >=
@@ -877,7 +903,6 @@ FUNC fn_sys_LT
     mov rdi, rax
     call fn_BANG
     ret
-
 
 
 ;; > - this is the inverse of <=
@@ -902,10 +927,8 @@ FUNC fn_sys_newline
     mov byte [rsi], 10      ; add a newline character there
     mov rdx, 1
     syscall
-    xor rax,rax             ; return nil
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
-
 
 
 ;; Print a float
@@ -926,8 +949,7 @@ fn_printfloat:
     mov rdx, rcx
     syscall
 
-    xor rax,rax           ; return nil
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -942,25 +964,25 @@ fn_printfloat:
 ;; On return RSI pointing to the formatted result,
 ;; with RCX holding the length.
 fn_printfloat_format:
-     xor r8, r8
-     ucomisd xmm0, xmm0
-     jp .nan
+    xor r8, r8
+    ucomisd xmm0, xmm0
+    jp .nan
 
-     movq rax, xmm0
+    movq rax, xmm0
 
-     mov rcx, rax
-     mov rdx, 0x7ff0000000000000
-     and rcx, rdx
-     cmp rcx, rdx
-     jne .finite
+    mov rcx, rax
+    mov rdx, 0x7ff0000000000000
+    and rcx, rdx
+    cmp rcx, rdx
+    jne .finite
 
-     mov rcx, rax
-     mov rdx, 0x000fffffffffffff
-     and rcx, rdx
-     jnz .nan
+    mov rcx, rax
+    mov rdx, 0x000fffffffffffff
+    and rcx, rdx
+    jnz .nan
 
-     bt rax,63
-     jc .minus_inf
+    bt rax,63
+    jc .minus_inf
 ;;      jmp .plus_inf              ; fall through
 
 
@@ -1070,8 +1092,7 @@ fn_printint:
     mov rdx, rcx
     syscall
 
-    xor rax,rax           ; return nil
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 ;; convert the (untagged) integer in RAX into a string.
@@ -1127,8 +1148,7 @@ fn_printstr:
     mov rdi, 1                ; stdout
     syscall
 
-    xor rax,rax               ; return nil
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -1175,6 +1195,620 @@ fn_printstr:
 ;; End communique.
 ;;
 
+
+;; Get the first item in the cons cell.
+;; Note: calling (car nil) will return nil.
+FUNC fn_sys_car
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_NIL
+    jz .nil
+    cmp rbx, TAG_ID_CONS
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, [rdi]
+    ret
+.nil:
+    STORE_NIL_REG rax
+    ret
+
+
+
+;; Get the second item in the cons cell.
+;; Note: calling (cdr nil) will return nil.
+FUNC fn_sys_cdr
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_NIL
+    jz .nil
+    cmp rbx, TAG_ID_CONS
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, [rdi + 8]
+    ret
+.nil:
+    STORE_NIL_REG rax
+    ret
+
+
+
+;; chr - convert an integer to a character
+FUNC fn_sys_chr
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+    UNTAG_REG rdi
+    mov rax, rdi
+    and rax, 0xFF        ; Only 0-255 is ASCII
+    TAG_CHAR_REG rax
+    ret
+
+
+
+;; Allocate space for a new cons cell, return it in RAX.
+;;
+;; 16-bytes; first has the CAR, second the CDR.
+;;
+;; NOTE: This function is a little special, if more than XXX memory
+;; allocations have been made this function will trigger a GC cycle.
+;;
+;; This _should_ be safe as we mark and forward the contents of the
+;; two registers which are used.  However this function is also called
+;; internally by "environment", "explode", and similar code.
+;;
+;; If called by them it is possible there will be some issues and we
+;; need to be careful of that.
+;;
+FUNC fn_sys_cons
+    call possibly_trigger_gc ; Trigger garbage collection, maybe.
+
+    mov rax, 16              ; size to allocate
+    push rbx
+    mov rbx, TAG_ID_CONS
+    call alloc               ; Allocate memory, result in RAX
+    pop rbx
+    mov [rax], rdi           ; store first item
+    mov [rax+8], rsi         ; second item
+    TAG_CONS_REG rax         ; return the tagged allocation
+    ret
+
+
+;; We implement our (cons..) primitve in "fn_sys_cons".
+;; Within that primitive we test the number of memory allocations,
+;; and if we've tripped over our threshold we run garbage collection.
+;;
+;; However we also call fn_sys_cons for internal uses, to create the list
+;; returned by (environment), etc.  In those cases we want to prevent
+;; garbage collection - specifically because our GC considers only three
+;; possible roots:
+;;
+;;   global variables
+;;   stack/frame local variables.
+;;   The two registers RDI and RSI.
+;;
+;; The last point is the sticky one; cons accepts only two arguments,
+;; and if we limit GC to be triggered ONLY by that function we're good.
+;;
+;; However if our internal functions call GC then their own registers
+;; might then contain pointers to values that have been moved/reaped by
+;; the GC process.  So we disable it to be safe.
+;;
+fn_sys_cons_NOGC:
+    mov qword [disable_gc], 1
+    call fn_sys_cons
+    mov qword [disable_gc], 0
+    ret
+
+
+;; Return a list of directory-entries beneath the given prefix.
+;; Return nil on failure.
+FUNC fn_sys_entries
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+
+    mov eax, SYS_open
+    mov esi, O_RDONLY | O_DIRECTORY
+    xor edx, edx
+    syscall
+    test rax, rax
+    js .failure
+
+    mov r12, rax                     ; directory fd
+    STORE_NIL_REG r13                     ; head of list
+
+.read_directory:
+
+    mov eax, SYS_getdents64
+    mov rdi, r12
+    mov rsi, dir_buffer
+    mov edx, dir_buffer_end-dir_buffer
+    syscall
+
+    test rax, rax
+    js .close_failure
+    test rax, rax
+    jz .done_reading
+
+    mov r14, dir_buffer
+    lea r15, [dir_buffer+rax]
+
+.next_entry:
+    cmp r14, r15
+    jae .read_directory
+
+    movzx ebx, word [r14+16]         ; record length
+
+    lea rdi, [r14+19]
+    call strlen
+    inc rax                          ; include terminating NUL
+    push rbx
+    mov rbx, TAG_ID_STRING
+    call alloc
+    pop rbx
+    mov r11, rax                     ; destination buffer
+
+    lea rdi, [r14+19]                ; recompute source
+    mov rdx, r11
+    call strcpy
+
+    mov byte [rdx], 0
+
+    mov rdi, r11
+    TAG_STRING_REG rdi
+    mov rsi, r13
+    call fn_sys_cons_NOGC
+    mov r13, rax
+    add r14, rbx
+    jmp .next_entry
+
+.done_reading:
+    mov eax, SYS_close
+    mov rdi, r12
+    syscall
+    mov rax, r13
+    ret
+
+.close_failure:
+    mov eax, SYS_close
+    mov rdi, r12
+    syscall
+
+.failure:
+    STORE_NIL_REG rax
+    ret
+
+
+
+;; Return a list of all environmental variables
+FUNC fn_sys_environment
+    mov rbx, [envp_ptr]
+    xor rcx, rcx     ;; Count entries into RCX
+.count:
+    mov rdx, [rbx + rcx*8]
+    test rdx, rdx
+    jz .build
+    inc rcx
+    jmp .count
+.build:
+    STORE_NIL_REG rax
+.loop:
+    test rcx, rcx
+    jz .done
+    dec rcx
+
+    ;; string pointer
+    mov rdi, [rbx + rcx*8]
+    TAG_STRING_REG rdi
+
+    ;; cons(string, list)
+    mov rsi, rax
+    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
+    jmp .loop
+.done:
+    ret
+
+
+
+;; terminate execution with the given exit-code
+FUNC fn_sys_exit
+    UNTAG_REG rdi
+    mov rax, SYS_exit
+    syscall
+    ret
+
+
+
+;; Explode a string to a list of characters.
+;; Find the length and work backwards.
+FUNC fn_sys_explode
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+
+    push rdi           ; point to start of the string.
+    call strlen        ; RAX = length
+    pop rdi
+    lea rsi, [rdi+rax] ; So now RSI points to the end of the string.
+
+    STORE_NIL_REG rax
+.loop:
+    ; reached beginning?
+    cmp rsi, rdi
+    je .done
+    dec rsi
+
+    movzx rdx, byte [rsi]
+    TAG_CHAR_REG rdx
+
+    push rdi        ; preserve string start
+    push rsi        ; preserve scan pointer
+    mov rdi, rdx
+    mov rsi, rax
+    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
+    pop rsi
+    pop rdi
+    jmp .loop
+.done:
+    ret
+
+
+
+;; Close a file handle
+;;
+;; As a special case closing a nil-filehandle is valid.
+;;
+FUNC fn_sys_fclose
+    mov rbx, rdi             ; type-check arg1 (path)
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_NIL
+    je .fclose_return_nil
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+
+    UNTAG_REG rdi
+    mov rax, SYS_close
+    syscall
+    xor rax, rax          ; return nil
+.fclose_return_nil:
+    STORE_NIL_REG rax
+    ret
+
+
+
+
+;; Open a file handle, modes are "r", "w", or "a"
+FUNC fn_sys_fopen
+    mov rbx, rdi             ; type-check arg1 (path)
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    mov rbx, rsi             ; type-check arg2 (mode)
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+
+    mov al, [rsi]          ; We only look at the first character..
+    cmp al, 'a'
+    je .fopen_append
+    cmp al, 'r'
+    je .fopen_read
+    cmp al, 'w'
+    je .fopen_write
+
+    ; fall through to bad mode
+    STORE_NIL_REG rax
+    ret
+
+.fopen_append:
+    mov rax, SYS_open
+    mov rsi, 1089       ; O_WRONLY|O_CREAT|O_APPEND
+    mov rdx, 0o644
+    syscall
+    jmp .fopen_done
+.fopen_read:
+    mov rax, SYS_open
+    mov rsi, 0          ; O_RDONLY
+    xor rdx, rdx
+    syscall
+    jmp .fopen_done
+.fopen_write:
+    mov rax, SYS_open
+    mov rsi, 577        ; O_WRONLY|O_CREAT|O_TRUNC
+    mov rdx, 0o644
+    syscall
+.fopen_done:
+    test rax, rax
+    js .fopen_syscall_fail
+    TAG_INTEGER_REG rax
+    ret
+.fopen_syscall_fail:
+    STORE_NIL_REG rax
+    ret
+
+
+
+;; Read ALL data from the given file handle.
+;;
+;; As a special case reading from a nil-filehandle
+;; will return nil.
+FUNC fn_sys_fread
+    mov rbx, rdi             ; type-check arg1
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_NIL      ; special case the nil-handle
+    je .fread_return_nil
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+
+    UNTAG_REG rdi
+    mov [random_buffer], rdi   ; save file handle
+
+    mov rax, SYS_lseek
+    xor rsi, rsi               ; offset = 0
+    mov rdx, 2                 ; SEEK_END
+    syscall
+
+    test rax, rax
+    js .fread_seek_end_fail
+
+    mov rbx, rax                ; file size
+    push rbx                    ; save size
+
+    ; allocate size+1 bytes
+    mov rdi, rbx
+    inc rdi
+
+    mov rax, rdi              ; size to allocate
+    mov rbx, TAG_ID_STRING
+    call alloc                ; Allocate memory, result in RAX
+
+    pop rbx                   ; restore size
+    mov r12, rax              ; data pointer in r12.
+
+    mov rax, 8                ; seek to start of file
+    mov rdi,[random_buffer]   ; saved file handle
+    xor rsi, rsi
+    xor rdx, rdx              ; SEEK_SET
+    syscall
+
+    test rax, rax
+    js .fread_seek_start_fail
+
+    ; Read until we've consumed the entire file.
+    xor r13, r13       ; bytes_read_so_far = 0
+
+.read_loop:
+
+    cmp r13, rbx                ; got all the file?  Yay!
+    je .read_complete
+
+    mov rdi, [random_buffer]    ; file handle
+    lea rsi, [r12+r13]          ; destination offset
+
+    mov rdx, rbx
+    sub rdx, r13                ; remaining bytes
+
+    mov rax, SYS_read
+    syscall
+
+    test rax, rax               ; failed to read
+    js .fread_read_fail
+
+    test rax, rax
+    je .fread_short_read         ; unexpected EOF
+
+    add r13, rax
+    jmp .read_loop
+
+.read_complete:
+    mov byte [r12+r13], 0   ; null-terminate
+    mov rax, r12
+    TAG_STRING_REG rax
+    ret
+
+.fread_short_read:
+.fread_read_fail:
+.fread_seek_start_fail:
+.fread_seek_end_fail:
+.fread_return_nil:
+    STORE_NIL_REG rax
+    ret
+
+
+
+
+
+;; Write data, with a size, to the given file handle
+;; e.g.  (fwrite handle "Steve" 5)
+;;
+;; As a special case writing to a nil-filehandle
+;; will return nil.
+FUNC fn_sys_fwrite
+    mov rbx, rdi             ; type-check arg1: int
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_NIL      ; special case the nil-handle
+    je .fwrite_return_nil
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+
+    mov rbx, rsi             ; type-check arg2: str
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    mov rbx, rdx             ; type-check arg3: int
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+
+    UNTAG_REG rsi
+    UNTAG_REG rdi
+    UNTAG_REG rdx
+
+    mov rax, SYS_write
+    syscall
+    TAG_INTEGER_REG rax
+    ret
+
+.fwrite_return_nil:
+    STORE_NIL_REG rax
+    ret
+
+
+
+;; Read an ASCII character from STDIN, return NIL on failure.
+FUNC fn_sys_getc
+    mov     rax, SYS_read
+    mov     rdi, 0        ; STDIN
+    mov rsi, random_buffer
+    mov     rdx, 1        ; 1 byte
+    syscall
+
+    cmp rax, 1
+    jne .getc_failed
+
+    xor rax,rax
+    mov al, byte [random_buffer]
+    TAG_INTEGER_REG rax
+    ret
+.getc_failed:
+    xor rax, rax
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; join a character list to a string.
+FUNC fn_sys_implode
+    mov rbx,rdi
+    xor rcx,rcx
+
+.count:
+    mov rax,rbx
+    GET_TAG_BITS rax
+    cmp rax,TAG_ID_NIL
+    je .have_len
+
+    ; verify cons
+    mov rax,rbx
+    GET_TAG_BITS rax
+    cmp rax,TAG_ID_CONS
+    jne type_error
+    inc rcx
+    mov rax,rbx
+    UNTAG_REG rax
+    mov rbx,[rax+8]
+    jmp .count
+
+.have_len:
+    mov rdx,rcx     ; rdx has length
+    inc rdx         ; add one for null
+    mov rax, rdx    ; size to allocate
+    mov rbx, TAG_ID_STRING
+    call alloc      ; allocate
+    mov r8,rax
+
+    mov rbx,rdi
+    xor rcx,rcx
+.copy:
+    mov rax,rbx
+    GET_TAG_BITS rax
+    cmp rax,TAG_ID_NIL
+    je .finish
+
+    mov rax,rbx
+    UNTAG_REG rax
+    mov rdx,[rax]
+    ; verify char
+    mov r9,rdx
+    GET_TAG_BITS r9
+    cmp r9,TAG_ID_CHAR
+    jne type_error
+    UNTAG_REG rdx
+    mov [r8+rcx],dl
+    inc rcx
+    mov rbx,[rax+8]
+    jmp .copy
+.finish:
+    mov byte [r8+rcx],0
+    mov rax,r8
+    TAG_STRING_REG rax
+    ret
+
+
+
+;; Convert a numeric value to an integer
+FUNC fn_sys_int
+    mov rax, rdi
+    GET_TAG_BITS rax
+    cmp rax, TAG_ID_INTEGER
+    jz .from_int
+    cmp rax, TAG_ID_FLOAT
+    jz .from_float
+    cmp rax, TAG_ID_CHAR
+    jz .from_char
+    jmp .return_zero
+.from_int:
+    mov rax, rdi
+    ret
+.from_float:
+    UNTAG_REG rdi         ; untag
+    movq xmm0, [rdi]      ; load
+    cvttsd2si rax, xmm0   ; truncate
+    TAG_INTEGER_REG rax   ; tag
+    ret
+.from_char:
+    UNTAG_REG rdi
+    mov rax, rdi
+    TAG_INTEGER_REG rax
+    ret
+.return_zero:
+    xor rax, rax
+    TAG_INTEGER_REG rax
+    ret
+
+
+;; isqrt
+FUNC fn_sys_isqrt
+    ;; Preserve original argument, as load_both_floats
+    ;; clobbers RSI.
+    mov rsi, rdi
+
+    ;; Converts integer(s) to doubles as necessary.
+    ;; Result is:
+    ;;    xmm0 = input
+    ;;    xmm1 = copy (ignored)
+    call load_both_floats
+
+    cvtsi2sd xmm0, rdi
+    sqrtsd xmm0, xmm0
+    cvttsd2si rax, xmm0
+
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+;; Force a garbage-collection to happen.
+FUNC fn_sysMINUSgc
+    mov [gc_stack_base], rbp    ; save caller's rbp (we have no prologue, so rbp is still theirs)
+    mov qword [gc_forward_regs], 0
+    call gc_collect
+    STORE_NIL_REG rax
+    ret
+
+
 ;; Return the internal count the allocations.
 FUNC fn_sysMINUSheapMINUSallocs
     mov rax, [alloc_count]
@@ -1194,8 +1828,7 @@ FUNC fn_sysMINUSheapMINUSdata
     mov     r12, [from_space]
     mov     r13, [alloc_ptr]
 
-    xor     r15, r15
-    TAG_NIL_REG r15              ; result list
+    STORE_NIL_REG r15
 
 .loop:
     cmp     r12, r13
@@ -1214,8 +1847,8 @@ FUNC fn_sysMINUSheapMINUSdata
     shl     rcx, 3
 
     mov     rdi, r14          ; object
-    xor     rsi, rsi
-    TAG_NIL_REG rsi
+    STORE_NIL_REG rsi
+
     call    fn_sys_cons_NOGC  ; No GC during this
     mov     r14, rax
 
@@ -1239,8 +1872,7 @@ FUNC fn_sysMINUSheapMINUSdata
     jmp     .loop
 
 .reverse:
-    xor     r14, r14
-    TAG_NIL_REG r14
+    STORE_NIL_REG r14
 
 .rev_loop:
     mov     rax, r15
@@ -1379,7 +2011,7 @@ FUNC fn_sysMINUSheapMINUSdump
     jmp     .loop
 
 .done:
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -1399,675 +2031,11 @@ FUNC fn_sysMINUSheapMINUSobjects
     TAG_INTEGER_REG rax
     ret
 
-;; Force a garbage-collection to happen.
-FUNC fn_sysMINUSgc
-     mov [gc_stack_base], rbp    ; save caller's rbp (we have no prologue, so rbp is still theirs)
-     mov qword [gc_forward_regs], 0
-     call gc_collect
-     TAG_NIL_REG rax
-     ret
 
-
-;; Get the first item in the cons cell.
-;; Note: calling (car nil) will return nil.
-FUNC fn_sys_car
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_NIL
-    jz .nil
-    cmp rbx, TAG_ID_CONS
-    jne type_error
-    UNTAG_REG rdi
-    mov rax, [rdi]
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-
-;; Get the second item in the cons cell.
-;; Note: calling (cdr nil) will return nil.
-FUNC fn_sys_cdr
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_NIL
-    jz .nil
-    cmp rbx, TAG_ID_CONS
-    jne type_error
-    UNTAG_REG rdi
-    mov rax, [rdi + 8]
-    ret
-.nil:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-
-;; chr - convert an integer to a character
-FUNC fn_sys_chr
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_INTEGER
-    jne type_error
-    UNTAG_REG rdi
-    mov rax, rdi
-    and rax, 0xFF        ; Only 0-255 is ASCII
-    TAG_CHAR_REG rax
-    ret
-
-
-
-;; Allocate space for a new cons cell, return it in RAX.
-;;
-;; 16-bytes; first has the CAR, second the CDR.
-;;
-;; NOTE: This function is a little special, if more than XXX memory
-;; allocations have been made this function will trigger a GC cycle.
-;;
-;; This _should_ be safe as we mark and forward the contents of the
-;; two registers which are used.  However this function is also called
-;; internally by "environment", "explode", and similar code.
-;;
-;; If called by them it is possible there will be some issues and we
-;; need to be careful of that.
-;;
-FUNC fn_sys_cons
-    push rsi                        ; Preserve these registers so "(explode..)" "(environment .." etc
-    push rdi                        ; are safe when we sometimes call GC
-    push rdx
-    push rcx
-    push rbx
-    push rax
-
-    mov rax, [alloc_count]
-    cmp rax, 64000                  ; Bill Gate's constant
-
-    jle .ignore_gc
-    mov [gc_stack_base], rbp        ; save caller's rbp (we have no prologue, so rbp is still theirs)
-    mov qword [gc_forward_regs], 1  ; forward RSI and RDI
-    mov [gc_saved_rdi],rdi          ; register value to be forwarded
-    mov [gc_saved_rsi],rsi          ; register value to be forwarded.
-
-    call gc_collect
-
-    pop rax                         ; restore registers but ensure we have
-    pop rbx                         ; updated forwarded registers for arg 1&2.
-    pop rcx
-    pop rdx
-    pop rdi
-    pop rsi
-    mov rdi, [gc_saved_rdi]         ; updated value
-    mov rsi, [gc_saved_rsi]         ; updated value
-    jmp .gc_over
-
-.ignore_gc:
-    pop rax
-    pop rbx
-    pop rcx
-    pop rdx
-    pop rdi
-    pop rsi
-.gc_over:
-    mov rax, 16              ; size to allocate
-    push rbx
-    mov rbx, TAG_ID_CONS
-    call alloc               ; Allocate memory, result in RAX
-    pop rbx
-    mov [rax], rdi           ; store first item
-    mov [rax+8], rsi         ; second item
-    TAG_CONS_REG rax         ; return the tagged allocation
-    ret
-
-
-;; We implement our (cons..) primitve in "fn_sys_cons".
-;; Within that primitive we test the number of memory allocations,
-;; and if we've tripped over our threshold we run garbage collection.
-;;
-;; However we also call fn_sys_cons for internal uses, to create the list
-;; returned by (environment), etc.  In those cases we want to prevent
-;; garbage collection - specifically because our GC considers only three
-;; possible roots:
-;;
-;;   global variables
-;;   stack/frame local variables.
-;;   The two registers RDI and RSI.
-;;
-;; The last point is the sticky one; cons accepts only two arguments,
-;; and if we limit GC to be triggered ONLY by that function we're good.
-;;
-;; However if our internal functions call GC then their own registers
-;; might then contain pointers to values that have been moved/reaped by
-;; the GC process.  So we disable it to be safe.
-;;
-fn_sys_cons_NOGC:
-    mov qword [disable_gc], 1
-    call fn_sys_cons
-    mov qword [disable_gc], 0
-    ret
-
-
-;; Return a list of directory-entries beneath the given prefix.
-;; Return nil on failure.
-FUNC fn_sys_entries
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-
-    mov eax, SYS_open                     ; Open the directory for processing.
-    mov esi, O_RDONLY | O_DIRECTORY
-    xor edx, edx
-    syscall
-    test rax, rax
-    js .failure
-
-    mov r12, rax                           ; directory fd
-
-    xor r13, r13                           ; End of the list will have NIL in it.
-    TAG_NIL_REG r13
-
-.read_directory:
-    mov eax, SYS_getdents64                ; Read the entries
-    mov rdi, r12
-    mov rsi, dir_buffer
-    mov edx, dir_buffer_end - dir_buffer
-    syscall
-    test rax, rax
-    js .close_failure
-    test rax, rax
-    jz .done_reading
-
-    mov r14, dir_buffer                    ; Process each entry in a loop
-    lea r15, [dir_buffer + rax]
-.next_entry:
-    cmp r14, r15
-    jae .read_directory
-
-
-    movzx ebx, word [r14+16]               ; Save record length
-    lea r8, [r14+19]                       ; Get the filename
-
-    xor r9, r9                             ; Get the length of the filename in r9
-.length_loop:
-    cmp byte [r8+r9], 0
-    je .length_done
-    inc r9
-    jmp .length_loop
-
-.length_done:
-    mov r10, r9                             ; Allocate length+1 (rounded)
-    inc r10
-
-    push rax         ; alloc save
-    mov rax, r10     ; length
-    push rbx
-    mov rbx, TAG_ID_STRING
-    call alloc       ; allocate
-    pop rbx
-    mov r11, rax     ; into reg
-    pop rax          ; restore
-
-    mov rdi, r11                            ; Copy string into newly allocated memory in R11
-    mov rsi, r8
-.copy:
-    mov al, [rsi]
-    mov [rdi], al
-    inc rsi
-    inc rdi
-    test al, al
-    jne .copy
-
-    mov rdi, r11                            ; The entry is a string
-    TAG_STRING_REG rdi
-
-    mov rsi, r13                            ; Add to our list
-    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
-
-    mov r13, rax                            ; Save the updated list head
-
-    add r14, rbx                            ; Process the next entry
-    jmp .next_entry
-
-.done_reading:
-    mov eax, SYS_close                      ; Close the directory
-    mov rdi, r12
-    syscall
-    mov rax, r13                            ; Return the list
-    ret
-.close_failure:
-    mov eax, SYS_close
-    mov rdi, r12
-    syscall
-.failure:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-
-
-
-;; Return a list of all environmental variables
-FUNC fn_sys_environment
-    mov rbx, [envp_ptr]
-    xor rcx, rcx     ;; Count entries into RCX
-.count:
-    mov rdx, [rbx + rcx*8]
-    test rdx, rdx
-    jz .build
-    inc rcx
-    jmp .count
-.build:
-    xor rax, rax
-    TAG_NIL_REG rax
-.loop:
-    test rcx, rcx
-    jz .done
-    dec rcx
-
-    ;; string pointer
-    mov rdi, [rbx + rcx*8]
-    TAG_STRING_REG rdi
-
-    ;; cons(string, list)
-    mov rsi, rax
-    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
-    jmp .loop
-.done:
-    ret
-
-
-
-;; terminate execution with the given exit-code
-FUNC fn_sys_exit
-    UNTAG_REG rdi
-    mov rax, SYS_exit
-    syscall
-    ret
-
-
-
-;; Explode a string to a list of characters.
-;; Find the length and work backwards.
-FUNC fn_sys_explode
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-
-    push rdi           ; point to start of the string.
-    call strlen        ; RAX = length
-    pop rdi
-    lea rsi, [rdi+rax] ; So now RSI points to the end of the string.
-
-    xor rax, rax
-    TAG_NIL_REG rax
-.loop:
-    ; reached beginning?
-    cmp rsi, rdi
-    je .done
-    dec rsi
-
-    movzx rdx, byte [rsi]
-    TAG_CHAR_REG rdx
-
-    push rdi        ; preserve string start
-    push rsi        ; preserve scan pointer
-    mov rdi, rdx
-    mov rsi, rax
-    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
-    pop rsi
-    pop rdi
-    jmp .loop
-.done:
-    ret
-
-
-
-;; Close a file handle
-;;
-;; As a special case closing a nil-filehandle is valid.
-;;
-FUNC fn_sys_fclose
-    mov rbx, rdi             ; type-check arg1 (path)
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_NIL
-    je .fclose_return_nil
-    cmp rbx, TAG_ID_INTEGER
-    jne type_error
-
-    UNTAG_REG rdi
-    mov rax, SYS_close
-    syscall
-    xor rax, rax          ; return nil
-.fclose_return_nil:
-    TAG_NIL_REG rax
-    ret
-
-
-
-
-;; Open a file handle, modes are "r", "w", or "a"
-FUNC fn_sys_fopen
-    mov rbx, rdi             ; type-check arg1 (path)
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    mov rbx, rsi             ; type-check arg2 (mode)
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-
-    mov al, [rsi]          ; We only look at the first character..
-    cmp al, 'a'
-    je .fopen_append
-    cmp al, 'r'
-    je .fopen_read
-    cmp al, 'w'
-    je .fopen_write
-
-    ; fall through to bad mode
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
-.fopen_append:
-        mov rax, SYS_open
-        mov rsi, 1089       ; O_WRONLY|O_CREAT|O_APPEND
-        mov rdx, 0o644
-        syscall
-        jmp .fopen_done
-.fopen_read:
-        mov rax, SYS_open
-        mov rsi, 0          ; O_RDONLY
-        xor rdx, rdx
-        syscall
-        jmp .fopen_done
-.fopen_write:
-        mov rax, SYS_open
-        mov rsi, 577        ; O_WRONLY|O_CREAT|O_TRUNC
-        mov rdx, 0o644
-        syscall
-.fopen_done:
-        test rax, rax
-        js .fopen_syscall_fail
-        TAG_INTEGER_REG rax
-        ret
-.fopen_syscall_fail:
-        xor rax, rax
-        TAG_NIL_REG rax
-        ret
-
-
-
-;; Read ALL data from the given file handle.
-;;
-;; As a special case reading from a nil-filehandle
-;; will return nil.
-FUNC fn_sys_fread
-        mov rbx, rdi             ; type-check arg1
-        GET_TAG_BITS rbx
-        cmp rbx, TAG_ID_NIL      ; special case the nil-handle
-        je .fread_return_nil
-        cmp rbx, TAG_ID_INTEGER
-        jne type_error
-
-        UNTAG_REG rdi
-        mov [random_buffer], rdi   ; save file handle
-
-        mov rax, SYS_lseek
-        xor rsi, rsi               ; offset = 0
-        mov rdx, 2                 ; SEEK_END
-        syscall
-
-        test rax, rax
-        js .fread_seek_end_fail
-
-        mov rbx, rax                ; file size
-        push rbx                    ; save size
-
-        ; allocate size+1 bytes
-        mov rdi, rbx
-        inc rdi
-
-        mov rax, rdi              ; size to allocate
-        mov rbx, TAG_ID_STRING
-        call alloc                ; Allocate memory, result in RAX
-
-        pop rbx                   ; restore size
-        mov r12, rax              ; data pointer in r12.
-
-        mov rax, 8                ; seek to start of file
-        mov rdi,[random_buffer]   ; saved file handle
-        xor rsi, rsi
-        xor rdx, rdx              ; SEEK_SET
-        syscall
-
-        test rax, rax
-        js .fread_seek_start_fail
-
-        ; Read until we've consumed the entire file.
-        xor r13, r13       ; bytes_read_so_far = 0
-
-.read_loop:
-
-        cmp r13, rbx                ; got all the file?  Yay!
-        je .read_complete
-
-        mov rdi, [random_buffer]    ; file handle
-        lea rsi, [r12+r13]          ; destination offset
-
-        mov rdx, rbx
-        sub rdx, r13                ; remaining bytes
-
-        mov rax, SYS_read
-        syscall
-
-        test rax, rax               ; failed to read
-        js .fread_read_fail
-
-        test rax, rax
-        je .fread_short_read         ; unexpected EOF
-
-        add r13, rax
-        jmp .read_loop
-
-.read_complete:
-        mov byte [r12+r13], 0   ; null-terminate
-        mov rax, r12
-        TAG_STRING_REG rax
-        ret
-
-.fread_short_read:
-.fread_read_fail:
-.fread_seek_start_fail:
-.fread_seek_end_fail:
-.fread_return_nil:
-        xor rax,rax
-        TAG_NIL_REG rax
-        ret
-
-
-
-
-
-;; Write data, with a size, to the given file handle
-;; e.g.  (fwrite handle "Steve" 5)
-;;
-;; As a special case writing to a nil-filehandle
-;; will return nil.
-FUNC fn_sys_fwrite
-        mov rbx, rdi             ; type-check arg1: int
-        GET_TAG_BITS rbx
-        cmp rbx, TAG_ID_NIL      ; special case the nil-handle
-        je .fwrite_return_nil
-        cmp rbx, TAG_ID_INTEGER
-        jne type_error
-
-        mov rbx, rsi             ; type-check arg2: str
-        GET_TAG_BITS rbx
-        cmp rbx, TAG_ID_STRING
-        jne type_error
-
-        mov rbx, rdx             ; type-check arg3: int
-        GET_TAG_BITS rbx
-        cmp rbx, TAG_ID_INTEGER
-        jne type_error
-
-        UNTAG_REG rsi
-        UNTAG_REG rdi
-        UNTAG_REG rdx
-
-        mov rax, SYS_write
-        syscall
-        TAG_INTEGER_REG rax
-        ret
-
-.fwrite_return_nil:
-        xor rax,rax
-        TAG_NIL_REG rax
-        ret
-
-
-
-;; Read an ASCII character from STDIN, return NIL on failure.
-FUNC fn_sys_getc
-     mov     rax, SYS_read
-     mov     rdi, 0        ; STDIN
-     mov rsi, random_buffer
-     mov     rdx, 1        ; 1 byte
-     syscall
-
-     cmp rax, 1
-     jne .getc_failed
-
-     xor rax,rax
-     mov al, byte [random_buffer]
-     TAG_INTEGER_REG rax
-     ret
-.getc_failed:
-     xor rax, rax
-     TAG_INTEGER_REG rax
-     ret
-
-
-
-;; join a character list to a string.
-FUNC fn_sys_implode
-    mov rbx,rdi
-    xor rcx,rcx
-
-.count:
-    mov rax,rbx
-    GET_TAG_BITS rax
-    cmp rax,TAG_ID_NIL
-    je .have_len
-
-    ; verify cons
-    mov rax,rbx
-    GET_TAG_BITS rax
-    cmp rax,TAG_ID_CONS
-    jne type_error
-    inc rcx
-    mov rax,rbx
-    UNTAG_REG rax
-    mov rbx,[rax+8]
-    jmp .count
-
-.have_len:
-    mov rdx,rcx     ; rdx has length
-    inc rdx         ; add one for null
-    mov rax, rdx    ; size to allocate
-    mov rbx, TAG_ID_STRING
-    call alloc      ; allocate
-    mov r8,rax
-
-    mov rbx,rdi
-    xor rcx,rcx
-.copy:
-    mov rax,rbx
-    GET_TAG_BITS rax
-    cmp rax,TAG_ID_NIL
-    je .finish
-
-    mov rax,rbx
-    UNTAG_REG rax
-    mov rdx,[rax]
-    ; verify char
-    mov r9,rdx
-    GET_TAG_BITS r9
-    cmp r9,TAG_ID_CHAR
-    jne type_error
-    UNTAG_REG rdx
-    mov [r8+rcx],dl
-    inc rcx
-    mov rbx,[rax+8]
-    jmp .copy
-.finish:
-    mov byte [r8+rcx],0
-    mov rax,r8
-    TAG_STRING_REG rax
-    ret
-
-
-
-;; Convert a numeric value to an integer
-FUNC fn_sys_int
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_INTEGER
-    jz .from_int
-    cmp rax, TAG_ID_FLOAT
-    jz .from_float
-    cmp rax, TAG_ID_CHAR
-    jz .from_char
-    jmp .return_zero
-.from_int:
-    mov rax, rdi
-    ret
-.from_float:
-    UNTAG_REG rdi         ; untag
-    movq xmm0, [rdi]      ; load
-    cvttsd2si rax, xmm0   ; truncate
-    TAG_INTEGER_REG rax   ; tag
-    ret
-.from_char:
-    UNTAG_REG rdi
-    mov rax, rdi
-    TAG_INTEGER_REG rax
-    ret
-.return_zero:
-    xor rax, rax
-    TAG_INTEGER_REG rax
-    ret
-
-
-;; isqrt
-FUNC fn_sys_isqrt
-    ;; Preserve original argument, as load_both_floats
-    ;; clobbers RSI.
-    mov rsi, rdi
-
-    ;; Converts integer(s) to doubles as necessary.
-    ;; Result is:
-    ;;    xmm0 = input
-    ;;    xmm1 = copy (ignored)
-    call load_both_floats
-
-    cvtsi2sd xmm0, rdi
-    sqrtsd xmm0, xmm0
-    cvttsd2si rax, xmm0
-
+;; Increase every time the standard library is loaded
+FUNC fn_sysMINUSstdlibMINUSloaded
+    inc qword [stdlib_loaded]
+    mov rax, [stdlib_loaded]
     TAG_INTEGER_REG rax
     ret
 
@@ -2088,9 +2056,23 @@ FUNC fn_sys_mkdir
     TAG_INTEGER_REG rax
     ret
 .failure:
-    xor rax,rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
+
+
+;; A nil becomes 1, anything else becomes nil.
+FUNC fn_sys_not
+    mov rax, rdi
+    GET_TAG_BITS rax
+    cmp rax, TAG_ID_NIL
+    jz .nil
+    STORE_NIL_REG rax
+    ret
+.nil:
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+
 
 
 ;; Get milliseconds since epoc
@@ -2115,21 +2097,6 @@ FUNC fn_sys_now
     add rsp, 16                  ; Free stack space
 
     ; RAX now contains milliseconds since the Unix epoch
-    TAG_INTEGER_REG rax
-    ret
-
-
-;; A nil becomes 1, anything else becomes nil.
-FUNC fn_sys_not
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_NIL
-    jz .nil
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-.nil:
-    mov rax, 1
     TAG_INTEGER_REG rax
     ret
 
@@ -2280,15 +2247,13 @@ FUNC fn_sys_package
     TAG_STRING_REG rax
     ret
 .not_found:
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
 ;; Return a list of all embedded package names.
 FUNC fn_sys_packages
-    xor r13, r13
-    TAG_NIL_REG r13
+    STORE_NIL_REG r13          ; list head
     mov rcx, asset_count
     test rcx, rcx
     jz .done
@@ -2366,8 +2331,101 @@ FUNC fn_sys_rmdir
     TAG_INTEGER_REG rax
     ret
 .failure:
-    xor rax,rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
+    ret
+
+
+;; system helper
+FUNC fn_sys_run
+    mov rbx, rdi               ; type check
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    mov rbx, rsi               ; type check
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+
+    mov r12, rdi            ; command
+    mov r13, rsi            ; output filename
+
+    mov eax, SYS_fork
+    syscall
+    test rax, rax
+    js .error
+    jz .child
+
+.parent:
+    mov r14, rax            ; child pid
+    sub rsp, 16
+    mov edi, r14d           ; pid
+    mov rsi, rsp            ; &status
+    xor edx, edx            ; options = 0
+    xor r10, r10            ; rusage = NULL
+    mov eax, SYS_wait4
+    syscall
+
+    mov eax, [rsp]          ; exit code
+    and eax, 0xff00
+    shr eax, 8
+
+    add rsp, 16
+    TAG_INTEGER_REG rax
+    ret
+
+.child:
+    mov eax, SYS_open
+    mov rdi, r13
+    mov esi, 577            ; O_WRONLY|O_CREAT|O_TRUNC
+    mov edx, 0600o
+    syscall
+
+    test rax, rax
+    js .child_fail
+
+    mov r14, rax            ; fd
+
+    mov eax, SYS_dup2       ; STDOUT
+    mov rdi, r14
+    mov esi, 1
+    syscall
+
+    mov eax, SYS_dup2       ; STDERR
+    mov rdi, r14
+    mov esi, 2
+    syscall
+
+    mov eax, SYS_close
+    mov rdi, r14
+    syscall
+
+    ;;
+    ;; argv[] = { "/bin/sh", "-c", command, NULL }
+    ;;
+    sub rsp, 32
+    lea rax, [rel shell_path]
+    mov [rsp], rax
+    lea rax, [rel dash_c]
+    mov [rsp+8], rax
+    mov [rsp+16], r12
+    mov qword [rsp+24], 0
+
+    mov eax, SYS_exec
+    lea rdi, [rel shell_path]
+    mov rsi, rsp
+    mov rdx, [rel envp_ptr]
+    syscall
+
+.child_fail:
+    mov edi, 127
+    mov eax, SYS_exit
+    syscall
+
+.error:
+    STORE_NIL_REG rax
     ret
 
 
@@ -2402,8 +2460,7 @@ FUNC fn_sys_split
     jmp .find
 
 .not_found:                   ; separator not found in string -> nil
-    xor rax, rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 .found:
@@ -2470,8 +2527,7 @@ FUNC fn_sys_split
     TAG_STRING_REG rax
     mov r11, rax
 
-    xor rax, rax                ; right
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax                ; right
     push rax
     mov rax, 16                 ; allocate 16 bytes
     mov rbx, TAG_ID_CONS
@@ -2578,8 +2634,7 @@ FUNC fn_sys_stat
     xor edx,edx                        ; unknown -> regular file
 
 .type_done:
-    xor r13,r13                ; create nil for end of list
-    TAG_NIL_REG r13
+    STORE_NIL_REG r13               ; list tail
 
     mov eax,ecx                ; add mode
     and eax,0777o
@@ -2606,8 +2661,7 @@ FUNC fn_sys_stat
 
 .failure:
     add rsp, 160               ; restore stack
-    xor rax,rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -2619,95 +2673,54 @@ FUNC fn_sys_stdlib
 
 ;; join the two given strings and return a new one.
 FUNC fn_sys_strcat
-    mov rbx, rdi            ; type-check arg1: str
+    mov rbx, rdi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
     jne type_error
-    mov rbx, rsi            ; type-check arg2: str
+
+    mov rbx, rsi
     GET_TAG_BITS rbx
     cmp rbx, TAG_ID_STRING
     jne type_error
 
     UNTAG_REG rdi
     UNTAG_REG rsi
-    push rdi
-    push rsi
 
-    mov rax, rdi
-.len1:
-    cmp byte [rax],0
-    je .len1_done
+    push rdi                ; preserve lhs
+    push rsi                ; preserve rhs
+
+    ; len(lhs)
+    call strlen
+    mov r8, rax
+
+    ; len(rhs)
+    mov rdi, rsi
+    call strlen
+    mov r9, rax
+
+    ; allocate len1+len2+1
+    mov rax, r8
+    add rax, r9
     inc rax
-    jmp .len1
-.len1_done:
-    sub rax,rdi
-    mov r8,rax         ; r8 to save strlen(a)
 
-    mov rax,rsi
-.len2:
-    cmp byte [rax],0
-    je .len2_done
-    inc rax
-    jmp .len2
-.len2_done:
-    sub rax,rsi
-    mov r9,rax         ; r9 to save strlen(b)
-
-    ; allocate
-    mov rcx,r8
-    add rcx,r9
-    inc rcx                  ; +1 for '\0'
-    mov rax, rcx             ; size in rax
     mov rbx, TAG_ID_STRING
-    call alloc               ; make the allocation
+    call alloc
 
-    mov rdx,rax              ; destination
-    pop rsi                  ; restore strings
-    pop rdi
+    mov rdx, rax            ; destination
 
-    call strcpy              ; copy first string
+    pop rsi                 ; restore rhs
+    pop rdi                 ; restore lhs
 
-    mov rdi, rsi             ; copy second string
-    call strcpy
+    call strcpy             ; copies lhs, advances RDX
 
-.done:                       ; terminate and return
+    mov rdi, rsi
+    call strcpy             ; copies rhs, advances RDX
+
     mov byte [rdx],0
+
     TAG_STRING_REG rax
     ret
 
-
-
-;; Return a heap-allocated copy of the given string
-FUNC fn_sys_strdup
-    mov rbx, rdi            ; type-check arg1: str
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-    UNTAG_REG rdi
-
-    push rdi
-    call strlen              ; str is already in RDI, result in RAX
-    inc rax                  ; Add one for the NULL
-
-    mov rbx, TAG_ID_STRING
-    call alloc               ; make the allocation
-
-    mov rdx,rax              ; destination
-    pop rdi
-
-    call strcpy              ; Copy
-
-    mov byte [rdx],0         ; NULL terminate
-    TAG_STRING_REG rax
-    ret
-
-
-;; Increase every time the standard library is loaded
-FUNC fn_sysMINUSstdlibMINUSloaded
-     inc qword [stdlib_loaded]
-     mov rax, [stdlib_loaded]
-     TAG_INTEGER_REG rax
-     ret
 
 ;; Compare the two specified strings.
 FUNC fn_sys_strcmp
@@ -2738,6 +2751,32 @@ FUNC fn_sys_strcmp
 .strcmp_done:
     movsx rax, al            ; Truncate, but keep the sign
     TAG_INTEGER_REG rax
+    ret
+
+
+q
+;; Return a heap-allocated copy of the given string
+FUNC fn_sys_strdup
+    mov rbx, rdi            ; type-check arg1: str
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    UNTAG_REG rdi
+
+    push rdi
+    call strlen              ; str is already in RDI, result in RAX
+    inc rax                  ; Add one for the NULL
+
+    mov rbx, TAG_ID_STRING
+    call alloc               ; make the allocation
+
+    mov rdx,rax              ; destination
+    pop rdi
+
+    call strcpy              ; Copy
+
+    mov byte [rdx],0         ; NULL terminate
+    TAG_STRING_REG rax
     ret
 
 
@@ -2816,6 +2855,21 @@ FUNC fn_sys_string
     jmp .copy_str_return       ; copy the resulting string into a new allocation
 
 
+;; Find the length of the given string.
+FUNC fn_sys_strlen
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    call strlen
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+
 FUNC fn_sys_substr
     mov rbx, rdi            ; type-check arg1
     GET_TAG_BITS rbx
@@ -2884,113 +2938,6 @@ FUNC fn_sys_substr
     TAG_STRING_REG rax
     ret
 
-;; Find the length of the given string.
-FUNC fn_sys_strlen
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-    call strlen
-    TAG_INTEGER_REG rax
-    ret
-
-
-;; system helper
-FUNC fn_sys_run
-    mov rbx, rdi               ; type check
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-    mov rbx, rsi               ; type check
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-
-    mov r12, rdi            ; command
-    mov r13, rsi            ; output filename
-
-    mov eax, SYS_fork
-    syscall
-    test rax, rax
-    js .error
-    jz .child
-
-.parent:
-    mov r14, rax            ; child pid
-    sub rsp, 16
-    mov edi, r14d           ; pid
-    mov rsi, rsp            ; &status
-    xor edx, edx            ; options = 0
-    xor r10, r10            ; rusage = NULL
-    mov eax, SYS_wait4
-    syscall
-
-    mov eax, [rsp]          ; exit code
-    and eax, 0xff00
-    shr eax, 8
-
-    add rsp, 16
-    TAG_INTEGER_REG rax
-    ret
-
-.child:
-    mov eax, SYS_open
-    mov rdi, r13
-    mov esi, 577            ; O_WRONLY|O_CREAT|O_TRUNC
-    mov edx, 0600o
-    syscall
-
-    test rax, rax
-    js .child_fail
-
-    mov r14, rax            ; fd
-
-    mov eax, SYS_dup2       ; STDOUT
-    mov rdi, r14
-    mov esi, 1
-    syscall
-
-    mov eax, SYS_dup2       ; STDERR
-    mov rdi, r14
-    mov esi, 2
-    syscall
-
-    mov eax, SYS_close
-    mov rdi, r14
-    syscall
-
-    ;;
-    ;; argv[] = { "/bin/sh", "-c", command, NULL }
-    ;;
-    sub rsp, 32
-    lea rax, [rel shell_path]
-    mov [rsp], rax
-    lea rax, [rel dash_c]
-    mov [rsp+8], rax
-    mov [rsp+16], r12
-    mov qword [rsp+24], 0
-
-    mov eax, SYS_exec
-    lea rdi, [rel shell_path]
-    mov rsi, rsp
-    mov rdx, [rel envp_ptr]
-    syscall
-
-.child_fail:
-    mov edi, 127
-    mov eax, SYS_exit
-    syscall
-
-.error:
-    xor rax, rax
-    TAG_NIL_REG rax
-    ret
-
 
 ;; Delete the given file.
 FUNC fn_sys_unlink
@@ -3007,8 +2954,7 @@ FUNC fn_sys_unlink
     TAG_INTEGER_REG rax
     ret
 .failure:
-    xor rax,rax
-    TAG_NIL_REG rax
+    STORE_NIL_REG rax
     ret
 
 
@@ -3055,6 +3001,21 @@ type_error:
 
 
 
+section .text.stack_limit,"ax",@progbits
+
+;;
+;; This function is called with a couple of preserved registers
+;; on the stack, but all things considered we can ignore that
+;; as we're going to terminate execution afterwards.
+;;
+stack_limit:
+    mov rdi, stack_error_msg             ; show the error
+    TAG_STRING_REG rdi
+    call fn_printstr
+    mov rdi, 1                           ; exit-code
+    jmp fn_exit
+
+
 section .data
 
 ;; used by sys-heap-dump
@@ -3070,74 +3031,74 @@ type_table:
 
 ;; Also used by gc-heap-dump
 tab_char:
-   db 9
+    db 9
 newline:
-   db 10
+    db 10
 type_char:
-   db '?'
+    db '?'
 
 
 ;; used by fn_string
 align 16
 empty_str:
-     db 0x00
+    db 0x00
 
 ;; used by fn_string
 align 16
 nil_str:
-     db `<nil>`
-     db 0x00
+    db `<nil>`
+    db 0x00
 
 ;; error message for setNth
 align 16
 out_of_range_msg:
-        db `Out of bounds access.  Aborted inside `
-        db 00
+    db `Out of bounds access.  Aborted inside `
+    db 00
 
 ;; error message for heap exhaustion
 align 16
 heap_error_msg:
-        db `Heap exhausted! Aborted inside `
-        db 00
+    db `Heap exhausted! Aborted inside `
+    db 00
 
 ;; stack exhastued
 align 16
 stack_error_msg:
-        db `Stack overflow, run 'ulimit -s unlimited' and try again!\n`
-        db 00
+    db `Stack overflow, run 'ulimit -s unlimited' and try again!\n`
+    db 00
 
 ;; error message for type-errors
 align 16
 type_error_msg:
-        db `Type error! Aborted inside `
-        db 00
+    db `Type error! Aborted inside `
+    db 00
 
 ;; used by fn_printfloat
 align 16
 million:
-        dq 1000000.0
+    dq 1000000.0
 
 ;; used by fn_printfloat
 align 16
 minusmask:
-        dq 0x8000000000000000
+    dq 0x8000000000000000
 
 ;; used by fn_printfloat
 align 16
 inf_msg:
-        db "+Inf"
+    db "+Inf"
 inf_msg_end:
 
 ;; used by fn_printfloat
 align 16
 minus_inf_msg:
-        db "-Inf"
+    db "-Inf"
 minus_inf_msg_end:
 
 ;; used by fn_printfloat
 align 16
 nan_msg:
-        db "NaN"
+    db "NaN"
 nan_msg_end:
 
 ;; Used by sys_run
@@ -3167,7 +3128,10 @@ random_buffer_end:
 ;; zero section
 section .bss
 
-;; How many times has our standard library been loaded
+;; Singleton: How many times has our standard library been loaded.
+;;
+;; Updated by the function (sys-stdlib-loaded), and used only
+;; to allow inception to detect nested execution.
 stdlib_loaded:
     resq 1
 
@@ -3217,6 +3181,7 @@ gc_saved_rdi:
 ;; then we save their updated contents here.
 gc_saved_rsi:
     resq 1
+
 ;;
 ;; Active heap (allocator uses these)
 ;;
@@ -3299,6 +3264,54 @@ section .text
 
 
 ;;
+;; This function is called by our (cons..) primitive.
+;;
+;; Decide if we should trigger garbage collection, and do
+;; so if we should.
+;;
+possibly_trigger_gc:
+
+    push rsi                        ; Preserve these registers so "(explode..)" "(environment .." etc
+    push rdi                        ; are safe when we sometimes call GC
+    push rdx
+    push rcx
+    push rbx
+    push rax
+
+    mov rax, [alloc_count]
+    cmp rax, 64000                  ; Bill Gate's constant
+
+    jle .ignore_gc
+    mov [gc_stack_base], rbp        ; save caller's rbp (we have no prologue, so rbp is still theirs)
+    mov qword [gc_forward_regs], 1  ; forward RSI and RDI
+
+    mov [gc_saved_rdi],rdi          ; register value to be forwarded
+    mov [gc_saved_rsi],rsi          ; register value to be forwarded.
+
+    call gc_collect
+
+    pop rax                         ; restore registers but ensure we have
+    pop rbx                         ; updated forwarded registers for arg 1&2.
+    pop rcx
+    pop rdx
+    pop rdi
+    pop rsi
+    mov rdi, [gc_saved_rdi]         ; updated value
+    mov rsi, [gc_saved_rsi]         ; updated value
+    ret
+
+.ignore_gc:
+    pop rax
+    pop rbx
+    pop rcx
+    pop rdx
+    pop rdi
+    pop rsi
+.gc_over:
+    ret
+
+
+;;
 ;; Forward a Lisp value into the to-space (i.e. "the other heap").
 ;;
 forward:
@@ -3319,8 +3332,7 @@ forward:
     UNTAG_REG rax
 
     ;
-    ; We have static string/floats within our
-    ; static area.
+    ; We have static string/floats within our static area.
     ;
     ; We exclude those by making sure we only forward items which are located
     ; within the heap area - this preserves our stdlib too as a happy accident (ha!)
@@ -3447,7 +3459,7 @@ scan_object:
 
 ;; scan a cons cell - forwarding both contents.
 .scan_cons:
-    mov     rax, [rsi + OBJ_PAYLOAD]    ; forward CAR
+    mov     rax, [rsi + OBJ_PAYLOAD]       ; forward CAR
     push rsi
     call    forward
     pop rsi
@@ -3463,10 +3475,17 @@ scan_object:
     mov     [gc_scan], rsi
     ret
 
-;; forward copied values.
+;; forward copied values - lambdas look like this:
+;;
+;;  +0  code pointer
+;;  +8   n captures
+;; +16  capture #1
+;; +24  capture #2
+;; ...
+;;
 .scan_lambda:
-    mov     rcx, [rsi + OBJ_PAYLOAD + 8]
-    lea     rdx, [rsi + OBJ_PAYLOAD + 16]
+    mov     rcx, [rsi + OBJ_PAYLOAD + 8]  ; count of captured variables.
+    lea     rdx, [rsi + OBJ_PAYLOAD + 16] ; the start of them
 
 .loop:
     test    rcx, rcx
@@ -3493,9 +3512,15 @@ scan_object:
 
 
 ;;
-;; Minimal garbage collector.
+;; Minimal "stop and copy" garbage collector.
 ;;
-;; Copies only objects directly referenced by globals.
+;; We consider three roots:
+;;
+;;  1. Global Variables
+;;
+;;  2. Stack-Local parameters.
+;;
+;;  3. The contents of the registers RSI & RDI (optional).
 ;;
 gc_collect:
 
@@ -3503,9 +3528,9 @@ gc_collect:
     push rsi                        ; Print a caret when we GC
     push rdi
     push rdx
-     mov rdi,'^'
-     TAG_INTEGER_REG rdi
-     call fn_sys_putc
+    mov rdi,'^'
+    TAG_INTEGER_REG rdi
+    call fn_sys_putc
     pop rdx
     pop rdi
     pop rsi
@@ -3518,14 +3543,14 @@ gc_collect:
     push rsi                        ; Print a ! when GC was disabled
     push rdi
     push rdx
-     mov rdi,'!'
-     TAG_INTEGER_REG rdi
-     call fn_sys_putc
+    mov rdi,'!'
+    TAG_INTEGER_REG rdi
+    call fn_sys_putc
     pop rdx
     pop rdi
     pop rsi
 %endif
-     ret
+    ret
 
 .run_gc:
     mov qword [alloc_count], 0      ; reset the count of allocations now GC is running/has run.
@@ -3708,7 +3733,7 @@ section .data
 {{ range .StringTable }}
 align 16
 {{ .Name }}:
-        db `{{ .Value }}`, 0x00
+    db `{{ .Value }}`, 0x00
 {{end}}
 
 
@@ -3722,7 +3747,7 @@ section .data
 {{ range .FloatTable }}
 align 16
 {{ .Name }}:
-        dq {{ .Value }}
+    dq {{ .Value }}
 {{end}}
 
 
@@ -3733,7 +3758,7 @@ align 16
 globals_start:
 {{ range .Globals }}
 {{ . }}:
-        dq 0x0000
+    dq 0x0000
 {{end}}
 globals_end:
 
@@ -3762,10 +3787,10 @@ section .rodata.packages,"aw",@progbits
 ;; Names and data for each embedded file entry
 {{ range $i, $e := .Assets }}
 align 16
- asset_{{ $i }}_name: db "{{ .Name }}", 0
- asset_{{ $i }}_data: db {{ .Data }}
- db 0x00
- asset_{{ $i }}_size: equ $ - asset_{{ $i }}_data
+    asset_{{ $i }}_name: db "{{ .Name }}", 0
+    asset_{{ $i }}_data: db {{ .Data }}
+    db 0x00
+    asset_{{ $i }}_size: equ $ - asset_{{ $i }}_data
 {{ end }}
 
 
@@ -3776,9 +3801,9 @@ align 16
 align 16
 asset_table:
 {{ range $i, $e := .Assets }}
-  dq asset_{{ $i }}_name
-  dq asset_{{ $i }}_data
-  dq asset_{{ $i }}_size
+    dq asset_{{ $i }}_name
+    dq asset_{{ $i }}_data
+    dq asset_{{ $i }}_size
 {{ end }}
 
 ;; The count of assets
