@@ -3128,7 +3128,10 @@ random_buffer_end:
 ;; zero section
 section .bss
 
-;; How many times has our standard library been loaded
+;; Singleton: How many times has our standard library been loaded.
+;;
+;; Updated by the function (sys-stdlib-loaded), and used only
+;; to allow inception to detect nested execution.
 stdlib_loaded:
     resq 1
 
@@ -3178,6 +3181,7 @@ gc_saved_rdi:
 ;; then we save their updated contents here.
 gc_saved_rsi:
     resq 1
+
 ;;
 ;; Active heap (allocator uses these)
 ;;
@@ -3328,8 +3332,7 @@ forward:
     UNTAG_REG rax
 
     ;
-    ; We have static string/floats within our
-    ; static area.
+    ; We have static string/floats within our static area.
     ;
     ; We exclude those by making sure we only forward items which are located
     ; within the heap area - this preserves our stdlib too as a happy accident (ha!)
@@ -3456,7 +3459,7 @@ scan_object:
 
 ;; scan a cons cell - forwarding both contents.
 .scan_cons:
-    mov     rax, [rsi + OBJ_PAYLOAD]    ; forward CAR
+    mov     rax, [rsi + OBJ_PAYLOAD]       ; forward CAR
     push rsi
     call    forward
     pop rsi
@@ -3472,10 +3475,17 @@ scan_object:
     mov     [gc_scan], rsi
     ret
 
-;; forward copied values.
+;; forward copied values - lambdas look like this:
+;;
+;;  +0  code pointer
+;;  +8   n captures
+;; +16  capture #1
+;; +24  capture #2
+;; ...
+;;
 .scan_lambda:
-    mov     rcx, [rsi + OBJ_PAYLOAD + 8]
-    lea     rdx, [rsi + OBJ_PAYLOAD + 16]
+    mov     rcx, [rsi + OBJ_PAYLOAD + 8]  ; count of captured variables.
+    lea     rdx, [rsi + OBJ_PAYLOAD + 16] ; the start of them
 
 .loop:
     test    rcx, rcx
@@ -3502,9 +3512,15 @@ scan_object:
 
 
 ;;
-;; Minimal garbage collector.
+;; Minimal "stop and copy" garbage collector.
 ;;
-;; Copies only objects directly referenced by globals.
+;; We consider three roots:
+;;
+;;  1. Global Variables
+;;
+;;  2. Stack-Local parameters.
+;;
+;;  3. The contents of the registers RSI & RDI (optional).
 ;;
 gc_collect:
 
