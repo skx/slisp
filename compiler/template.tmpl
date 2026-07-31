@@ -264,10 +264,12 @@ TAG_ID_NIL     equ 0b111  ; 7
 
 
 ;;; 2. User-defined functions (defuns)
+
 {{ .Defuns }}
 
 
 ;;; 3. User-defined lambdas
+
 {{ .Lambdas }}
 
 
@@ -385,6 +387,12 @@ _start:
 
 section .text.fn_init_globals,"ax",@progbits
 
+;;
+;; This is where the initialization of the global variables
+;; is inserted.
+;;
+;; This is called just before the user's (defun main..) code
+;;
 fn_init_globals:
     push rbp
     mov rbp, rsp
@@ -497,6 +505,7 @@ return_float:
     TAG_FLOAT_REG rax       ; type
     ret                     ; return
 
+
 ;; rdi points to string, return result in rax
 strlen:
     xor rax, rax
@@ -507,6 +516,7 @@ strlen:
     jmp .loop
 .done:
     ret
+
 
 ;; copy string from RDI into RDX, return RDX pointing after the copy
 strcpy:
@@ -696,7 +706,6 @@ plus_integer:
     ret
 
 
-
 ;; -
 FUNC fn_sys_minus
     call are_both_integers
@@ -713,7 +722,6 @@ integer_minus:
     mov rax, rdi
     TAG_INTEGER_REG rax
     ret
-
 
 
 ;; /
@@ -735,7 +743,6 @@ integer_divide:
     ret
 
 
-
 ;; *
 FUNC fn_sys_multiply
     call are_both_integers
@@ -754,7 +761,6 @@ integer_multiply:
     mov rax, rbx
     TAG_INTEGER_REG rax
     ret
-
 
 
 ;; %
@@ -839,7 +845,6 @@ FUNC fn_sys_EQUALS
     ret
 
 
-
 ;; <= - Work with either integers, floats, or both.
 ;;
 ;; Note: The result of this function is inverted for ">".
@@ -868,7 +873,6 @@ lte_integer:
     ret
 
 
-
 ;; >=
 FUNC fn_sys_GTEQUALS
     call are_both_integers
@@ -893,14 +897,12 @@ gte_integer:
     ret
 
 
-
 ;; < - this is the inverse of >=
 FUNC fn_sys_LT
     call fn_GTEQUALS
     mov rdi, rax
     call fn_BANG
     ret
-
 
 
 ;; > - this is the inverse of <=
@@ -927,7 +929,6 @@ FUNC fn_sys_newline
     syscall
     STORE_NIL_REG rax
     ret
-
 
 
 ;; Print a float
@@ -1193,236 +1194,6 @@ fn_printstr:
 ;;
 ;; End communique.
 ;;
-
-;; Return the internal count the allocations.
-FUNC fn_sysMINUSheapMINUSallocs
-    mov rax, [alloc_count]
-    TAG_INTEGER_REG rax
-    ret
-
-;; return the size of the current heap, in bytes.
-FUNC fn_sysMINUSheapMINUSbytes
-    mov rax, [alloc_ptr]
-    sub rax, [from_space]
-    TAG_INTEGER_REG rax
-    ret
-
-
-;; Return a list describing every heap object.
-FUNC fn_sysMINUSheapMINUSdata
-    mov     r12, [from_space]
-    mov     r13, [alloc_ptr]
-
-    STORE_NIL_REG r15
-
-.loop:
-    cmp     r12, r13
-    jae     .reverse
-
-    lea     r14, [r12 + OBJ_PAYLOAD]  ; object
-    shl     r14, 3
-    mov     eax, [r12 + OBJ_TYPE]
-    or      r14, rax
-
-    mov     rbx, [r12 + OBJ_SIZE] ; size
-    shl     rbx, 3
-
-    mov     rcx, r12          ; offset
-    sub     rcx, [from_space]
-    shl     rcx, 3
-
-    mov     rdi, r14          ; object
-    STORE_NIL_REG rsi
-
-    call    fn_sys_cons_NOGC  ; No GC during this
-    mov     r14, rax
-
-    mov     rdi, rbx          ; size
-    mov     rsi, r14
-    call    fn_sys_cons_NOGC  ; No GC during this
-    mov     r14, rax
-
-    mov     rdi, rcx          ; offset
-    mov     rsi, r14
-    call    fn_sys_cons_NOGC  ; No GC during this
-    mov     r14, rax
-
-    mov     rdi, r14          ; prepend
-    mov     rsi, r15
-    call    fn_sys_cons_NOGC  ; No GC during this
-    mov     r15, rax
-
-    mov     rax, [r12 + OBJ_SIZE]  ; next object
-    add     r12, rax
-    jmp     .loop
-
-.reverse:
-    STORE_NIL_REG r14
-
-.rev_loop:
-    mov     rax, r15
-    mov     rcx, rax
-    and     rcx, 7
-    cmp     rcx, TAG_ID_NIL
-    je      .done
-
-    mov     rax, r15
-    UNTAG_REG rax
-    mov     rdi, [rax]           ; car
-    mov     r15, [rax+8]         ; cdr
-    mov     rsi, r14
-    call    fn_sys_cons_NOGC     ; No GC during this
-    mov     r14, rax
-    jmp     .rev_loop
-.done:
-    mov     rax, r14
-    ret
-
-
-;; Dump heap contents.
-FUNC fn_sysMINUSheapMINUSdump
-    mov     rcx, [from_space]      ; current object
-    mov     rdx, [alloc_ptr]       ; end of allocated objects
-
-.loop:
-    cmp     rcx, rdx
-    jae     .done
-
-    mov     rax, rcx                      ; get offset
-    sub     rax, [from_space]
-    TAG_INTEGER_REG rax
-
-    push    rcx                           ; print offset
-    push    rdx
-    mov     rdi, rax
-    call    fn_printint
-    pop     rdx
-    pop     rcx
-
-    push rcx
-    push rdx
-    mov     eax, 1                        ; tab
-    mov     edi, 1
-    lea     rsi, [tab_char]
-    mov     edx, 1
-    syscall
-    pop rdx
-    pop rcx
-
-    mov     rax, [rcx + OBJ_SIZE]         ; get size
-    TAG_INTEGER_REG rax
-
-    push    rcx                           ; print size
-    push    rdx
-    mov     rdi, rax
-    call    fn_printint
-    pop     rdx
-    pop     rcx
-
-    push    rcx
-    push    rdx
-    mov     eax, 1                        ; tab
-    mov     edi, 1
-    lea     rsi, [tab_char]
-    mov     edx, 1
-    syscall
-    pop     rdx
-    pop     rcx
-
-    mov     eax, [rcx + OBJ_TYPE]         ; get type
-    movzx   eax, byte [type_table + rax]
-    mov     [type_char], al
-
-    push    rcx
-    push    rdx
-    mov     eax, 1                ; print type
-    mov     edi, 1
-    lea     rsi, [type_char]
-    mov     edx, 1
-    syscall
-    pop rdx
-    pop rcx
-
-
-    push    rcx                      ; tab
-    push    rdx
-    mov     eax, 1
-    mov     edi, 1
-    lea     rsi, [tab_char]
-    mov     edx, 1
-    syscall
-    pop     rdx
-    pop     rcx
-
-    mov     eax, [rcx + OBJ_TYPE]      ; is it a string?
-    cmp     eax, TAG_ID_STRING
-    jne     .not_string
-
-    push    rcx                        ; then print the string
-    push    rdx
-    lea     rdi, [rcx + OBJ_PAYLOAD]
-    TAG_STRING_REG rdi
-    call    fn_printstr
-    pop     rdx
-    pop     rcx
-
-.not_string:
-
-    cmp     eax, TAG_ID_FLOAT          ; is it a float?
-    jne     .not_float
-
-    push    rcx                        ; now print the float
-    push    rdx
-    lea     rdi, [rcx + OBJ_PAYLOAD]
-    TAG_FLOAT_REG rdi
-    call    fn_printfloat
-    pop     rdx
-    pop     rcx
-
-.not_float:                            ; lambda/cons - neither of which are printable
-    push rcx
-    push rdx
-    mov     eax, 1                     ; newline
-    mov     edi, 1
-    lea     rsi, [newline]
-    mov     edx, 1
-    syscall
-    pop rdx
-    pop rcx
-
-    mov     r8, [rcx + OBJ_SIZE]  ; repeat
-    add     rcx, r8
-
-    jmp     .loop
-
-.done:
-    STORE_NIL_REG rax
-    ret
-
-
-;; Return the number of objects stored upon our heap.
-FUNC fn_sysMINUSheapMINUSobjects
-    mov rcx, [from_space]   ; rcx = current object
-    mov rdx, [alloc_ptr]    ; rdx = end of allocated objects
-    xor rax, rax
-.loop:
-    cmp rcx, rdx
-    jae .done
-    inc rax
-    mov rbx, [rcx]          ; object size
-    add rcx, rbx            ; advance to next object
-    jmp .loop
-.done:
-    TAG_INTEGER_REG rax
-    ret
-
-;; Force a garbage-collection to happen.
-FUNC fn_sysMINUSgc
-    mov [gc_stack_base], rbp    ; save caller's rbp (we have no prologue, so rbp is still theirs)
-    mov qword [gc_forward_regs], 0
-    call gc_collect
-    STORE_NIL_REG rax
-    ret
 
 
 ;; Get the first item in the cons cell.
@@ -2028,6 +1799,247 @@ FUNC fn_sys_isqrt
     ret
 
 
+
+;; Force a garbage-collection to happen.
+FUNC fn_sysMINUSgc
+    mov [gc_stack_base], rbp    ; save caller's rbp (we have no prologue, so rbp is still theirs)
+    mov qword [gc_forward_regs], 0
+    call gc_collect
+    STORE_NIL_REG rax
+    ret
+
+
+;; Return the internal count the allocations.
+FUNC fn_sysMINUSheapMINUSallocs
+    mov rax, [alloc_count]
+    TAG_INTEGER_REG rax
+    ret
+
+;; return the size of the current heap, in bytes.
+FUNC fn_sysMINUSheapMINUSbytes
+    mov rax, [alloc_ptr]
+    sub rax, [from_space]
+    TAG_INTEGER_REG rax
+    ret
+
+
+;; Return a list describing every heap object.
+FUNC fn_sysMINUSheapMINUSdata
+    mov     r12, [from_space]
+    mov     r13, [alloc_ptr]
+
+    STORE_NIL_REG r15
+
+.loop:
+    cmp     r12, r13
+    jae     .reverse
+
+    lea     r14, [r12 + OBJ_PAYLOAD]  ; object
+    shl     r14, 3
+    mov     eax, [r12 + OBJ_TYPE]
+    or      r14, rax
+
+    mov     rbx, [r12 + OBJ_SIZE] ; size
+    shl     rbx, 3
+
+    mov     rcx, r12          ; offset
+    sub     rcx, [from_space]
+    shl     rcx, 3
+
+    mov     rdi, r14          ; object
+    STORE_NIL_REG rsi
+
+    call    fn_sys_cons_NOGC  ; No GC during this
+    mov     r14, rax
+
+    mov     rdi, rbx          ; size
+    mov     rsi, r14
+    call    fn_sys_cons_NOGC  ; No GC during this
+    mov     r14, rax
+
+    mov     rdi, rcx          ; offset
+    mov     rsi, r14
+    call    fn_sys_cons_NOGC  ; No GC during this
+    mov     r14, rax
+
+    mov     rdi, r14          ; prepend
+    mov     rsi, r15
+    call    fn_sys_cons_NOGC  ; No GC during this
+    mov     r15, rax
+
+    mov     rax, [r12 + OBJ_SIZE]  ; next object
+    add     r12, rax
+    jmp     .loop
+
+.reverse:
+    STORE_NIL_REG r14
+
+.rev_loop:
+    mov     rax, r15
+    mov     rcx, rax
+    and     rcx, 7
+    cmp     rcx, TAG_ID_NIL
+    je      .done
+
+    mov     rax, r15
+    UNTAG_REG rax
+    mov     rdi, [rax]           ; car
+    mov     r15, [rax+8]         ; cdr
+    mov     rsi, r14
+    call    fn_sys_cons_NOGC     ; No GC during this
+    mov     r14, rax
+    jmp     .rev_loop
+.done:
+    mov     rax, r14
+    ret
+
+
+;; Dump heap contents.
+FUNC fn_sysMINUSheapMINUSdump
+    mov     rcx, [from_space]      ; current object
+    mov     rdx, [alloc_ptr]       ; end of allocated objects
+
+.loop:
+    cmp     rcx, rdx
+    jae     .done
+
+    mov     rax, rcx                      ; get offset
+    sub     rax, [from_space]
+    TAG_INTEGER_REG rax
+
+    push    rcx                           ; print offset
+    push    rdx
+    mov     rdi, rax
+    call    fn_printint
+    pop     rdx
+    pop     rcx
+
+    push rcx
+    push rdx
+    mov     eax, 1                        ; tab
+    mov     edi, 1
+    lea     rsi, [tab_char]
+    mov     edx, 1
+    syscall
+    pop rdx
+    pop rcx
+
+    mov     rax, [rcx + OBJ_SIZE]         ; get size
+    TAG_INTEGER_REG rax
+
+    push    rcx                           ; print size
+    push    rdx
+    mov     rdi, rax
+    call    fn_printint
+    pop     rdx
+    pop     rcx
+
+    push    rcx
+    push    rdx
+    mov     eax, 1                        ; tab
+    mov     edi, 1
+    lea     rsi, [tab_char]
+    mov     edx, 1
+    syscall
+    pop     rdx
+    pop     rcx
+
+    mov     eax, [rcx + OBJ_TYPE]         ; get type
+    movzx   eax, byte [type_table + rax]
+    mov     [type_char], al
+
+    push    rcx
+    push    rdx
+    mov     eax, 1                ; print type
+    mov     edi, 1
+    lea     rsi, [type_char]
+    mov     edx, 1
+    syscall
+    pop rdx
+    pop rcx
+
+
+    push    rcx                      ; tab
+    push    rdx
+    mov     eax, 1
+    mov     edi, 1
+    lea     rsi, [tab_char]
+    mov     edx, 1
+    syscall
+    pop     rdx
+    pop     rcx
+
+    mov     eax, [rcx + OBJ_TYPE]      ; is it a string?
+    cmp     eax, TAG_ID_STRING
+    jne     .not_string
+
+    push    rcx                        ; then print the string
+    push    rdx
+    lea     rdi, [rcx + OBJ_PAYLOAD]
+    TAG_STRING_REG rdi
+    call    fn_printstr
+    pop     rdx
+    pop     rcx
+
+.not_string:
+
+    cmp     eax, TAG_ID_FLOAT          ; is it a float?
+    jne     .not_float
+
+    push    rcx                        ; now print the float
+    push    rdx
+    lea     rdi, [rcx + OBJ_PAYLOAD]
+    TAG_FLOAT_REG rdi
+    call    fn_printfloat
+    pop     rdx
+    pop     rcx
+
+.not_float:                            ; lambda/cons - neither of which are printable
+    push rcx
+    push rdx
+    mov     eax, 1                     ; newline
+    mov     edi, 1
+    lea     rsi, [newline]
+    mov     edx, 1
+    syscall
+    pop rdx
+    pop rcx
+
+    mov     r8, [rcx + OBJ_SIZE]  ; repeat
+    add     rcx, r8
+
+    jmp     .loop
+
+.done:
+    STORE_NIL_REG rax
+    ret
+
+
+;; Return the number of objects stored upon our heap.
+FUNC fn_sysMINUSheapMINUSobjects
+    mov rcx, [from_space]   ; rcx = current object
+    mov rdx, [alloc_ptr]    ; rdx = end of allocated objects
+    xor rax, rax
+.loop:
+    cmp rcx, rdx
+    jae .done
+    inc rax
+    mov rbx, [rcx]          ; object size
+    add rcx, rbx            ; advance to next object
+    jmp .loop
+.done:
+    TAG_INTEGER_REG rax
+    ret
+
+
+;; Increase every time the standard library is loaded
+FUNC fn_sysMINUSstdlibMINUSloaded
+    inc qword [stdlib_loaded]
+    mov rax, [stdlib_loaded]
+    TAG_INTEGER_REG rax
+    ret
+
+
 ;; Make a directory, mode is fixed
 FUNC fn_sys_mkdir
     mov rbx, rdi
@@ -2046,6 +2058,21 @@ FUNC fn_sys_mkdir
 .failure:
     STORE_NIL_REG rax
     ret
+
+
+;; A nil becomes 1, anything else becomes nil.
+FUNC fn_sys_not
+    mov rax, rdi
+    GET_TAG_BITS rax
+    cmp rax, TAG_ID_NIL
+    jz .nil
+    STORE_NIL_REG rax
+    ret
+.nil:
+    mov rax, 1
+    TAG_INTEGER_REG rax
+    ret
+
 
 
 ;; Get milliseconds since epoc
@@ -2070,20 +2097,6 @@ FUNC fn_sys_now
     add rsp, 16                  ; Free stack space
 
     ; RAX now contains milliseconds since the Unix epoch
-    TAG_INTEGER_REG rax
-    ret
-
-
-;; A nil becomes 1, anything else becomes nil.
-FUNC fn_sys_not
-    mov rax, rdi
-    GET_TAG_BITS rax
-    cmp rax, TAG_ID_NIL
-    jz .nil
-    STORE_NIL_REG rax
-    ret
-.nil:
-    mov rax, 1
     TAG_INTEGER_REG rax
     ret
 
@@ -2318,6 +2331,100 @@ FUNC fn_sys_rmdir
     TAG_INTEGER_REG rax
     ret
 .failure:
+    STORE_NIL_REG rax
+    ret
+
+
+;; system helper
+FUNC fn_sys_run
+    mov rbx, rdi               ; type check
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    mov rbx, rsi               ; type check
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+
+    mov r12, rdi            ; command
+    mov r13, rsi            ; output filename
+
+    mov eax, SYS_fork
+    syscall
+    test rax, rax
+    js .error
+    jz .child
+
+.parent:
+    mov r14, rax            ; child pid
+    sub rsp, 16
+    mov edi, r14d           ; pid
+    mov rsi, rsp            ; &status
+    xor edx, edx            ; options = 0
+    xor r10, r10            ; rusage = NULL
+    mov eax, SYS_wait4
+    syscall
+
+    mov eax, [rsp]          ; exit code
+    and eax, 0xff00
+    shr eax, 8
+
+    add rsp, 16
+    TAG_INTEGER_REG rax
+    ret
+
+.child:
+    mov eax, SYS_open
+    mov rdi, r13
+    mov esi, 577            ; O_WRONLY|O_CREAT|O_TRUNC
+    mov edx, 0600o
+    syscall
+
+    test rax, rax
+    js .child_fail
+
+    mov r14, rax            ; fd
+
+    mov eax, SYS_dup2       ; STDOUT
+    mov rdi, r14
+    mov esi, 1
+    syscall
+
+    mov eax, SYS_dup2       ; STDERR
+    mov rdi, r14
+    mov esi, 2
+    syscall
+
+    mov eax, SYS_close
+    mov rdi, r14
+    syscall
+
+    ;;
+    ;; argv[] = { "/bin/sh", "-c", command, NULL }
+    ;;
+    sub rsp, 32
+    lea rax, [rel shell_path]
+    mov [rsp], rax
+    lea rax, [rel dash_c]
+    mov [rsp+8], rax
+    mov [rsp+16], r12
+    mov qword [rsp+24], 0
+
+    mov eax, SYS_exec
+    lea rdi, [rel shell_path]
+    mov rsi, rsp
+    mov rdx, [rel envp_ptr]
+    syscall
+
+.child_fail:
+    mov edi, 127
+    mov eax, SYS_exit
+    syscall
+
+.error:
     STORE_NIL_REG rax
     ret
 
@@ -2615,38 +2722,6 @@ FUNC fn_sys_strcat
     ret
 
 
-;; Return a heap-allocated copy of the given string
-FUNC fn_sys_strdup
-    mov rbx, rdi            ; type-check arg1: str
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-    UNTAG_REG rdi
-
-    push rdi
-    call strlen              ; str is already in RDI, result in RAX
-    inc rax                  ; Add one for the NULL
-
-    mov rbx, TAG_ID_STRING
-    call alloc               ; make the allocation
-
-    mov rdx,rax              ; destination
-    pop rdi
-
-    call strcpy              ; Copy
-
-    mov byte [rdx],0         ; NULL terminate
-    TAG_STRING_REG rax
-    ret
-
-
-;; Increase every time the standard library is loaded
-FUNC fn_sysMINUSstdlibMINUSloaded
-    inc qword [stdlib_loaded]
-    mov rax, [stdlib_loaded]
-    TAG_INTEGER_REG rax
-    ret
-
 ;; Compare the two specified strings.
 FUNC fn_sys_strcmp
     mov rbx, rdi             ; type-check arg1
@@ -2676,6 +2751,32 @@ FUNC fn_sys_strcmp
 .strcmp_done:
     movsx rax, al            ; Truncate, but keep the sign
     TAG_INTEGER_REG rax
+    ret
+
+
+q
+;; Return a heap-allocated copy of the given string
+FUNC fn_sys_strdup
+    mov rbx, rdi            ; type-check arg1: str
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    UNTAG_REG rdi
+
+    push rdi
+    call strlen              ; str is already in RDI, result in RAX
+    inc rax                  ; Add one for the NULL
+
+    mov rbx, TAG_ID_STRING
+    call alloc               ; make the allocation
+
+    mov rdx,rax              ; destination
+    pop rdi
+
+    call strcpy              ; Copy
+
+    mov byte [rdx],0         ; NULL terminate
+    TAG_STRING_REG rax
     ret
 
 
@@ -2754,6 +2855,21 @@ FUNC fn_sys_string
     jmp .copy_str_return       ; copy the resulting string into a new allocation
 
 
+;; Find the length of the given string.
+FUNC fn_sys_strlen
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    UNTAG_REG rdi
+    call strlen
+    TAG_INTEGER_REG rax
+    ret
+
+
+
+
 FUNC fn_sys_substr
     mov rbx, rdi            ; type-check arg1
     GET_TAG_BITS rbx
@@ -2820,112 +2936,6 @@ FUNC fn_sys_substr
     mov byte [rcx], 0
     mov rax, r8            ; restore pointer to string
     TAG_STRING_REG rax
-    ret
-
-;; Find the length of the given string.
-FUNC fn_sys_strlen
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-    call strlen
-    TAG_INTEGER_REG rax
-    ret
-
-
-;; system helper
-FUNC fn_sys_run
-    mov rbx, rdi               ; type check
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-    mov rbx, rsi               ; type check
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-
-    mov r12, rdi            ; command
-    mov r13, rsi            ; output filename
-
-    mov eax, SYS_fork
-    syscall
-    test rax, rax
-    js .error
-    jz .child
-
-.parent:
-    mov r14, rax            ; child pid
-    sub rsp, 16
-    mov edi, r14d           ; pid
-    mov rsi, rsp            ; &status
-    xor edx, edx            ; options = 0
-    xor r10, r10            ; rusage = NULL
-    mov eax, SYS_wait4
-    syscall
-
-    mov eax, [rsp]          ; exit code
-    and eax, 0xff00
-    shr eax, 8
-
-    add rsp, 16
-    TAG_INTEGER_REG rax
-    ret
-
-.child:
-    mov eax, SYS_open
-    mov rdi, r13
-    mov esi, 577            ; O_WRONLY|O_CREAT|O_TRUNC
-    mov edx, 0600o
-    syscall
-
-    test rax, rax
-    js .child_fail
-
-    mov r14, rax            ; fd
-
-    mov eax, SYS_dup2       ; STDOUT
-    mov rdi, r14
-    mov esi, 1
-    syscall
-
-    mov eax, SYS_dup2       ; STDERR
-    mov rdi, r14
-    mov esi, 2
-    syscall
-
-    mov eax, SYS_close
-    mov rdi, r14
-    syscall
-
-    ;;
-    ;; argv[] = { "/bin/sh", "-c", command, NULL }
-    ;;
-    sub rsp, 32
-    lea rax, [rel shell_path]
-    mov [rsp], rax
-    lea rax, [rel dash_c]
-    mov [rsp+8], rax
-    mov [rsp+16], r12
-    mov qword [rsp+24], 0
-
-    mov eax, SYS_exec
-    lea rdi, [rel shell_path]
-    mov rsi, rsp
-    mov rdx, [rel envp_ptr]
-    syscall
-
-.child_fail:
-    mov edi, 127
-    mov eax, SYS_exit
-    syscall
-
-.error:
-    STORE_NIL_REG rax
     ret
 
 
