@@ -330,7 +330,7 @@ When our project started it used a simple bump-allocator.  That just meant reser
 
 The introduction of the `inception` lisp-interpreter, and to a lesser extent our brainfuck and nqueens programs, really made it apparent that this wasn't tenable.  Large programs would exhaust the available heap with items that were no longer referenced.
 
-To start with I did the obvious thing and made the allocation region larger, ignoring the problem.  But eventually that too became untenable.  So now I've implemented a stop & copy garbage collector, using Cheney's algorithm.   Every time our `(cons ..)` primitive is called we run the GC process if there have been more than 64,000 allocations since the previous garbage-collection ran.
+To start with I did the obvious thing and made the allocation region larger, ignoring the problem.  But eventually that too became untenable.  So now I've implemented a stop & copy garbage collector, using Cheney's algorithm.   Every time our `(cons ..)` primitive is called we check to see if we should invoke the garbage-collection process.
 
 The `(cons ..)` primitive is a lisp-fundamental, so I figure that is going to be called pretty often in user-programs, either directly or via the `(list ...)` wrapper.  But if that isn't the case you may also trigger the garbage-collection process explicitly, and see the stats via these methods:
 
@@ -356,7 +356,7 @@ The stop and copy implementation is pretty simple:
   * The `(cons ..)` primitive is the only one that is used to trigger "auto GC",  and we know `cons` can only be called with two arguments, so we only have to consider the two registers RDI & RSI.
   * TLDR; Our roots are "globals", "stack-locals", and potentially the contents of the two registers `rdi` and `rsi`.
 
-By default the garbage collection process is triggered when more than 20Mb has been allocated within our heap (which is 4Gb), but it you can adjust the threshold at runtime via the `GC_THRESHOLD` environmental variable:
+By default the garbage collection process is triggered when more than 20Mb has been allocated within our heap (which is 4Gb), but if you wish you can adjust the threshold by setting `GC_THRESHOLD` environmental variable before you execute one of the compiled binaries:
 
     GC_THRESHOLD=500000 ./foo
     GC_THRESHOLD=64M    ./foo
