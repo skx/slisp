@@ -398,8 +398,16 @@ _start:
     pop rdi
 
     call fn_main               ; Call the user's code.
+    push rax                   ; Save their exit-code
 
-    mov rdi, rax               ; exit code is the last expression
+    cmp byte [at_exit_called], 0
+    jne .exit_called
+    mov byte [at_exit_called], 1
+    call fn_at_exit            ; Call the "at_exit" function.
+
+.exit_called:
+
+    pop rdi                    ; Restore their exit code into RDI
     UNTAG_REG rdi
     mov rax, SYS_exit
     syscall
@@ -1539,6 +1547,13 @@ FUNC fn_sys_environment
 
 ;; terminate execution with the given exit-code
 FUNC fn_sys_exit
+    push rdi
+    cmp byte [at_exit_called], 0
+    jne .exit_called
+    mov byte [at_exit_called], 1
+    call fn_at_exit            ; Call the "at_exit" function.
+.exit_called:
+    pop rdi
     UNTAG_REG rdi
     mov rax, SYS_exit
     syscall
@@ -3241,6 +3256,9 @@ align 16
 dash_c:
     db "-c",0
 
+;; Avoid calling the user's at_exit funciton more than once.
+at_exit_called:
+    db 0x00
 
 ;; buffer for our random function to read into.
 ;; other functions, such as getc, newline, use it
@@ -3702,8 +3720,6 @@ gc_collect:
     ret
 
 .run_gc:
-    mov qword [alloc_count], 0      ; reset the count of allocations now GC is running/has run.
-
     ;; Initialise the destination heap.
     mov     rax, [to_space]
     mov     [gc_scan], rax

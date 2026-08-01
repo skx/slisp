@@ -1019,5 +1019,30 @@ If no length is specified return from the given start to the end of the string."
       (sys_substr str start (car len))
       (sys_substr str start (- (length str) start))))
 
+;; Declare an "at_exit" function, this is called *after* main terminates
+;;
+;; It is expected the user will override this, if they want to.
+(defun at_exit ()
+   ;; NOP
+  (if (> (length (getenv "GC_DUMP_STATS")) 0)
+      (let ((bytes (sys-heap-bytes))  ; bytes
+            (size  (lambda (n)
+                     (let ((suffix " bytes"))        ; with a suffix
+                       (when (> n 1024)
+                         (set! n (/ n 1024))
+                         (set! suffix "K"))
+                       (when (> n 1024)
+                         (set! n (/ n 1024))
+                         (set! suffix "M"))
+                       (when (> n 1024)
+                         (set! n (/ n 1024))
+                         (set! suffix "G"))
+                       (strcat (string n) suffix)))))
+
+        (println "\theap objects:" (sys-heap-objects))
+        (println "\theap size:" (size bytes) " heap-limit:" (size (sys-gc-threshold)))
+        (println "\tallocations:" (sys-heap-allocs)))))
+
+
 ;; We're loaded now.
 (defvar *stdlib* (sys-stdlib-loaded))
