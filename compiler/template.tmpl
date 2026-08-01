@@ -1934,7 +1934,7 @@ FUNC fn_sysMINUSgc
 
 ;; return the GC threshold, in bytes
 FUNC fn_sysMINUSgcMINUSthreshold
-     mov rax, [gc_threshold_bytes]
+    mov rax, [gc_threshold_bytes]
     TAG_INTEGER_REG rax
     ret
 
