@@ -284,7 +284,7 @@ That said, and as demonstrated above, the interpreter can run many of the same p
 <summary>To achieve true inception you need to run the interpreter with itself</summary>
 <br>
 
-You can of course use the interpreter to run itself, which provides true inception!  You can then go on to run a third second program, using the nested interpreter:
+You can of course use the interpreter to run itself, which provides true inception!  You can then go on to run a third program, using the nested interpreter:
 
      $ ./inception inception.lisp --repl
      Welcome to lisp in slisp!
