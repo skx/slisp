@@ -189,7 +189,7 @@ added to them too.
   * `sys-gc`
     * Force our garbage collector to run.
   * `sys-heap-allocs`
-    * Return the number of memory allocations that have been completed since our last GC.
+    * Return the number of memory allocations that have been completed.
   * `sys-heap-bytes`
     * Return the size of the heap, in bytes.
   * `sys-heap-objects`

@@ -366,6 +366,8 @@ Setting the threshold too low will mean that your program will never complete.  
 
 > Advice: Leave the default limit, unless you observe too much thrashing, and then _increase_ it.  This will result in fewer, albeit longer, garbage collection cycles.
 
+The function `at_exit` is invoked, if it is defined, when all programs terminate cleanly.  The default handler will dump memory statistics on-exit if the environmental variable `GC_DUMP_STATS` is non-empty.
+
 
 
 ## Motivation
