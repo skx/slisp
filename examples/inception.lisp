@@ -256,6 +256,7 @@
   (register-builtin "str?" (lambda (args) (str? (car args))))
   (register-builtin "string" (lambda (args) (string (car args))))
   (register-builtin "sys-gc" (lambda (args) (sys-gc)))
+  (register-builtin "sys-gc-threshold" (lambda (args) (sys-gc-threshold)))
   (register-builtin "sys-stdlib-loaded" (lambda (args) (sys-stdlib-loaded)))
   (register-builtin "sys-heap-allocs" (lambda (args) (sys-heap-allocs)))
   (register-builtin "sys-heap-bytes" (lambda (args) (sys-heap-bytes)))
