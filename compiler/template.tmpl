@@ -1932,11 +1932,19 @@ FUNC fn_sysMINUSgc
     ret
 
 
+;; return the GC threshold, in bytes
+FUNC fn_sysMINUSgcMINUSthreshold
+     mov rax, [gc_threshold_bytes]
+    TAG_INTEGER_REG rax
+    ret
+
+
 ;; Return the internal count the allocations.
 FUNC fn_sysMINUSheapMINUSallocs
     mov rax, [alloc_count]
     TAG_INTEGER_REG rax
     ret
+
 
 ;; return the size of the current heap, in bytes.
 FUNC fn_sysMINUSheapMINUSbytes
