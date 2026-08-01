@@ -53,6 +53,33 @@
 %undef  DEBUG_GC       ;; Disabled by default.
 ; %define DEBUG_GC 1   ;; Uncomment to enable.
 
+;;
+;; Size of our heap: 4Gb
+;;
+;; Remember of course we have two heaps, both of
+;; the same size.
+;;
+%define HEAP_SIZE        (4 * 1024 * 1024 * 1024)
+
+;;
+;; If more memory than this has been allocated we
+;; run our garbage collection process.
+;;
+;; The limit is arbitrarily set at 20Mb here.
+;;
+;; If this is NOT defined we instead fall back to running
+;; GC based on the number of memory allocations that have
+;; been made.
+;;
+%define GC_HEAP_USED_THRESHOLD         (20 * 1024 * 1024)
+
+;;
+;; Here's where we set the fallback limit on the number of
+;; allocations made.
+;;
+%define GC_ALLOCATION_THRESHOLD 200000
+
+
 
 ;; syscalls - searchable list online here
 ;;  https://filippo.io/linux-syscall-table/
@@ -3221,11 +3248,11 @@ gc_free:
 ;; Two heaps
 ;;
 heap_a:
-    resb 8 * 1024 * 1024 * 1024  ; 8 Gb
+    resb HEAP_SIZE
 heap_a_end:
 
 heap_b:
-    resb 8 * 1024 * 1024 * 1024  ; 8 Gb
+    resb HEAP_SIZE
 heap_b_end:
 
 
@@ -3277,10 +3304,20 @@ possibly_trigger_gc:
     push rbx
     push rax
 
+    ; Will we GC based on the size of the heap?
+%ifdef GC_HEAP_USED_THRESHOLD
+    mov     rax, [from_space]
+    add     rax, GC_HEAP_USED_THRESHOLD
+    mov     rcx, [alloc_ptr]
+    cmp     rcx, rax
+    jb      .ignore_gc
+%else
+    ; Fall back to the number of allocations
     mov rax, [alloc_count]
-    cmp rax, 64000                  ; Bill Gate's constant
-
+    cmp rax, GC_ALLOCATION_THRESHOLD
     jle .ignore_gc
+%endif
+
     mov [gc_stack_base], rbp        ; save caller's rbp (we have no prologue, so rbp is still theirs)
     mov qword [gc_forward_regs], 1  ; forward RSI and RDI
 

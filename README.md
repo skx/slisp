@@ -336,7 +336,6 @@ The `(cons ..)` primitive is a lisp-fundamental, so I figure that is going to be
 
 * `(sys-gc)` run the garbage collection process immediately.
 * `(sys-heap-allocs)` -  Return the number of memory allocations made since the last garbage-collection process.
-  * If your program regularly calls `cons` this will never be more than 64,000.
 * `(sys-heap-bytes)` - Return the size of the heap.
 * `(sys-heap-data)` - Return the contents of the heap as a list of entries.
 * `(sys-heap-dump)` - Dump a summary of the heap to the console.
@@ -355,6 +354,8 @@ The stop and copy implementation is pretty simple:
   * For register contents we cheat a little.
   * The `(cons ..)` primitive is the only one that is used to trigger "auto GC",  and we know `cons` can only be called with two arguments, so we only have to consider the two registers RDI & RSI.
   * TLDR; Our roots are "globals", "stack-locals", and potentially the contents of the two registers `rdi` and `rsi`.
+
+The garbage collection process is triggered when more than 20Mb has been allocated within our heap (which is 4Gb), but it you can adjust the threshold in the assembly which is generated.  If no heap size threshold is defined then instead the process is triggered after 200,000 allocations.  (But again this can be changed.)
 
 
 
