@@ -444,38 +444,96 @@ section .text
 ;; environmental varialbe GC_THRESHOLD.  Here we look
 ;; for that variable, and parse it if we see it.
 ;;
+;; examples:
+;;
+;;   GC_THRESHOLD=500000  - raw number (B) implicit
+;;   GC_THRESHOLD=64M     - Mb
+;;   GC_THRESHOLD=1G      - Gb
+;;
 parse_gc_threshold:
     mov     rsi, [envp_ptr]
 .next_env:
     mov     rdi, [rsi]
     test    rdi, rdi
-    jz      .done              ; end of envp
+    jz      .done
     add     rsi, 8
     mov     rbx, gc_name
+
 .compare:
     mov     al, [rbx]
     test    al, al
-    jz      .matched           ; reached end of "GC_THRESHOLD="
+    jz      .matched
     cmp     al, [rdi]
     jne     .next_env
     inc     rbx
     inc     rdi
     jmp     .compare
+
+    ;;
+    ;; Parse decimal number
+    ;;
 .matched:
-    xor     rax, rax           ; parsed value = 0
-.parse:
+    xor     rax, rax
+.parse_digits:
     movzx   rcx, byte [rdi]
     sub     rcx, '0'
     cmp     rcx, 9
-    ja      .save              ; first non-digit
+    ja      .parse_suffix
     imul    rax, rax, 10
     add     rax, rcx
     inc     rdi
-    jmp     .parse
-.save:
+    jmp     .parse_digits
+
+    ;;
+    ;; Optional suffix
+    ;;
+.parse_suffix:
+    movzx   ecx, byte [rdi]
+
+    and     cl, 0DFh  ; Convert lower-case to upper
+    cmp     cl, 'K'
+    je      .kilobytes
+    cmp     cl, 'M'
+    je      .megabytes
+    cmp     cl, 'G'
+    je      .gigabytes
+    cmp     cl, 'T'
+    je      .terabytes
+    jmp     .store
+
+.kilobytes:
+    shl     rax, 10
+    inc     rdi
+    jmp     .optional_b
+
+.megabytes:
+    shl     rax, 20
+    inc     rdi
+    jmp     .optional_b
+
+.gigabytes:
+    shl     rax, 30
+    inc     rdi
+    jmp     .optional_b
+
+.terabytes:
+    shl     rax, 40
+    inc     rdi
+
+    ;; Optional trailing 'B'
+.optional_b:
+    movzx   ecx, byte [rdi]
+    and     cl, 0DFh
+    cmp     cl, 'B'
+    jne     .store
+    inc     rdi
+
+.store:
     mov     [gc_threshold_bytes], rax
 .done:
     ret
+
+
 
 ;;; 5. stdlib
 

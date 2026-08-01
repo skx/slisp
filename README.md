@@ -355,7 +355,13 @@ The stop and copy implementation is pretty simple:
   * The `(cons ..)` primitive is the only one that is used to trigger "auto GC",  and we know `cons` can only be called with two arguments, so we only have to consider the two registers RDI & RSI.
   * TLDR; Our roots are "globals", "stack-locals", and potentially the contents of the two registers `rdi` and `rsi`.
 
-The garbage collection process is triggered when more than 20Mb has been allocated within our heap (which is 4Gb), but it you can adjust the threshold in the assembly which is generated.  If no heap size threshold is defined then instead the process is triggered after 200,000 allocations.  (But again this can be changed.)
+The garbage collection process is triggered when more than 20Mb has been allocated within our heap (which is 4Gb), but it you can adjust the threshold at runtime via the `GC_THRESHOLD` environmental variable:
+
+    GC_THRESHOLD=500000 ./foo
+    GC_THRESHOLD=64M    ./foo
+    GC_THRESHOLD=1G     ./foo
+
+Setting the threshold too low will mean that your program will never complete.  If you set the size to be 5k, for example, and your program allocates 10k of objects which must persist will result in endless GC runs, as the size used is always above the threshold.  That's because we assume running the garbage collection will reduce the heap size, but if there are legitimately things stored there, it will never get bigger.
 
 
 
