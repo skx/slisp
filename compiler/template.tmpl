@@ -73,11 +73,6 @@
 ;;
 %define GC_HEAP_USED_THRESHOLD         (20 * 1024 * 1024)
 
-;;
-;; Here's where we set the fallback limit on the number of
-;; allocations made.
-;;
-%define GC_ALLOCATION_THRESHOLD 200000
 
 
 
@@ -386,6 +381,8 @@ _start:
     jmp .loop
 
 .done:
+    call parse_gc_threshold    ; See if we change the size of our GC threshold
+
     mov rdi, r12               ; args list
     call fn_init_globals       ; initialize global variables (i.e. top-level defvar/defconst.)
 
@@ -438,6 +435,47 @@ section .text
 
 
 
+;;
+;; We autoamatically run the GC process when the heap
+;; size exceeds a specific threshold.  By default this
+;; is 20Mb.
+;;
+;; We allow the user to change this threshold via the
+;; environmental varialbe GC_THRESHOLD.  Here we look
+;; for that variable, and parse it if we see it.
+;;
+parse_gc_threshold:
+    mov     rsi, [envp_ptr]
+.next_env:
+    mov     rdi, [rsi]
+    test    rdi, rdi
+    jz      .done              ; end of envp
+    add     rsi, 8
+    mov     rbx, gc_name
+.compare:
+    mov     al, [rbx]
+    test    al, al
+    jz      .matched           ; reached end of "GC_THRESHOLD="
+    cmp     al, [rdi]
+    jne     .next_env
+    inc     rbx
+    inc     rdi
+    jmp     .compare
+.matched:
+    xor     rax, rax           ; parsed value = 0
+.parse:
+    movzx   rcx, byte [rdi]
+    sub     rcx, '0'
+    cmp     rcx, 9
+    ja      .save              ; first non-digit
+    imul    rax, rax, 10
+    add     rax, rcx
+    inc     rdi
+    jmp     .parse
+.save:
+    mov     [gc_threshold_bytes], rax
+.done:
+    ret
 
 ;;; 5. stdlib
 
@@ -3150,6 +3188,17 @@ random_buffer:
     db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 random_buffer_end:
 
+;;
+;; We allow the threshold to be set in the environmental variable,
+;; here we set the name.
+;;
+gc_name: db "GC_THRESHOLD=",0
+
+;;
+;; The default heap size at which we trigger GC
+;;
+gc_threshold_bytes: dq GC_HEAP_USED_THRESHOLD
+
 
 ;; zero section
 section .bss
@@ -3304,19 +3353,17 @@ possibly_trigger_gc:
     push rbx
     push rax
 
-    ; Will we GC based on the size of the heap?
-%ifdef GC_HEAP_USED_THRESHOLD
+    ; Has the heap size grown enough to trigger
+    ; a GC process?
+    ;
+    ; The threshold is set to 20Mb by default,
+    ; but the user can change the limit at runtime
+    ; via the GC_THRESHOLD environmental variable.
     mov     rax, [from_space]
-    add     rax, GC_HEAP_USED_THRESHOLD
+    add     rax, [gc_threshold_bytes]
     mov     rcx, [alloc_ptr]
     cmp     rcx, rax
     jb      .ignore_gc
-%else
-    ; Fall back to the number of allocations
-    mov rax, [alloc_count]
-    cmp rax, GC_ALLOCATION_THRESHOLD
-    jle .ignore_gc
-%endif
 
     mov [gc_stack_base], rbp        ; save caller's rbp (we have no prologue, so rbp is still theirs)
     mov qword [gc_forward_regs], 1  ; forward RSI and RDI
