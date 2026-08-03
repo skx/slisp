@@ -1040,7 +1040,7 @@ If no length is specified return from the given start to the end of the string."
                        (strcat (string n) suffix)))))
 
         (println "\theap objects:" (sys-heap-objects))
-        (println "\theap size:" (size bytes) " heap-limit:" (size (sys-gc-threshold)))
+        (println "\theap size:" (size bytes) " allocation-limit:" (sys-gc-threshold))
         (println "\tallocations:" (sys-heap-allocs)))))
 
 
