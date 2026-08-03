@@ -62,16 +62,11 @@
 %define HEAP_SIZE        (4 * 1024 * 1024 * 1024)
 
 ;;
-;; If more memory than this has been allocated we
-;; run our garbage collection process.
+;; If more than this number of memory allocations
+;; has been carried out we run the garbage collection
+;; process.
 ;;
-;; The limit is arbitrarily set at 20Mb here.
-;;
-;; If this is NOT defined we instead fall back to running
-;; GC based on the number of memory allocations that have
-;; been made.
-;;
-%define GC_HEAP_USED_THRESHOLD         (20 * 1024 * 1024)
+%define GC_ALLOCATION_THRESHOLD    100000
 
 
 
@@ -444,19 +439,17 @@ section .text
 
 
 ;;
-;; We autoamatically run the GC process when the heap
-;; size exceeds a specific threshold.  By default this
-;; is 20Mb.
+;; We automatically run the GC process when the number
+;; of allocations exceeds a specific threshold.
 ;;
 ;; We allow the user to change this threshold via the
-;; environmental varialbe GC_THRESHOLD.  Here we look
+;; environmental variable GC_ALLOC_THRESHOLD.  Here we look
 ;; for that variable, and parse it if we see it.
 ;;
 ;; examples:
 ;;
-;;   GC_THRESHOLD=500000  - raw number (B) implicit
-;;   GC_THRESHOLD=64M     - Mb
-;;   GC_THRESHOLD=1G      - Gb
+;;   GC_ALLOC_THRESHOLD=50
+;;   GC_ALLOC_THRESHOLD=5000
 ;;
 parse_gc_threshold:
     mov     rsi, [envp_ptr]
@@ -486,58 +479,13 @@ parse_gc_threshold:
     movzx   rcx, byte [rdi]
     sub     rcx, '0'
     cmp     rcx, 9
-    ja      .parse_suffix
+    ja      .parsed
     imul    rax, rax, 10
     add     rax, rcx
     inc     rdi
     jmp     .parse_digits
-
-    ;;
-    ;; Optional suffix
-    ;;
-.parse_suffix:
-    movzx   ecx, byte [rdi]
-
-    and     cl, 0DFh  ; Convert lower-case to upper
-    cmp     cl, 'K'
-    je      .kilobytes
-    cmp     cl, 'M'
-    je      .megabytes
-    cmp     cl, 'G'
-    je      .gigabytes
-    cmp     cl, 'T'
-    je      .terabytes
-    jmp     .store
-
-.kilobytes:
-    shl     rax, 10
-    inc     rdi
-    jmp     .optional_b
-
-.megabytes:
-    shl     rax, 20
-    inc     rdi
-    jmp     .optional_b
-
-.gigabytes:
-    shl     rax, 30
-    inc     rdi
-    jmp     .optional_b
-
-.terabytes:
-    shl     rax, 40
-    inc     rdi
-
-    ;; Optional trailing 'B'
-.optional_b:
-    movzx   ecx, byte [rdi]
-    and     cl, 0DFh
-    cmp     cl, 'B'
-    jne     .store
-    inc     rdi
-
-.store:
-    mov     [gc_threshold_bytes], rax
+.parsed:
+    mov     [gc_threshold], rax
 .done:
     ret
 
@@ -564,7 +512,8 @@ parse_gc_threshold:
 alloc:
     call check_stack_limit    ; Check we're not in danger of blowing the stack limit
 
-    inc qword [alloc_count]   ; count allocations
+    inc qword [alloc_count]        ; count allocations to trigger GC
+    inc qword [alloc_count_total]  ; count allocations, in total
 
     add rax, 24               ; Prefix allocation with the header size
 
@@ -1947,16 +1896,16 @@ FUNC fn_sysMINUSgc
     ret
 
 
-;; return the GC threshold, in bytes
+;; return the GC threshold value - which is the count of allocations *after* which to run GC.
 FUNC fn_sysMINUSgcMINUSthreshold
-    mov rax, [gc_threshold_bytes]
+    mov rax, [gc_threshold]
     TAG_INTEGER_REG rax
     ret
 
 
 ;; Return the internal count the allocations.
 FUNC fn_sysMINUSheapMINUSallocs
-    mov rax, [alloc_count]
+    mov rax, [alloc_count_total]
     TAG_INTEGER_REG rax
     ret
 
@@ -3276,12 +3225,13 @@ random_buffer_end:
 ;; We allow the threshold to be set in the environmental variable,
 ;; here we set the name.
 ;;
-gc_name: db "GC_THRESHOLD=",0
+gc_name: db "GC_ALLOC_THRESHOLD=",0
 
 ;;
-;; The default heap size at which we trigger GC
+;; The default number of allocations to trigger
+;; a GC process.
 ;;
-gc_threshold_bytes: dq GC_HEAP_USED_THRESHOLD
+gc_threshold: dq GC_ALLOCATION_THRESHOLD
 
 
 ;; zero section
@@ -3295,7 +3245,15 @@ stdlib_loaded:
     resq 1
 
 ;; how many times was our allocator called?
+;;
+;; This is reset every time the GC runs.
 alloc_count:
+    resq 1
+
+;; how many times was our allocator called? in total.
+;;
+;; This value is NOT reset when GC runs.
+alloc_count_total:
     resq 1
 
 ;; We can disable GC for the duration of internal functions
@@ -3437,17 +3395,13 @@ possibly_trigger_gc:
     push rbx
     push rax
 
-    ; Has the heap size grown enough to trigger
-    ; a GC process?
-    ;
-    ; The threshold is set to 20Mb by default,
-    ; but the user can change the limit at runtime
-    ; via the GC_THRESHOLD environmental variable.
-    mov     rax, [from_space]
-    add     rax, [gc_threshold_bytes]
-    mov     rcx, [alloc_ptr]
-    cmp     rcx, rax
-    jb      .ignore_gc
+    ; Have we exceeded the allocation threshold
+    mov rax, [alloc_count]
+    cmp rax, [gc_threshold]
+    jle .ignore_gc                  ; If not continue
+
+    mov qword [alloc_count], 0      ; Reset the counting total.
+                                    ; But not the *real* total.
 
     mov [gc_stack_base], rbp        ; save caller's rbp (we have no prologue, so rbp is still theirs)
     mov qword [gc_forward_regs], 1  ; forward RSI and RDI

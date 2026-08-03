@@ -335,7 +335,7 @@ To start with I did the obvious thing and made the allocation region larger, ign
 The `(cons ..)` primitive is a lisp-fundamental, so I figure that is going to be called pretty often in user-programs, either directly or via the `(list ...)` wrapper.  But if that isn't the case you may also trigger the garbage-collection process explicitly, and see the stats via these methods:
 
 * `(sys-gc)` - run the garbage collection process immediately.
-* `(sys-gc-threshold)` - Get the size of the GC threshold, which might be changed by the `GC_THRESHOLD` environmental variable.
+* `(sys-gc-threshold)` - We run the GC process after a fixed number of allocations have been made, this retrieves the value of that threshold.  Change it via the `GC_ALLOC_THRESHOLD` environmental variable.
 * `(sys-heap-allocs)` -  Return the number of memory allocations made since the last garbage-collection process.
 * `(sys-heap-bytes)` - Return the size of the heap.
 * `(sys-heap-data)` - Return the contents of the heap as a list of entries.
@@ -356,15 +356,12 @@ The stop and copy implementation is pretty simple:
   * The `(cons ..)` primitive is the only one that is used to trigger "auto GC",  and we know `cons` can only be called with two arguments, so we only have to consider the two registers RDI & RSI.
   * TLDR; Our roots are "globals", "stack-locals", and potentially the contents of the two registers `rdi` and `rsi`.
 
-By default the garbage collection process is triggered when more than 20Mb has been allocated within our heap (which is 4Gb), but if you wish you can adjust the threshold by setting `GC_THRESHOLD` environmental variable before you execute one of the compiled binaries:
+By default the garbage collection process is triggered when more than 1000 allocations have been made, but if you wish you can adjust the threshold by setting `GC_ALLOC_THRESHOLD` environmental variable before you execute one of the compiled binaries:
 
-    GC_THRESHOLD=500000 ./foo
-    GC_THRESHOLD=64M    ./foo
-    GC_THRESHOLD=1G     ./foo
+    GC_ALLOC_THRESHOLD=1      ./foo
+    GC_ALLOC_THRESHOLD=500000 ./foo
 
-Setting the threshold too low will mean that your program will never complete.  If you set the size to be 5k, for example, and your program allocates 10k of objects which must persist will result in endless GC runs, as the size used is always above the threshold.  That's because we assume running the garbage collection will reduce the heap size, but if there are legitimately things stored there, it will never shrink to be smaller than the threshold.
-
-> Advice: Leave the default limit, unless you observe too much thrashing, and then _increase_ it.  This will result in fewer, albeit longer, garbage collection cycles.
+Setting the threshold low will ensure the heap is as small as possible, at a cost that the garbage collector will run more frequently.  Setting it to a "mid-high" value is perhaps more efficient, the garbage collector will run less often, and do more work each time.  But chances are that time won't dominate the _total_ runtime, which is a risk if it is set too low.
 
 The function `at_exit` is invoked, if it is defined, when all programs terminate cleanly.  The default handler will dump memory statistics on-exit if the environmental variable `GC_DUMP_STATS` is non-empty.
 
