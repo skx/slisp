@@ -6,8 +6,10 @@ examples/*.o
 test/tmp.asm
 test/*.test
 test/*.out
-test/*.s
+test/*.asm
 test/*.o
+*.o
+*.asm
 examples/bf/*.out
 examples/bf/*.o
 examples/bf/*.asm
