@@ -160,6 +160,25 @@ func TestCharacterLiteral(t *testing.T) {
 
 }
 
+func TestQuoting(t *testing.T) {
+
+	l := New("'a `(1 ,b ,@c)")
+	out, err := l.Tokenize()
+	if err != nil {
+		t.Fatalf("unexpected error tokenizing: %s", err)
+	}
+
+	expected := []string{"'", "a", "`", "(", "1", ",", "b", ",@", "c", ")"}
+	if len(out) != len(expected) {
+		t.Fatalf("unexpected token count %d - %v", len(out), out)
+	}
+	for i, tok := range expected {
+		if out[i] != tok {
+			t.Fatalf("token %d: expected %q got %q", i, tok, out[i])
+		}
+	}
+}
+
 func TestEOF(t *testing.T) {
 	l := New(``)
 	i := 0

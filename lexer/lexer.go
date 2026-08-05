@@ -58,6 +58,23 @@ func (l *Lexer) Tokenize() ([]string, error) {
 			l.next()
 			out = append(out, ")")
 
+		case '\'':
+			l.next()
+			out = append(out, "'")
+
+		case '`':
+			l.next()
+			out = append(out, "`")
+
+		case ',':
+			l.next()
+			if l.peek() == '@' {
+				l.next()
+				out = append(out, ",@")
+			} else {
+				out = append(out, ",")
+			}
+
 		case '"':
 			str, err := l.scanStringLiteral()
 			if err != nil {
