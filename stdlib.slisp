@@ -17,17 +17,17 @@
 ;;  1. Compatibility
 ;;  2. Printing
 ;;  3. Filesystem Functions
-;;  5. Logical Functions
-;;  6. Maths functions
-;;  6.1 Base conversion
-;;  6.2 Maths functions
-;;  7. List Creation
-;;  8. List Utility Functions
-;;  9. System functions.
-;; 10. alist functions.
-;; 11. plist functions.
-;; 12. Conversion functions.
-;; 13. Utility functions
+;;  4. Macros
+;;  5. Maths functions
+;;  5.1 Base conversion
+;;  5.2 Maths functions
+;;  6. List Creation
+;;  7. List Utility Functions
+;;  8. System functions.
+;;  9. alist functions.
+;; 10. plist functions.
+;; 11. Conversion functions.
+;; 12. Utility functions
 ;;
 ;; I tried to order the functions alphabetically, where it made sense.
 
@@ -419,21 +419,9 @@ do the right thing for each entry in the given list."
 
 
 
-;;; 5. Logical Functions
+;;; 4. Macros
 ;;
-;; Some trivial logical functions which might be useful.
-
-(defmacro cond (&clauses)
-  "Evaluate each clause's test, in turn, stopping at the first one that
-is non-nil and returning the value of that clause's last body-expression
-(or the test's own value, if the clause has no body).
-
-Returns nil on no match"
-  (if (nil? clauses)
-      nil
-      `(if ,(car (car clauses))
-           (do ,@(cdr (car clauses)))
-           (cond ,@(cdr clauses)))))
+;; Some trivial macros, implementing useful things.
 
 (defmacro and (&xs)
   "Return the value of the last argument, so long as every argument up to
@@ -447,6 +435,33 @@ any remaining remaining arguments."
           (car xs)
           `(if ,(car xs) (and ,@(cdr xs)) nil))))
 
+(defmacro benchmark (&body)
+  "Return the time taken to run the given body."
+  `(let ((n (now)))
+     ,@body
+     (- (now) n)))
+
+(defmacro cond (&clauses)
+  "Evaluate each clause's test, in turn, stopping at the first one that
+is non-nil and returning the value of that clause's last body-expression
+(or the test's own value, if the clause has no body).
+
+Returns nil on no match"
+  (if (nil? clauses)
+      nil
+      `(if ,(car (car clauses))
+           (do ,@(cdr (car clauses)))
+           (cond ,@(cdr clauses)))))
+
+(defmacro dolist (lst &body)
+  "Anaphoric list iteration: for each element of LST, bind it to 'it'
+and run BODY for side-effects.  Returns nil."
+  `(let ((dolist-rest ,lst))
+     (while dolist-rest
+       (let ((it (car dolist-rest)))
+         ,@body)
+       (set! dolist-rest (cdr dolist-rest)))))
+
 (defmacro or (&xs)
   "Return the value of the first non-nil argument, it does not evaluate remaining arguments."
   (if (nil? xs)
@@ -455,6 +470,13 @@ any remaining remaining arguments."
           (car xs)
           `(let ((or-value ,(car xs)))
              (if or-value or-value (or ,@(cdr xs)))))))
+
+(defmacro time (&body)
+  "Return the last expression executed, but report on the elapsed time."
+  `(let ((start (now)))
+     (let ((result (do ,@body)))
+       (println "Elapsed: " (- (now) start) "ms")
+       result)))
 
 (defmacro when (c &body)
   "Run an unlimited number of expressions when the given condition is true."
@@ -468,14 +490,14 @@ any remaining remaining arguments."
 
 
 
-;;; 6. Maths functions
+;;; 5. Maths functions
 ;;
 ;; These are mostly about testing for specific values, or
-;; processing items of lists
+;; processing items of lists.
 
 
 
-;;; 6.1 base conversions
+;;; 5.1 base conversions
 
 
 (defun digit-value (ch)
@@ -576,7 +598,7 @@ any remaining remaining arguments."
 
 
 
-;;; 6.2 maths functions
+;;; 5.2 maths functions
 
 
 ;; Define the usual maths
@@ -662,7 +684,7 @@ any remaining remaining arguments."
 
 
 
-;;; 7. List Creation
+;;; 6. List Creation
 ;;
 ;; These are functions which are designed to create lists,
 ;; with ascending values for example.
@@ -696,7 +718,7 @@ Incrementing by the given step each time."
 
 
 
-;;; 8. List Utility Functions
+;;; 7. List Utility Functions
 ;;
 ;; These functions are mostly the implementations of standard
 ;; functions a user would expect, such as map/filter/find/member
@@ -880,7 +902,7 @@ Incrementing by the given step each time."
 
 
 
-;;; 9. System functions.
+;;; 8. System functions.
 ;;
 ;; These are functions which are designed to interface with the
 ;; system environment more than just with File I/O
@@ -931,13 +953,13 @@ Uses (environment) to get all environmental variables, and filters."
 
 
 
-;;; 10. alist functions.
+;;; 9. alist functions.
 (require alist)
 
-;;; 11. plist functions.
+;;; 10. plist functions.
 (require plist)
 
-;;; 12. Conversion functions.
+;;; 11. Conversion functions.
 ;;
 ;; Conversion routines - so far just string -> number
 ;;
@@ -1021,7 +1043,7 @@ Positive and negative numbers work. For floats use (atof)."
     (explode str))))
 
 
-;;; Utility functions
+;;; 12. Utility functions
 ;;
 ;; Some other functions that don't have a natural home
 
