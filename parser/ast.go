@@ -6,7 +6,7 @@ package parser
 
 type Expr any
 
-// Types
+// Basic/Literal Types
 
 type Char struct {
 	Value byte
@@ -43,32 +43,47 @@ type TopLevel interface {
 	Type() string
 }
 
+// Alias allows rewriting functions, and is designed to allow packages to override
+// the default behaviour provided by our standard-library.
 type Alias struct {
 	Old string
 	New string
 }
 
-// Type is the implementation of the TopLevel interface
+// Type is the implementation of the TopLevel interface.
 func (d Alias) Type() string { return "alias" }
 
+// Binding holds the name and value of variables within a new scope, started with Let.
 type Binding struct {
 	Name string
 	Expr Expr
 }
 
+// Call is used to represent function-calls.
 type Call struct {
 	Fn   Expr
 	Args []Expr
 }
 
-type CondCase struct {
-	Case  Expr
+// Defmacro holds a macro definition.
+type Defmacro struct {
+	// Name of the macro being defined.
+	Name string
+
+	// The names of the parameter variables.
+	Params []string
+
+	// Is this macro variadic?
+	// If so the last argument will be bound to a List of the
+	// remaining, literal, argument-expressions.
+	Variadic bool
+
+	// Exprs contains the expressions in the body of the macro.
 	Exprs []Expr
 }
 
-type Cond struct {
-	Cases []CondCase
-}
+// Type is the implementation of the TopLevel interface.
+func (d Defmacro) Type() string { return "defmacro" }
 
 // Defun holds a function definition.
 //
@@ -88,7 +103,7 @@ type Defun struct {
 	Exprs []Expr
 }
 
-// Type is the implementation of the TopLevel interface
+// Type is the implementation of the TopLevel interface.
 func (d Defun) Type() string { return "defun" }
 
 type Do struct {
@@ -118,7 +133,7 @@ type Global struct {
 	Value Expr
 }
 
-// Type is the implementation of the TopLevel interface
+// Type is the implementation of the TopLevel interface.
 func (d Global) Type() string { return "global" }
 
 // Lambda represents a lambda, which is basically identical to a Defun.
@@ -132,33 +147,59 @@ type Lambda struct {
 	Captures []string
 }
 
+// Let introduces a new scope, with the given binings, then executes the named Body.
 type Let struct {
 	Bindings []Binding
 	Body     []Expr
+}
+
+// List represents a literal sequence of expressions.
+//
+// This is distinct from a real list, and used internally for parsing.
+type List struct {
+	Elems []Expr
+}
+
+// Quote represents a quoted expression - 'expr - which prevents
+// evaluation of expr.
+type Quote struct {
+	Expr Expr
+}
+
+// Quasiquote represents a quasiquoted expression - `expr - which
+// behaves like Quote except that any Unquote/UnquoteSplicing nested
+// within it are evaluated (or substituted, within a macro body) and
+// spliced into the result.
+type Quasiquote struct {
+	Expr Expr
 }
 
 type Require struct {
 	Feature string
 }
 
-// Type is the implementation of the TopLevel interface
+// Type is the implementation of the TopLevel interface.
 func (r Require) Type() string { return "require" }
 
+// Set allows storing the result of an expression in a variable with the given name.
 type Set struct {
 	Name string
 	Expr Expr
 }
 
-type Unless struct {
-	Cond  Expr
-	Exprs []Expr
+// Unquote represents ",expr" - only valid when nested within a Quasiquote.
+type Unquote struct {
+	Expr Expr
 }
 
-type When struct {
-	Cond  Expr
-	Exprs []Expr
+// UnquoteSplicing represents ",@expr" - only meaningful as a list
+// element nested within a Quasiquote.  The value of Expr is expected to
+// be a list, whose elements are spliced into the surrounding list.
+type UnquoteSplicing struct {
+	Expr Expr
 }
 
+// While holds a loop construct.
 type While struct {
 	Cond  Expr
 	Exprs []Expr
