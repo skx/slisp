@@ -4,30 +4,37 @@ package parser
 // AST
 //
 
+// Expr is the catchall expression type.
 type Expr any
 
 // Basic/Literal Types
 
+// Char holds a character literal.
 type Char struct {
 	Value byte
 }
 
+// Float holds a floating point literal.
 type Float struct {
 	Value float64
 }
 
+// Int holds an integer literal.
 type Int struct {
 	Value int64
 }
 
+// String holds a string literal.
 type String struct {
 	Value string
 }
 
+// Symbol holds a symbol name.
 type Symbol struct {
 	Name string
 }
 
+// Nil holds a nil-literal.
 type Nil struct {
 }
 
@@ -106,13 +113,22 @@ type Defun struct {
 // Type is the implementation of the TopLevel interface.
 func (d Defun) Type() string { return "defun" }
 
+// Do allows running multiple expressions in a context where only a single one is permitted.
 type Do struct {
+
+	// Exprs contains the list of expressions to execute.
 	Exprs []Expr
 }
 
+// If is our conditional expression.
 type If struct {
+	// Cond holds the test to make.
 	Cond Expr
+
+	// Then is the expression executed if the test passes.
 	Then Expr
+
+	// Else (optional) holds the expression executed if the test fails.
 	Else Expr
 }
 
@@ -174,6 +190,8 @@ type Quasiquote struct {
 	Expr Expr
 }
 
+// Require allows loading code from another file, be it an embedded
+// package, or a user-provided one.
 type Require struct {
 	Feature string
 }
