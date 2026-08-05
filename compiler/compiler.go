@@ -1666,6 +1666,9 @@ func (c *Compiler) evalMacroCall(n *parser.Call, bindings map[string]parser.Expr
 		}
 		return &parser.List{Elems: elems[1:]}, nil
 	}
+
+	return nil, fmt.Errorf("unsupported function %q called in macro body: only car/cdr/nil? are supported outside of quote/quasiquote templates", sym.Name)
+
 }
 
 // evalQuasiquote resolves a quasiquote template used within a macro
