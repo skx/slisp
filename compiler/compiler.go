@@ -35,6 +35,10 @@ var registerArguments = []string{
 	"r9",
 }
 
+// maxMacroDepth guards against a macro which expands into a call to
+// itself (directly, or indirectly).
+var maxMacroDepth = 500
+
 // labelRemapping contains a lookup table of characters that must be remapped
 // when generating NASM labels. We could replace illegal (non alphanumeric)
 // characters with just "_", but that would risk collisions if we had functions
@@ -109,6 +113,13 @@ type Compiler struct {
 
 	// globals stores details of top-level global variables
 	globals map[string]parser.Global
+
+	// macros stores the known "defmacro" definitions.
+	macros map[string]parser.Defmacro
+
+	// macroDepth tracks how many macro-expansions are currently nested,
+	// this is just to avoid recursion limits.
+	macroDepth int
 }
 
 // New is our constructor
@@ -122,6 +133,7 @@ func New(src string) *Compiler {
 		floats:    map[string]float64{},
 		functions: map[string]*FunctionArgs{},
 		globals:   map[string]parser.Global{},
+		macros:    map[string]parser.Defmacro{},
 		loaded:    map[string]bool{},
 		strings:   map[string]string{},
 	}
@@ -357,6 +369,10 @@ func (c *Compiler) Compile() (string, error) {
 				Arguments: len(n.Params),
 				Variadic:  n.Variadic,
 			}
+
+		case parser.Defmacro:
+
+			c.macros[n.Name] = n
 		}
 
 		return nil
@@ -804,7 +820,27 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 	switch n := e.(type) {
 
 	case *parser.Call:
+		// Is this a function call?
 		if symbol, ok := n.Fn.(*parser.Symbol); ok {
+
+			// expand macro, if necessary
+			if macro, ok := c.macros[symbol.Name]; ok {
+
+				if c.macroDepth >= maxMacroDepth {
+					return fmt.Errorf("macro %s: expansion nested too deeply (possible infinite recursion)", symbol.Name)
+				}
+
+				c.macroDepth++
+				expanded, err := c.expandMacro(symbol.Name, macro, n.Args)
+				if err != nil {
+					c.macroDepth--
+					return err
+				}
+
+				err = c.emitExpr(expanded, ev)
+				c.macroDepth--
+				return err
+			}
 
 			// is this variadic?
 			name := symbol.Name
@@ -991,47 +1027,6 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		c.emitln("mov rax, [r15]")
 		c.emitln("call rax")
 
-	case *parser.Cond:
-
-		label := c.label("cond_")
-
-		// There are N test/bodies - compile the comparisons to jump to
-		// each body
-		for i, cas := range n.Cases {
-
-			err := c.emitExpr(cas.Case, ev)
-			if err != nil {
-				return err
-			}
-
-			c.emitln("    GET_TAG_BITS rax     ; get type bits")
-			c.emitln("    cmp rax, TAG_ID_NIL  ; is this a nil?")
-			c.emitln(fmt.Sprintf("     jnz %s_case_%d", label, i))
-		}
-
-		// No match? Then fall-through to return nil
-		c.emitln(label + "_nil:")
-		c.emitln("   xor rax, rax")
-		c.emitln("   TAG_NIL_REG rax")
-		c.emitln(fmt.Sprintf("   jmp %s_end", label))
-
-		// now compile each body - making sure execution jumps to the end
-		for i, cas := range n.Cases {
-
-			// case for each one
-			c.emitln(fmt.Sprintf("%s_case_%d:", label, i))
-			for _, expr := range cas.Exprs {
-				err := c.emitExpr(expr, ev)
-				if err != nil {
-					return err
-				}
-			}
-			c.emitln(fmt.Sprintf("   jmp %s_end", label))
-		}
-
-		// define end
-		c.emitln(label + "_end:")
-
 	case *parser.Char:
 		c.emitln(fmt.Sprintf("    mov rax, %d", n.Value))
 		c.emitln("   TAG_CHAR_REG rax")
@@ -1045,7 +1040,6 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		}
 
 	case *parser.Float:
-
 		// create a label, based on the hash of the content.
 		// This has the side-effect of interning.
 		lbl := c.addThing("float", n.Value)
@@ -1056,10 +1050,6 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		// same as our string-handling.
 		c.emitln(fmt.Sprintf("    lea rax, %s", lbl))
 		c.emitln("    TAG_FLOAT_REG rax")
-
-	case *parser.Int:
-		c.emitln(fmt.Sprintf("    mov rax, %d", n.Value))
-		c.emitln("   TAG_INTEGER_REG rax")
 
 	case *parser.If:
 		elseLbl := c.label("else")
@@ -1093,8 +1083,11 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		}
 		c.emitln(endLbl + ":")
 
-	case *parser.Lambda:
+	case *parser.Int:
+		c.emitln(fmt.Sprintf("    mov rax, %d", n.Value))
+		c.emitln("   TAG_INTEGER_REG rax")
 
+	case *parser.Lambda:
 		// create a unique name for this lambda
 		name := c.asmName(fmt.Sprintf("lambda_%d", c.labelID))
 		c.labelID++
@@ -1203,23 +1196,27 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 			}
 		}
 
+	case *parser.List:
+		// Build a list - this is as a result of a macro.
+		return c.emitExpr(c.evalToList(n.Elems), ev)
+
 	case *parser.Nil:
 		c.emitln("    xor rax, rax     ; NIL")
 		c.emitln("    TAG_NIL_REG rax  ; Tagged")
 
-	case *parser.String:
-		// create a label, based on the hash of the content.
-		// This has the side-effect of interning.
-		lbl := c.addThing("string", n.Value)
+	case *parser.Quasiquote:
+		expr, err := c.quoteToExpr(n.Expr, true)
+		if err != nil {
+			return err
+		}
+		return c.emitExpr(expr, ev)
 
-		// save the string, because we're gonna put it into the
-		// generated code, later.
-		c.strings[lbl] = n.Value
-
-		// load the address of the label and tag.
-		// same as our float-handling.
-		c.emitln(fmt.Sprintf("    lea rax, %s", lbl))
-		c.emitln("    TAG_STRING_REG rax")
+	case *parser.Quote:
+		expr, err := c.quoteToExpr(n.Expr, false)
+		if err != nil {
+			return err
+		}
+		return c.emitExpr(expr, ev)
 
 	case *parser.Set:
 		name := n.Name
@@ -1255,8 +1252,21 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		}
 		return fmt.Errorf("unknown variable: %s", n.Name)
 
-	case *parser.Symbol:
+	case *parser.String:
+		// create a label, based on the hash of the content.
+		// This has the side-effect of interning.
+		lbl := c.addThing("string", n.Value)
 
+		// save the string, because we're gonna put it into the
+		// generated code, later.
+		c.strings[lbl] = n.Value
+
+		// load the address of the label and tag.
+		// same as our float-handling.
+		c.emitln(fmt.Sprintf("    lea rax, %s", lbl))
+		c.emitln("    TAG_STRING_REG rax")
+
+	case *parser.Symbol:
 		if offset, ok := ev.Lookup(n.Name); ok {
 			c.emitln(fmt.Sprintf(
 				"    mov rax, [rbp-%d]",
@@ -1280,52 +1290,13 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 
 		return fmt.Errorf("unknown variable: %s", n.Name)
 
-	case *parser.Unless:
-		endLbl := c.label("unless")
+	case *parser.Unquote:
+		return fmt.Errorf("unquote (,) may only appear within a quasiquote")
 
-		err := c.emitExpr(n.Cond, ev)
-		if err != nil {
-			return err
-		}
-
-		c.emitln("    GET_TAG_BITS rax     ; get type bits")
-		c.emitln("    cmp rax, TAG_ID_NIL  ; is this a nil?")
-		c.emitln("    jnz " + endLbl)
-
-		// assemble the body
-		for _, expr := range n.Exprs {
-			err := c.emitExpr(expr, ev)
-			if err != nil {
-				return err
-			}
-		}
-
-		c.emitln(endLbl + ":")
-
-	case *parser.When:
-		endLbl := c.label("when")
-
-		err := c.emitExpr(n.Cond, ev)
-		if err != nil {
-			return err
-		}
-
-		c.emitln("    GET_TAG_BITS rax     ; get type bits")
-		c.emitln("    cmp rax, TAG_ID_NIL  ; is this a nil?")
-		c.emitln("    jz " + endLbl)
-
-		// assemble the body
-		for _, expr := range n.Exprs {
-			err := c.emitExpr(expr, ev)
-			if err != nil {
-				return err
-			}
-		}
-
-		c.emitln(endLbl + ":")
+	case *parser.UnquoteSplicing:
+		return fmt.Errorf("unquote-splicing (,@) may only appear as a list-element within a quasiquote")
 
 	case *parser.While:
-
 		// create label for now, and the end
 		whileStart := c.label("while_start")
 		whileEnd := c.label("while_end")
@@ -1365,6 +1336,530 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 		return fmt.Errorf("emitExpr: Unhandled node type:%T value:%V", n, n)
 	}
 	return nil
+}
+
+// evalToList creates a list by calling (cons) appropriately.
+func (c *Compiler) evalToList(elems []parser.Expr) parser.Expr {
+	var acc parser.Expr = &parser.Nil{}
+
+	for i := len(elems) - 1; i >= 0; i-- {
+		acc = &parser.Call{
+			Fn:   &parser.Symbol{Name: "cons"},
+			Args: []parser.Expr{elems[i], acc},
+		}
+	}
+
+	return acc
+}
+
+// quoteToExpr converts the body of a Quote/Quasiquote expression
+// into an ordinary expression which constructs the equivalent
+// literal value at runtime.
+func (c *Compiler) quoteToExpr(e parser.Expr, quasi bool) (parser.Expr, error) {
+
+	asData := func(name string, inner parser.Expr) (parser.Expr, error) {
+		quoted, err := c.quoteToExpr(inner, false)
+		if err != nil {
+			return nil, err
+		}
+		return c.buildQuotedList([]parser.Expr{&parser.Symbol{Name: name}, quoted}, false)
+	}
+
+	switch n := e.(type) {
+
+	case *parser.Call:
+		elems := append([]parser.Expr{n.Fn}, n.Args...)
+		return c.buildQuotedList(elems, quasi)
+
+	case *parser.Char:
+		// self-evaluating literal.
+		return n, nil
+
+	case *parser.Do:
+		elems := append([]parser.Expr{&parser.Symbol{Name: "do"}}, n.Exprs...)
+		return c.buildQuotedList(elems, quasi)
+
+	case *parser.Float:
+		// self-evaluating literal.
+		return n, nil
+
+	case *parser.If:
+		elems := []parser.Expr{&parser.Symbol{Name: "if"}, n.Cond, n.Then}
+		if n.Else != nil {
+			elems = append(elems, n.Else)
+		}
+		return c.buildQuotedList(elems, quasi)
+
+	case *parser.Int:
+		// self-evaluating literal.
+		return n, nil
+
+	case *parser.Lambda:
+		params := make([]parser.Expr, len(n.Params))
+		for i, p := range n.Params {
+			name := p
+			if n.Variadic && i == len(n.Params)-1 {
+				name = "&" + name
+			}
+			params[i] = &parser.Symbol{Name: name}
+		}
+		elems := append([]parser.Expr{
+			&parser.Symbol{Name: "lambda"},
+			&parser.List{Elems: params},
+		}, n.Exprs...)
+		return c.buildQuotedList(elems, quasi)
+
+	case *parser.Let:
+		binds := make([]parser.Expr, len(n.Bindings))
+		for i, b := range n.Bindings {
+			binds[i] = &parser.List{Elems: []parser.Expr{&parser.Symbol{Name: b.Name}, b.Expr}}
+		}
+		elems := append([]parser.Expr{
+			&parser.Symbol{Name: "let"},
+			&parser.List{Elems: binds},
+		}, n.Body...)
+		return c.buildQuotedList(elems, quasi)
+
+	case *parser.List:
+		return c.buildQuotedList(n.Elems, quasi)
+
+	case *parser.Nil:
+		// self-evaluating literal.
+		return n, nil
+
+	case *parser.Quote:
+		return asData("quote", n.Expr)
+
+	case *parser.Quasiquote:
+		return asData("quasiquote", n.Expr)
+
+	case *parser.Set:
+		elems := []parser.Expr{&parser.Symbol{Name: "set!"}, &parser.Symbol{Name: n.Name}, n.Expr}
+		return c.buildQuotedList(elems, quasi)
+
+	case *parser.String:
+		// self-evaluating literal.
+		return n, nil
+
+	case *parser.Symbol:
+		// conver to a string, just like we do for :foo.
+		return &parser.String{Value: n.Name}, nil
+
+	case *parser.Unquote:
+		if quasi {
+			return n.Expr, nil
+		}
+		return asData("unquote", n.Expr)
+
+	case *parser.UnquoteSplicing:
+		if quasi {
+			return nil, fmt.Errorf("unquote-splicing (,@) may only appear as a list-element within a quasiquote")
+		}
+		return asData("unquote-splicing", n.Expr)
+
+	case *parser.While:
+		elems := append([]parser.Expr{&parser.Symbol{Name: "while"}, n.Cond}, n.Exprs...)
+		return c.buildQuotedList(elems, quasi)
+
+	default:
+		return nil, fmt.Errorf("quote: cannot quote expression of type %T", e)
+	}
+}
+
+// buildQuotedList converts a list of expressions into an expression which,
+// when compiled, builds the equivalent runtime list, via nested "cons" calls.
+func (c *Compiler) buildQuotedList(elems []parser.Expr, quasi bool) (parser.Expr, error) {
+
+	var acc parser.Expr = &parser.Nil{}
+
+	for i := len(elems) - 1; i >= 0; i-- {
+
+		if spl, ok := elems[i].(*parser.UnquoteSplicing); ok && quasi {
+			acc = &parser.Call{
+				Fn:   &parser.Symbol{Name: "append"},
+				Args: []parser.Expr{spl.Expr, acc},
+			}
+			continue
+		}
+
+		converted, err := c.quoteToExpr(elems[i], quasi)
+		if err != nil {
+			return nil, err
+		}
+
+		acc = &parser.Call{
+			Fn:   &parser.Symbol{Name: "cons"},
+			Args: []parser.Expr{converted, acc},
+		}
+	}
+
+	return acc, nil
+}
+
+// expandMacro expands a single call to the given macro, with the given
+// (literal, unevaluated) argument expressions, and returns the resulting
+// expression - ready to be compiled (or, if it is itself a macro-call,
+// expanded further).
+func (c *Compiler) expandMacro(name string, macro parser.Defmacro, args []parser.Expr) (parser.Expr, error) {
+
+	fixed := len(macro.Params)
+	if macro.Variadic {
+		fixed--
+	}
+
+	if macro.Variadic {
+		if len(args) < fixed {
+			return nil, fmt.Errorf("macro %s expects at least %d argument(s), %d provided", name, fixed, len(args))
+		}
+	} else if len(args) != fixed {
+		return nil, fmt.Errorf("macro %s expects %d argument(s), %d provided", name, fixed, len(args))
+	}
+
+	bindings := map[string]parser.Expr{}
+	for i := 0; i < fixed; i++ {
+		bindings[macro.Params[i]] = args[i]
+	}
+	if macro.Variadic {
+		bindings[macro.Params[fixed]] = &parser.List{Elems: append([]parser.Expr{}, args[fixed:]...)}
+	}
+
+	var result parser.Expr = &parser.Nil{}
+	for _, expr := range macro.Exprs {
+		var err error
+		result, err = c.evalMacroExpr(expr, bindings)
+		if err != nil {
+			return nil, fmt.Errorf("error expanding macro %s: %w", name, err)
+		}
+	}
+
+	return result, nil
+}
+
+// Only a restricted subset of expressions is supported.
+//
+// Arbitrary compile-time computation (e.g. calling "+"
+// directly on a macro parameter) is not supported.  You must use
+// a quasiquote template to build the code you want to run instead.
+func (c *Compiler) evalMacroExpr(e parser.Expr, bindings map[string]parser.Expr) (parser.Expr, error) {
+	switch n := e.(type) {
+
+	case *parser.Call:
+		return c.evalMacroCall(n, bindings)
+
+	case *parser.Char:
+		return n, nil
+
+	case *parser.Float:
+		return n, nil
+
+	case *parser.If:
+		// A compile-time conditional: only the taken branch is ever
+		// evaluated, which is what lets a macro recurse over a
+		// variadic parameter until it runs out of arguments.
+		cond, err := c.evalMacroExpr(n.Cond, bindings)
+		if err != nil {
+			return nil, err
+		}
+		if isMacroTruthy(cond) {
+			return c.evalMacroExpr(n.Then, bindings)
+		}
+		if n.Else == nil {
+			return &parser.Nil{}, nil
+		}
+		return c.evalMacroExpr(n.Else, bindings)
+
+	case *parser.Int:
+		return n, nil
+
+	case *parser.Nil:
+		return n, nil
+
+	case *parser.Quasiquote:
+		return c.evalQuasiquote(n.Expr, bindings, true)
+
+	case *parser.Quote:
+		// Quote is always fully literal: no substitution happens,
+		// even if it happens to contain what looks like a bound
+		// parameter name.
+		return n.Expr, nil
+
+	case *parser.String:
+		return n, nil
+
+	case *parser.Symbol:
+		if bound, ok := bindings[n.Name]; ok {
+			return bound, nil
+		}
+		return nil, fmt.Errorf("unbound symbol %q in macro body", n.Name)
+
+	default:
+		return nil, fmt.Errorf("unsupported expression of type %T in macro body: macros may only use bound parameters, literals, if, quote/quasiquote templates, and car/cdr/nil?", e)
+	}
+}
+
+// isMacroTruthy reports whether a compile-time macro value should be
+// treated as "true" by a compile-time "if" - matching the runtime rule
+// that only nil (or the empty list) is false.
+func isMacroTruthy(e parser.Expr) bool {
+	switch n := e.(type) {
+	case *parser.Nil:
+		return false
+	case *parser.List:
+		return len(n.Elems) != 0
+	default:
+		return true
+	}
+}
+
+// evalMacroCall evaluates a call appearing (outside of any
+// quote/quasiquote) within a macro body.  Only "car", "cdr" and "nil?"
+// are supported: enough structural list-decomposition for a macro to
+// recurse over a variadic parameter, one element at a time.
+func (c *Compiler) evalMacroCall(n *parser.Call, bindings map[string]parser.Expr) (parser.Expr, error) {
+
+	sym, ok := n.Fn.(*parser.Symbol)
+	if !ok {
+		return nil, fmt.Errorf("unsupported call in macro body: the callable must be a bare symbol (car/cdr/nil?)")
+	}
+
+	switch sym.Name {
+	case "car", "cdr", "nil?":
+		// handled below
+	default:
+		return nil, fmt.Errorf("unsupported function %q called in macro body: only car/cdr/nil? are supported outside of quote/quasiquote templates", sym.Name)
+	}
+
+	if len(n.Args) != 1 {
+		return nil, fmt.Errorf("%s expects exactly one argument in a macro body, got %d", sym.Name, len(n.Args))
+	}
+
+	val, err := c.evalMacroExpr(n.Args[0], bindings)
+	if err != nil {
+		return nil, err
+	}
+
+	switch sym.Name {
+	case "nil?":
+		elems, convErr := c.asExprList(val)
+		if convErr == nil && len(elems) == 0 {
+			return &parser.Int{Value: 1}, nil
+		}
+		return &parser.Nil{}, nil
+
+	case "car":
+		elems, convErr := c.asExprList(val)
+		if convErr != nil {
+			return nil, fmt.Errorf("car: %s", convErr)
+		}
+		if len(elems) == 0 {
+			return nil, fmt.Errorf("car: cannot take the first element of an empty list")
+		}
+		return elems[0], nil
+
+	case "cdr":
+		elems, convErr := c.asExprList(val)
+		if convErr != nil {
+			return nil, fmt.Errorf("cdr: %s", convErr)
+		}
+		if len(elems) == 0 {
+			return &parser.List{}, nil
+		}
+		return &parser.List{Elems: elems[1:]}, nil
+	}
+}
+
+// evalQuasiquote resolves a quasiquote template used within a macro
+// body, substituting any "live" Unquote/UnquoteSplicing holes with the
+// bound macro-argument expressions, and returns the result.
+//
+// Unlike quoteToExpr (used to compile a Quasiquote appearing in regular,
+// non-macro, code, which always builds a runtime list-value) this
+// preserves the *shape* of the template exactly: an "if" in the
+// template stays an *parser.If, ready to compile directly as real code,
+// rather than being turned into list-data describing an if-expression.
+func (c *Compiler) evalQuasiquote(e parser.Expr, bindings map[string]parser.Expr, quasi bool) (parser.Expr, error) {
+
+	switch n := e.(type) {
+
+	case *parser.Unquote:
+		if quasi {
+			return c.evalMacroExpr(n.Expr, bindings)
+		}
+		inner, err := c.evalQuasiquote(n.Expr, bindings, false)
+		if err != nil {
+			return nil, err
+		}
+		return &parser.Unquote{Expr: inner}, nil
+
+	case *parser.UnquoteSplicing:
+		if quasi {
+			return nil, fmt.Errorf("unquote-splicing (,@) may only appear as a list-element within a quasiquote")
+		}
+		inner, err := c.evalQuasiquote(n.Expr, bindings, false)
+		if err != nil {
+			return nil, err
+		}
+		return &parser.UnquoteSplicing{Expr: inner}, nil
+
+	case *parser.Quote:
+		// A nested quote is fully inert: it passes through
+		// untouched, exactly like at the top of evalMacroExpr.
+		return n, nil
+
+	case *parser.Quasiquote:
+		inner, err := c.evalQuasiquote(n.Expr, bindings, false)
+		if err != nil {
+			return nil, err
+		}
+		return &parser.Quasiquote{Expr: inner}, nil
+
+	case *parser.Symbol, *parser.Int, *parser.Float, *parser.String, *parser.Char, *parser.Nil:
+		// Literal data within the template - untouched.
+		return n, nil
+
+	case *parser.List:
+		elems, err := c.evalQuasiquoteList(n.Elems, bindings, quasi)
+		if err != nil {
+			return nil, err
+		}
+		return &parser.List{Elems: elems}, nil
+
+	case *parser.Call:
+		fn, err := c.evalQuasiquote(n.Fn, bindings, quasi)
+		if err != nil {
+			return nil, err
+		}
+		args, err := c.evalQuasiquoteList(n.Args, bindings, quasi)
+		if err != nil {
+			return nil, err
+		}
+		return &parser.Call{Fn: fn, Args: args}, nil
+
+	case *parser.If:
+		cond, err := c.evalQuasiquote(n.Cond, bindings, quasi)
+		if err != nil {
+			return nil, err
+		}
+		then, err := c.evalQuasiquote(n.Then, bindings, quasi)
+		if err != nil {
+			return nil, err
+		}
+		var els parser.Expr
+		if n.Else != nil {
+			els, err = c.evalQuasiquote(n.Else, bindings, quasi)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return &parser.If{Cond: cond, Then: then, Else: els}, nil
+
+	case *parser.Set:
+		expr, err := c.evalQuasiquote(n.Expr, bindings, quasi)
+		if err != nil {
+			return nil, err
+		}
+		return &parser.Set{Name: n.Name, Expr: expr}, nil
+
+	case *parser.Do:
+		exprs, err := c.evalQuasiquoteList(n.Exprs, bindings, quasi)
+		if err != nil {
+			return nil, err
+		}
+		return &parser.Do{Exprs: exprs}, nil
+
+	case *parser.While:
+		cond, err := c.evalQuasiquote(n.Cond, bindings, quasi)
+		if err != nil {
+			return nil, err
+		}
+		exprs, err := c.evalQuasiquoteList(n.Exprs, bindings, quasi)
+		if err != nil {
+			return nil, err
+		}
+		return &parser.While{Cond: cond, Exprs: exprs}, nil
+
+	case *parser.Let:
+		binds := make([]parser.Binding, len(n.Bindings))
+		for i, b := range n.Bindings {
+			expr, err := c.evalQuasiquote(b.Expr, bindings, quasi)
+			if err != nil {
+				return nil, err
+			}
+			binds[i] = parser.Binding{Name: b.Name, Expr: expr}
+		}
+		body, err := c.evalQuasiquoteList(n.Body, bindings, quasi)
+		if err != nil {
+			return nil, err
+		}
+		return &parser.Let{Bindings: binds, Body: body}, nil
+
+	case *parser.Lambda:
+		exprs, err := c.evalQuasiquoteList(n.Exprs, bindings, quasi)
+		if err != nil {
+			return nil, err
+		}
+		return &parser.Lambda{Defun: parser.Defun{
+			Name:     n.Name,
+			Params:   n.Params,
+			Variadic: n.Variadic,
+			Exprs:    exprs,
+		}}, nil
+
+	default:
+		return nil, fmt.Errorf("quasiquote: cannot process expression of type %T", e)
+	}
+}
+
+// evalQuasiquoteList processes each element of a quasiquote's list
+// content, splicing in the elements of any UnquoteSplicing it finds -
+// but only while quasi is true, i.e. we're not inside a further, inert,
+// nested quote/quasiquote.
+func (c *Compiler) evalQuasiquoteList(elems []parser.Expr, bindings map[string]parser.Expr, quasi bool) ([]parser.Expr, error) {
+
+	var out []parser.Expr
+
+	for _, el := range elems {
+
+		if spl, ok := el.(*parser.UnquoteSplicing); ok && quasi {
+			val, err := c.evalMacroExpr(spl.Expr, bindings)
+			if err != nil {
+				return nil, err
+			}
+
+			splElems, err := c.asExprList(val)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, splElems...)
+			continue
+		}
+
+		expr, err := c.evalQuasiquote(el, bindings, quasi)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, expr)
+	}
+
+	return out, nil
+}
+
+// asExprList converts an expression which represents a list - a List, a
+// Call (reused, elsewhere, to represent a generic head+args list), or
+// Nil (the empty list) - into a plain slice of its elements.  It's used
+// to splice the result of an UnquoteSplicing (",@") into a surrounding
+// list.
+func (c *Compiler) asExprList(e parser.Expr) ([]parser.Expr, error) {
+	switch n := e.(type) {
+	case *parser.List:
+		return n.Elems, nil
+	case *parser.Nil:
+		return nil, nil
+	case *parser.Call:
+		return append([]parser.Expr{n.Fn}, n.Args...), nil
+	default:
+		return nil, fmt.Errorf("unquote-splicing (,@) requires a list, got %T", e)
+	}
 }
 
 // emitVariadicCall compiles a call to a function which expects a variable number of arguments,
