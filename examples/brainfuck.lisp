@@ -130,8 +130,11 @@ CHARACTERS and our interpreter doesn't understand character types."
 
           ;; ,
           ((= ins ",")
-                        (nth! cells ptr (getc))
-                        (set! i (+ i 1)))
+                        (let ((c (getc)))
+                          (if (<= c 0)
+                              (exit 0))
+                          (nth! cells ptr c)
+                          (set! i (+ i 1))))
 
           ;; skip over unknown instructions
           (t (set! i (+ i 1))))))))
