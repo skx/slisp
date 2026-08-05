@@ -1,8 +1,8 @@
 // Package parser contains our AST definitions, and the code necessary
 // to populate them from our input.
 //
-// Most of this package is very minimal stuff, as lisp is very low on
-// syntax.
+// Most of this package is very minimal stuff, as lisp is very low on syntax.
+// However we do have some advanced support for macro-primitives.
 package parser
 
 import (
@@ -92,6 +92,8 @@ func (p *Parser) parseTopLevel() (TopLevel, error) {
 		return p.parseAlias()
 	case "defconst":
 		return p.parseGlobal(tok)
+	case "defmacro":
+		return p.parseDefmacro()
 	case "defun":
 		return p.parseDefun()
 	case "defvar":
@@ -158,28 +160,27 @@ func (p *Parser) parseGlobal(tok string) (TopLevel, error) {
 	}, nil
 }
 
-// parseDefun parses a single function definition, containing an arbitrary number
-// of expressions within the body.
-func (p *Parser) parseDefun() (TopLevel, error) {
-
-	// Get the name
-	name := p.next()
+// parseParams parses a parameter list, necessary for both "defun" and "defmacro".
+//
+// It returns the raw parameter-names, but records whether the last one should
+// be variadic.
+func (p *Parser) parseParams(owner string) ([]string, bool, error) {
 
 	if !p.expectNext("(") {
-		return nil, fmt.Errorf("expected '(' before defun arguments")
+		return nil, false, fmt.Errorf("expected '(' before parameter list of %s", owner)
 	}
 
 	var params []string
-	variadic := false
 	for p.peek() != ")" && p.peek() != "" {
 		params = append(params, p.next())
 	}
 	if !p.expectNext(")") {
-		return nil, fmt.Errorf("expected ')' after defun arguments")
+		return nil, false, fmt.Errorf("expected ')' after parameter list of %s", owner)
 	}
 
 	// Updated parameters with "&" removed.
 	tmp := []string{}
+	variadic := false
 
 	// If the last, and only the last, argument has a "&" prefix
 	// then it should be removed and the function noted as having
@@ -190,10 +191,26 @@ func (p *Parser) parseDefun() (TopLevel, error) {
 				param = after
 				variadic = true
 			} else {
-				return nil, fmt.Errorf("only the last parameter may have a &-prefix, saw it on %s: %s", name, param)
+				return nil, false, fmt.Errorf("only the last parameter may have a &-prefix, saw it on %s: %s", owner, param)
 			}
 		}
 		tmp = append(tmp, param)
+	}
+
+	return tmp, variadic, nil
+}
+
+// parseDefun parses a single function definition, containing an arbitrary number
+// of expressions within the body.
+func (p *Parser) parseDefun() (TopLevel, error) {
+
+	// Get the name
+	name := p.next()
+
+	// parse the parameters
+	tmp, variadic, err := p.parseParams(name)
+	if err != nil {
+		return nil, err
 	}
 
 	// body goes here
@@ -238,26 +255,85 @@ func (p *Parser) parseDefun() (TopLevel, error) {
 	}, nil
 }
 
-// buildList is used to turn "(list 1 2 3)" into "(cons 1 (cons 2 (cons 3 nil)))"
-func (p *Parser) buildList(args []Expr) Expr {
-	result := Expr(&Nil{})
+// parseDefmacro parses a single macro definition.
+func (p *Parser) parseDefmacro() (TopLevel, error) {
 
-	for i := len(args) - 1; i >= 0; i-- {
-		result = &Call{
-			Fn: &Symbol{Name: "cons"},
-			Args: []Expr{
-				args[i],
-				result,
-			},
+	// Get the name
+	name := p.next()
+
+	// parse the parameters.
+	tmp, variadic, err := p.parseParams(name)
+	if err != nil {
+		return nil, err
+	}
+
+	// body goes here
+	body := []Expr{}
+
+	// allow multiple expressions
+	for p.peek() != "" && p.peek() != ")" {
+		// get the expression
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+
+		// If there are no expressions
+		if len(body) == 0 {
+			// And the first expression is a string
+			// we just ignore it and continue, around this
+			// loop again.
+			switch expr.(type) {
+			case *String:
+				continue
+			}
+		}
+		body = append(body, expr)
+
+		// stop if we see a close
+		if p.peek() == ")" {
+			break
 		}
 	}
 
-	return result
+	// and ensure we do see that close
+	if !p.expectNext(")") {
+		return nil, fmt.Errorf("expected ')' after defmacro body")
+	}
+
+	return Defmacro{
+		Name:     name,
+		Params:   tmp,
+		Exprs:    body,
+		Variadic: variadic,
+	}, nil
 }
 
 // parseExpr parses a single expression, and returns the appropriate AST node.
 func (p *Parser) parseExpr() (Expr, error) {
 	t := p.peek()
+
+	// quote / quasiquote / unquote / unquote-splicing prefixes.
+	switch t {
+	case "'", "`", ",", ",@":
+		p.next()
+
+		inner, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+
+		switch t {
+		case "'":
+			return &Quote{Expr: inner}, nil
+		case "`":
+			return &Quasiquote{Expr: inner}, nil
+		case ",":
+			return &Unquote{Expr: inner}, nil
+		default: // ",@"
+			return &UnquoteSplicing{Expr: inner}, nil
+		}
+	}
 
 	if t == "(" {
 		return p.parseList()
@@ -265,7 +341,7 @@ func (p *Parser) parseExpr() (Expr, error) {
 
 	p.next()
 
-	// char
+	// character literal
 	if after, ok := strings.CutPrefix(t, "#\\"); ok {
 		x := after
 		c := x[0]
@@ -287,7 +363,7 @@ func (p *Parser) parseExpr() (Expr, error) {
 		return &Char{Value: byte(c)}, nil
 	}
 
-	// string
+	// string literal
 	if strings.HasPrefix(t, "\"") && strings.HasSuffix(t, "\"") {
 		t = t[1 : len(t)-1]
 		return &String{Value: t}, nil
@@ -340,51 +416,7 @@ func (p *Parser) parseList() (Expr, error) {
 	if sym, ok := head.(*Symbol); ok {
 		switch sym.Name {
 
-		case "cond":
-			var cases []CondCase
-
-			for p.peek() == "(" && p.peek() != "" {
-
-				if !p.expectNext("(") {
-					return nil, fmt.Errorf("expected '(' to open cond-case")
-				}
-
-				// condition
-				cond, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-
-				var exprs []Expr
-
-				// arbitrary number of expressions
-				for p.peek() != ")" && p.peek() != "" {
-					x, err := p.parseExpr()
-					if err != nil {
-						return nil, err
-					}
-					exprs = append(exprs, x)
-				}
-
-				if !p.expectNext(")") {
-					return nil, fmt.Errorf("expected ')' to close cond-case")
-				}
-
-				cases = append(cases, CondCase{
-					Case:  cond,
-					Exprs: exprs,
-				})
-			}
-
-			if !p.expectNext(")") {
-				return nil, fmt.Errorf("expected ')' to close cond")
-			}
-
-			return &Cond{
-				Cases: cases,
-			}, nil
-
-		case "do", "progn":
+		case "do":
 
 			var exprs []Expr
 
@@ -535,24 +567,6 @@ func (p *Parser) parseList() (Expr, error) {
 				Body:     body,
 			}, nil
 
-		case "list":
-			var args []Expr
-
-			for p.peek() != ")" && p.peek() != "" {
-				x, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				args = append(args, x)
-			}
-
-			if !p.expectNext(")") {
-				return nil, fmt.Errorf("expected ')' to close list")
-			}
-
-			lst := p.buildList(args)
-			return lst, nil
-
 		case "set!":
 			name := p.next()
 			expr, err := p.parseExpr()
@@ -567,54 +581,6 @@ func (p *Parser) parseList() (Expr, error) {
 			return &Set{
 				Name: name,
 				Expr: expr,
-			}, nil
-
-		case "unless":
-			cond, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-
-			var exprs []Expr
-
-			for p.peek() != ")" && p.peek() != "" {
-				x, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				exprs = append(exprs, x)
-			}
-
-			if !p.expectNext(")") {
-				return nil, fmt.Errorf("expected ')' after unless-expressions")
-			}
-
-			return &Unless{Cond: cond,
-				Exprs: exprs,
-			}, nil
-
-		case "when":
-			cond, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-
-			var exprs []Expr
-
-			for p.peek() != ")" && p.peek() != "" {
-				x, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				exprs = append(exprs, x)
-			}
-
-			if !p.expectNext(")") {
-				return nil, fmt.Errorf("expected ')' after when-expressions")
-			}
-
-			return &When{Cond: cond,
-				Exprs: exprs,
 			}, nil
 
 		case "while":
