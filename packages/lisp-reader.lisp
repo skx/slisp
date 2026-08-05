@@ -84,6 +84,22 @@
      (list
       (list "symbol" "quote")
       (reader-read)))
+    ((= (reader-peek) "`")
+     (reader-next)
+     (list
+      (list "symbol" "quasiquote")
+      (reader-read)))
+    ((= (reader-peek) ",")
+     (reader-next)
+     (if (= (reader-peek) "@")
+         (do
+          (reader-next)
+          (list
+           (list "symbol" "unquote-splicing")
+           (reader-read)))
+         (list
+          (list "symbol" "unquote")
+          (reader-read))))
     (t
      (reader-read-atom))))
 
