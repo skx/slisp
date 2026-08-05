@@ -150,6 +150,73 @@ func TestEmptyList(t *testing.T) {
 	}
 }
 
+func TestQuoting(t *testing.T) {
+
+	src := `
+(defmacro my-if (c t e)
+  ` + "`(cond (,c ,t) (t ,e)))" + `
+
+(defun main ()
+  (print 'a)
+  (print '(1 2 3))
+  (print ` + "`(1 ,(+ 1 1) ,@(list 3 4)))" + `
+  (my-if 1 2 3))
+`
+
+	p := New(src)
+	out, err := p.Parse()
+	if err != nil {
+		t.Fatalf("unexpected error parsing valid program; %v", err)
+	}
+	if len(out) != 2 {
+		t.Fatalf("expected two top-level expressions, got %d", len(out))
+	}
+
+	macro, ok := out[0].(Defmacro)
+	if !ok {
+		t.Fatalf("expected first top-level item to be a Defmacro, got %T", out[0])
+	}
+	if macro.Name != "my-if" {
+		t.Fatalf("unexpected macro name %q", macro.Name)
+	}
+	if len(macro.Params) != 3 {
+		t.Fatalf("expected 3 macro parameters, got %d", len(macro.Params))
+	}
+	if _, ok := macro.Exprs[0].(*Quasiquote); !ok {
+		t.Fatalf("expected macro body to be a Quasiquote, got %T", macro.Exprs[0])
+	}
+
+	def, ok := out[1].(Defun)
+	if !ok {
+		t.Fatalf("expected second top-level item to be a Defun")
+	}
+
+	call, ok := def.Exprs[0].(*Call)
+	if !ok {
+		t.Fatalf("expected first expression to be a call to print")
+	}
+	if _, ok := call.Args[0].(*Quote); !ok {
+		t.Fatalf("expected first argument to be a Quote, got %T", call.Args[0])
+	}
+}
+
+func TestBrokenQuoting(t *testing.T) {
+	tests := []string{
+		`(defmacro (a) `,
+		`(defmacro foo (a `,
+		`(defmacro foo (a) `,
+		`(defmacro foo (a &b c) 1)`,
+	}
+
+	for _, txt := range tests {
+		p := New(txt)
+		_, err := p.Parse()
+		if err == nil {
+			t.Fatalf("expected error parsing %s - got none", txt)
+		}
+	}
+}
+
 func TestFloat(t *testing.T) {
 	p := New("(defun main() (print 3.1))")
 	out, err := p.Parse()

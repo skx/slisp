@@ -46,10 +46,10 @@ Special forms are things that are built into the compiler core, and handled spec
 
 * `alias!`
   * Remap functions.  See [INTRODUCTION.md](INTRODUCTION.md) for details.
-* `cond`
-  * An efficient switch implementation.
 * `defconst`
   * Define an immutable global variable.
+* `defmacro`
+  * Define a macro.
 * `defun`
   * Define a function - The function named `main` is both mandatory, and the entry-point to user-scripts.
 * `defvar`
@@ -62,20 +62,25 @@ Special forms are things that are built into the compiler core, and handled spec
   * Creates a lambda function.
 * `let`
   * Create a new scope, with locally bound variables.
-* `list`
-  * Create a list.
 * `require`
   * Load a new package, inline.  See [INTRODUCTION.md](INTRODUCTION.md) for details.
 * `set!`
   * Set the value of a variable.
-* `unless`
-  * Run an unlimited number of expressions when the given condition is false
-  * `(unless x (expression1) (expression2) ..)` is the same as `(if x nil (do (expression1) (expression2) ..))`
-* `when`
-  * Run an unlimited number of expressions when the given condition is true.
-  * `(when x (expression1) (expression2) ..)` is the same as `(if x (do (expression1) (expression2) ..))`
 * `while`
   * Run the given body for as long as the specified condition is non-nil.
+
+
+
+## Quoting
+
+We have support for the _standard_ quote things, required to implement macros.  However our macros are very limited and are more akin to template-expansion.
+
+* `'x`, or `quote`.
+* ```x `` or `quasiquote`.
+* `,y` or `unquote`.
+* `,@y` or `unquote-splicing`.
+
+Our lisp-interpreter, inception, has the same support for quoting and unquoting.
 
 
 
@@ -221,8 +226,6 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Add the given key/value to an alist.
 * `alist:values`
   * Return all known values from the given alist.
-* `and`
-  * Test if every item in a list is true.
 * `append`
   * Append the given value to the specified list.  If the list is empty just return the specified item.
 * `atoi`
@@ -282,8 +285,6 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return 1 if the given number is odd, nil otherwise.
 * `one?`
   * Return true if the number is one.
-* `or`
-  * Is any value in the given list non-nil?
 * `plist:new`
   * Create a new property-list
 * `plist:get`
@@ -330,6 +331,20 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Find the complete path to the given binary, searching each directory on the $PATH.
 * `zero?`
   * Return true if the number is zero.
+
+
+
+## Macros
+
+We've implemented several primitives as macros, within our standard library [stdlib.slisp](stdlib.slisp):
+
+* `and`
+* `cond`
+* `or`
+* `unless`
+* `when`
+
+Our lisp-interpreter, inception, has the same support for macros.
 
 
 

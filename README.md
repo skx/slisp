@@ -50,7 +50,7 @@ You can find bigger examples beneath [examples/](examples/), and our [test/](tes
   * [test/sort3.lisp](test/sort3.lisp) - A mergesort implementation.
   * [test/vararg.lisp](test/vararg.lisp) - Demonstration of a function accepting a variable number of arguments.
 
-It should be noted that we prepend a standard library of functions to all user programs unless `-stdlib=false` is added to the command line.  That library itself is a useful reference/demonstration of functionality:
+It should be noted that we prepend a standard library of functions to all user programs unless `-stdlib=false` is added to the compiler command line.  That library itself is a useful reference/demonstration of functionality:
 
 * [stdlib.slisp](stdlib.slisp) - Our standard library, written in `slisp` itself.
   * Has a good `print` definition which handles known types appropriately.
@@ -77,7 +77,7 @@ It should be noted that we prepend a standard library of functions to all user p
   * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
 * Special forms (only some of which are valid at the top-level, those are marked with `*`):
   * `(alias! ..)` - `*` - Alias/overwrite a function.
-  * `(cond ..)`
+  * `(defmacro ..)` - `*` - declare a macro.
   * `(defun ..)` - `*` - declare a function.
   * `(defconst ..)` - `*` - declare a global constant.
   * `(defvar ..)`- `*` - declare a global variable.
@@ -85,23 +85,24 @@ It should be noted that we prepend a standard library of functions to all user p
   * `(if ..)`
   * `(lambda ..)`
   * `(let ..)`
-  * `(list ..)`
   * `(require ..)` - `*` - Include other source files.
   * `(set! ..)`
-  * `(unless ..)`
-  * `(when ..)`
   * `(while ..)`
+* Support for _simple_ macros.
+  * For example our standard functions `and`, `cond`, `list`, `or`, `unless`, and `when` are implemented as macros.
 
-You can see a complete list of our primitives, and their details in [PRIMITIVES.md](PRIMITIVES.md) - documenting both the built-in special-forms, and the parts of the standard library which are implemented in assembly, or `slisp` itself.
+You can see a complete list of our primitives, and their details in [PRIMITIVES.md](PRIMITIVES.md) - this documents the built-in special-forms, the parts of the standard library which are implemented in assembly, those things which are written in `slisp` itself, as well as our predefined macros.
 
 Anti-features:
 
-* No macros.
-  * It wouldn't be impossible to add them, but without `quote`, `quasiquote`, etc, it's a lot of work.
-* No `quote`
-  * Only really useful if you can call `eval` and as a compiler?  That's not going to happen easily.
-* We don't have "symbols" exposed to the language, but if you prefix a variable with "`:`" it will become visually distinct, and this is useful when working with alists, or plists.
-  * Internally that is actually translated to a stringified version of the variable name (So `(print :name)` becomes `(print "name")` - that might seem weird but it works for alist/plist usage, etc.)
+* Macros (`defmacro`) are a deliberately restricted, non-hygienic, compile-time expansion mechanism.
+  * A macro body may use bound parameters, literals, `quote`/`quasiquote` templates, a compile-time `if`, and `car`/`cdr`/`nil?` (for recursing over a variadic parameter) to construct its expansion - but not arbitrary compile-time computation (e.g. calling `+` directly against a parameter)
+  * A macro can't substitute into "raw name" slots - the target of `set!`, `let`-binding names, or `lambda`/`defun` parameter names - since those are parsed as literal tokens, not expressions.
+  * So you cannot write a decent `dolist` macro that inserts a named variable in the callee scope, however you can use an anaphoric approach.
+* We don't have "symbols" exposed to the language.
+  * You may prefix a variable with "`:`" to make it visually distinct.
+  * Quoting a bare symbol, e.g. `'foo`, produces the same kind of string.
+  * So both `:foo` and `'foo` are treated as the string `"foo"`.
 
 
 
@@ -253,7 +254,7 @@ Solution 1 (1 5 8 6 3 7 2 4):
 
 > Here you'll see we added `--main` which automatically runs the `(main)` function our examples define.
 
-So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has support for `(quote)`, it has a symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can also print.
+So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has a real symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can also print.
 
 The `alias!` function works for user-defined functions, but sadly doesn't allow you to override or change built-in functions, as they are in a different namespace.  This works:
 
@@ -266,8 +267,6 @@ But this doesn't work, if it did we'd have a recursion problem too of course:
     (defun x (n) (println "CALLED!") (string n))
     (alias! string x)
     (string "steve")
-
-Inception loads the standard library `stdlib.slisp` on startup, to ensure that programs executed by it have the same supporting-functions available as when compiled.  The embedded packages contained within `packages/` are also available at run-time with `(require NAME)` as you would expect.
 
 The interpreter is obviously much slower than our compiled binaries, due to the overhead of interpreting everything manually.  Sometimes this slowdown is minor, other times it is signification, it really depends upon the nature of the program:
 

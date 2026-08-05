@@ -1,16 +1,13 @@
-;; A minimal lisp interpreter, meant to be compiled with slisp.
+;; A lisp interpreter, meant to be compiled with slisp.
 ;;
 ;; Features match those of the parent compiler, so we have strings, floats,
-;; integers, lambdas, characters, etc.
+;; integers, lambdas, characters, etc.  We have closures, macros and
+;; correctly handle most things.
 ;;
-;; In some ways the interpreter is more advanced than the compiler as it
-;; has proper symbols and the (quote..) special form.  The downside is
-;; that it is slower in the execution of programs.
-;;
-;; Note that we store built-in primitives, variables, and functions
-;; in three different namespaces.  We do allow `alias!` to remap
-;; a function, and of course defining the same function name a second
-;; time will also overwrite the previous version.
+;; Note that we store built-in primitives, variables, macros, and functions
+;; in distinct namespaces.  We do allow `alias!` to remap a function, and
+;; of course defining the same function name a second time will also overwrite
+;; the previous version.
 ;;
 
 
@@ -75,6 +72,9 @@
 (defun closure (params body env)
   (list "closure" params body env))
 
+(defun macro (params body env)
+  (list "macro" params body env))
+
 (defun symbol (name)
   (list "symbol" name))
 
@@ -96,6 +96,11 @@
   (and
    (cons? x)
    (= (car x) "symbol")))
+
+(defun macro? (x)
+  (and
+   (cons? x)
+   (= (car x) "macro")))
 
 
 ;; And some type-specific helpers.
@@ -125,6 +130,9 @@
 
 ;; global storage for user-functions
 (defvar *functions*  nil)
+
+;; global storage for macros
+(defvar *macros* nil)
 
 ;; global storage for global variables
 (defvar *globals* nil)
@@ -161,6 +169,16 @@
          *functions*
          name
          (closure params body nil)))
+  ;; return the name
+  name)
+
+;; add a macro
+(defun add-macro (name params body)
+  (set! *macros*
+        (tree:put
+         *macros*
+         name
+         (macro params body nil)))
   ;; return the name
   name)
 
@@ -202,6 +220,18 @@
     (if nested
         nested
         (tree:get *functions* name))))
+
+;; get a macro, by name
+;;
+;; Check for the self-hosted/inception version of the entry first.
+(defun lookup-macro (name)
+  (let ((nested
+          (tree:get
+             (global-get "*macros*")
+             name)))
+    (if nested
+        nested
+        (tree:get *macros* name))))
 
 ;; lookup a binding from the environment
 (defun env-get (env name)
@@ -405,55 +435,6 @@
          (println "Unknown function " new)
          (list nil env)))))
 
-;; special form: and
-(defun eval-and (expr env)
-  (eval-and-forms (cdr expr) env))
-
-(defun eval-and-forms (forms env)
-  (if (nil? forms)
-
-      ;; (and) => t
-      (list t env)
-
-      (let ((result (eval (car forms) env)))
-
-        (if (nil? (eval-value result))
-
-            ;; first false value
-            result
-
-            ;; last value wins
-            (if (nil? (cdr forms))
-                result
-                (eval-and-forms
-                 (cdr forms)
-                 (eval-env result)))))))
-
-;; special form: cond
-(defun eval-cond (expr env)
-  (eval-cond-clauses (cdr expr) env))
-
-(defun eval-cond-clauses (clauses env)
-  (if (nil? clauses)
-      (list nil env)
-
-      (let ((clause (car clauses)))
-
-        ;; Evaluate the test expression.
-        (let ((result (eval (car clause) env)))
-
-          (if (eval-value result)
-
-              ;; Test succeeded.
-              (eval-body
-               (cdr clause)
-               (eval-env result))
-
-              ;; Try the next clause.
-              (eval-cond-clauses
-               (cdr clauses)
-               (eval-env result)))))))
-
 ;; special form: defun
 (defun eval-defun (expr env)
   (add-function
@@ -462,6 +443,16 @@
    (cdddr expr))                ; body
 
   ;; return the name of the defun, and the environment
+  (list (cadr expr) env))
+
+;; special form: defmacro
+(defun eval-defmacro (expr env)
+  (add-macro
+   (symbol-name (cadr expr))    ; name
+   (symbols-names (caddr expr)) ; params
+   (cdddr expr))                ; body
+
+  ;; return the name of the defmacro, and the environment
   (list (cadr expr) env))
 
 ;; special form: defvar - return the value
@@ -521,26 +512,31 @@
 (defun eval-list (expr env)
   (let ((op (symbol-name (car expr))))
     (cond
-      ((= op "alias!")   (eval-alias expr env))
-      ((= op "and")      (eval-and expr env))
-      ((= op "cond")     (eval-cond expr env))
-      ((= op "defconst") (eval-defvar expr env))
-      ((= op "defun")    (eval-defun expr env))
-      ((= op "defvar")   (eval-defvar expr env))
-      ((= op "do")       (eval-do expr env))
-      ((= op "if")       (eval-if expr env))
-      ((= op "lambda")   (eval-lambda expr env))
-      ((= op "let")      (eval-let expr env))
-      ((= op "or")       (eval-or expr env))
-      ((= op "quote")    (eval-quote expr env))
-      ((= op "require")  (eval-require expr env))
-      ((= op "set!")     (eval-set expr env))
-      ((= op "unless")   (eval-unless expr env))
-      ((= op "when")     (eval-when expr env))
-      ((= op "while")    (eval-while expr env))
+      ((= op "alias!")     (eval-alias expr env))
+      ((= op "defconst")   (eval-defvar expr env))
+      ((= op "defmacro")   (eval-defmacro expr env))
+      ((= op "defun")      (eval-defun expr env))
+      ((= op "defvar")     (eval-defvar expr env))
+      ((= op "do")         (eval-do expr env))
+      ((= op "if")         (eval-if expr env))
+      ((= op "lambda")     (eval-lambda expr env))
+      ((= op "let")        (eval-let expr env))
+      ((= op "quasiquote") (eval-quasiquote expr env))
+      ((= op "quote")      (eval-quote expr env))
+      ((= op "require")    (eval-require expr env))
+      ((= op "set!")       (eval-set expr env))
+      ((= op "while")      (eval-while expr env))
 
-      ;; default
-      (t  (eval-call expr env)))))
+      ;; default: expand a macro-call, or make a genuine function/lambda call
+      (t  (eval-maybe-macro expr env op)))))
+
+;; If OP names a macro, expand it and evaluate the result.  Otherwise
+;; treat EXPR as an ordinary function/lambda call.
+(defun eval-maybe-macro (expr env op)
+  (let ((mac (if (str? op) (lookup-macro op) nil)))
+    (if mac
+        (eval (expand-macro mac expr) env)
+        (eval-call expr env))))
 
 ;; eval set!
 (defun eval-set (expr env)
@@ -590,27 +586,51 @@
                            user
                          (do (println "Unknown function " name) nil)))))))))))
 
-;; special form: or
-(defun eval-or (expr env)
-  (eval-or-forms (cdr expr) env))
-
-(defun eval-or-forms (forms env)
-  (if (nil? forms)
-      ;; (or) => nil
-      (list nil env)
-
-      (let ((result (eval (car forms) env)))
-        (if (eval-value result)
-            ;; first true value
-            result
-            ;; otherwise continue
-            (eval-or-forms
-             (cdr forms)
-             (eval-env result))))))
-
 ;; special form: quote
 (defun eval-quote (expr env)
   (list (cadr expr) env))
+
+;; special form: quasiquote
+(defun eval-quasiquote (expr env)
+  (list (qq-expand (cadr expr) env) env))
+
+;; Is FORM the tagged expression "(NAME ..)" - eg. is FORM the parsed
+;; form of "(unquote x)" when NAME is "unquote"?
+(defun qq-unquote-form? (form name)
+  (if (cons? form)
+      (let ((op (car form)))
+        (if (cons? op)
+            (if (str? (car op))
+                (if (= (car op) "symbol")
+                    (= (cadr op) name)
+                    nil)
+                nil)
+            nil))
+      nil))
+
+;; Walk FORM, substituting any (unquote ..) or (unquote-splicing ..)
+;; found within it, and leaving everything else untouched.
+(defun qq-expand (form env)
+  (cond
+    ((qq-unquote-form? form "unquote")
+     (eval-value (eval (cadr form) env)))
+    ((cons? form)
+     (qq-expand-list form env))
+    (t form)))
+
+;; Helper for qq-expand, used to walk the elements of a list - handling
+;; unquote-splicing of a list-element as a special case.
+(defun qq-expand-list (form env)
+  (if (nil? form)
+      nil
+      (let ((head (car form)))
+        (if (qq-unquote-form? head "unquote-splicing")
+            (append
+             (eval-value (eval (cadr head) env))
+             (qq-expand-list (cdr form) env))
+            (cons
+             (qq-expand head env)
+             (qq-expand-list (cdr form) env))))))
 
 
 (defun require-path (file)
@@ -668,19 +688,6 @@
     (list nil env)))
 
 
-;; special form: unless
-(defun eval-unless (expr env)
-  (let ((r (eval (cadr expr) env)))
-    (if (eval-value r)
-        nil
-        (eval-body (cdr expr) env))))
-
-;; special form: while
-(defun eval-when (expr env)
-  (let ((r (eval (cadr expr) env)))
-    (if (eval-value r)
-        (eval-body (cdr expr) env))))
-
 ;; special form: while
 (defun eval-while (expr env)
   (let ((running t)
@@ -698,6 +705,25 @@
             (set! running nil))))
     result))
 
+
+;; Bind macro parameters to the unevaluated arguments.
+(defun bind-macro-args (params args env)
+  (cond
+    ((nil? params) env)
+    ((variadic-arg? (car params))
+     (env-set env (variadic-name (car params)) args))
+    (t
+     (bind-macro-args
+      (cdr params)
+      (cdr args)
+      (env-set env (car params) (car args))))))
+
+;; Expand a macro-call, returning the expression it produces.
+(defun expand-macro (mac expr)
+  (let ((params (cadr mac))
+        (body   (caddr mac))
+        (macro-env (bind-macro-args params (cdr expr) nil)))
+    (eval-value (eval-body body macro-env))))
 
 ;; apply for built-in and user-functions
 (defun apply (fn args name)
@@ -773,9 +799,11 @@
   (newline)
   (println "Welcome to lisp in slisp; \e[1mInception\e[0m!")
   (println "Enter :quit to exit.")
-  (println "NOTE: Help for many functions is available - e.g. (help print)")
-  (println "      Enter '(help-all)' to see all functions and their help-text.")
-  (println "      Available functions may be listed with (functions)")
+  (println "\nHelp\n====")
+  (println "Help for most core functions is available - e.g. (help print)")
+  (println "Run '(help-all [str])' to see all functions [matching str] and their help-text.")
+  (println "Available functions may be listed with (functions), just those matching a string")
+  (println "via (functions \"str\").")
   (newline)
 
   (let ((run t))
@@ -807,6 +835,7 @@
     (if data
         (run-program data)
         (println "Failed to read file"))))
+
 
 
 ;;

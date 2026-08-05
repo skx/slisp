@@ -423,19 +423,46 @@ do the right thing for each entry in the given list."
 ;;
 ;; Some trivial logical functions which might be useful.
 
-(defun and (&xs)
-  "Return true if every item in the specified list is true.
+(defmacro cond (&clauses)
+  "Evaluate each clause's test, in turn, stopping at the first one that
+is non-nil and returning the value of that clause's last body-expression
+(or the test's own value, if the clause has no body).
 
-NOTE: This is not a macro, so all arguments are evaluated."
-  (let ((res (filter xs (lambda (x) x))))
-    (= (length xs) (length res))))
+Returns nil on no match"
+  (if (nil? clauses)
+      nil
+      `(if ,(car (car clauses))
+           (do ,@(cdr (car clauses)))
+           (cond ,@(cdr clauses)))))
 
-(defun or (&xs)
-  "Return true if any value in the specified list contains a true value.
+(defmacro and (&xs)
+  "Return the value of the last argument, so long as every argument up to
+that point is non-nil.
 
-NOTE: This is not a macro, so all arguments are evaluated."
-  (let ((res (filter xs (lambda (x) x))))
-    (> (length res) 0)))
+Stops, and returns nil, as soon as an argument is nil, without evaluating
+any remaining remaining arguments."
+  (if (nil? xs)
+      t
+      (if (nil? (cdr xs))
+          (car xs)
+          `(if ,(car xs) (and ,@(cdr xs)) nil))))
+
+(defmacro or (&xs)
+  "Return the value of the first non-nil argument, it does not evaluate remaining arguments."
+  (if (nil? xs)
+      nil
+      (if (nil? (cdr xs))
+          (car xs)
+          `(let ((or-value ,(car xs)))
+             (if or-value or-value (or ,@(cdr xs)))))))
+
+(defmacro when (c &body)
+  "Run an unlimited number of expressions when the given condition is true."
+  `(if ,c (do ,@body)))
+
+(defmacro unless (c &body)
+  "Run an unlimited number of expressions when the given condition is false."
+  `(if ,c nil (do ,@body)))
 
 
 
@@ -639,6 +666,13 @@ NOTE: This is not a macro, so all arguments are evaluated."
 ;;
 ;; These are functions which are designed to create lists,
 ;; with ascending values for example.
+
+(defmacro list (&xs)
+  "Build a list containing the value of each argument, in order.
+(list a b c) is the same as (cons a (cons b (cons c nil)))."
+  (if (nil? xs)
+      nil
+      `(cons ,(car xs) (list ,@(cdr xs)))))
 
 (defun nat (n)
   "Create a list of numbers ranging from 1-N, inclusive."
