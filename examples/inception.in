@@ -1,89 +1,143 @@
-;;; inception.in - Test file for lisp interpreter
+;; Demonstrate using a macro to create a "structure", complete with accessors
+;; type-checking and mutators.
+;;
+;; This example *ONLY* works in inception, because our compiler doesn't
+;; support such advanced macros.
 
 
-(defun map (fn xs)
-  "Create a new list by calling the given function for every list element."
-  (if (nil? xs)
+
+;; Make a symbol
+(defun make-symbol (name)
+  (list "symbol" name))
+
+;; Get the name of a symbol
+(defun symbol-name (x)
+  (cadr x))
+
+;; Create a function
+(defun make-defun (name args &body)
+  (append
+    (list
+      (make-symbol "defun")
+      (make-symbol name)
+      args)
+    body))
+
+;; create a constructor
+(defun struct-constructor (type fields)
+  (let ((args (map make-symbol fields)))
+    (make-defun
+      (strcat "make-" type)
+      args
+      (cons
+        (make-symbol "list")
+        (cons
+          (list
+            (make-symbol "quote")
+            (make-symbol type))
+          args)))))
+
+;; create a field-accessing method
+(defun struct-accessor (type field index)
+  (make-defun
+    (strcat (strcat type "-") field)
+    (list (make-symbol "obj"))
+    (list
+      (make-symbol "nth")
+      (make-symbol "obj")
+      (+ index 1))))
+
+;; Create a settr for a field
+(defun struct-setter (type field index)
+  (make-defun
+    (strcat
+      (strcat
+        "set-"
+        (strcat type "-"))
+      (strcat field "!"))
+    (list
+      (make-symbol "obj")
+      (make-symbol "value"))
+    (list
+      (make-symbol "nth!")
+      (make-symbol "obj")
+      (+ index 1)
+      (make-symbol "value"))))
+
+;; Test a thing is an instance of a type
+(defun struct-predicate (type)
+  (make-defun
+    (strcat type "?")
+    (list (make-symbol "obj"))
+    (list
+      (make-symbol "=")
+      (list
+        (make-symbol "symbol-name")
+        (list
+          (make-symbol "car")
+          (make-symbol "obj")))
+      type)))
+
+;; Build the getter/setters for each field
+(defun build-accessors (type fields index)
+  (if (nil? fields)
       nil
-      (cons (fn (car xs)) (map fn (cdr xs)))))
+      (cons
+        (struct-accessor type
+                         (car fields)
+                         index)
+
+        (cons
+          (struct-setter type
+                         (car fields)
+                         index)
+
+          (build-accessors type
+                           (cdr fields)
+                           (+ index 1))))))
+
+;; Nirvana: Define everything for the object
+(defmacro defstruct (spec)
+  (let ((type   (symbol-name (car spec)))
+        (fields (map symbol-name (cdr spec))))
+    (cons
+      (make-symbol "do")
+      (cons
+        (struct-constructor type fields)
+         (cons
+          (struct-predicate type)
+
+          (build-accessors type
+                           fields
+                           0))))))
 
 
-;; global variable
-(defvar x 7)
+;; Test code
 
-;; comments are here
-(defun square (x)
-   (* x x))
+;; Define a "person" with three fields
+;;   name
+;;   address
+;;   email
+(defstruct (person name address email))
 
-;; Test our square function
-(println (square 10))
+;; Make a person - all fields set
+(let ((p (make-person "Dave" "Somewhere in London" "steve@steve.example")))
 
+  ;; Show it
+  (println "raw representation of a person:" p )
 
-;; factorial function
-(defun fact (n)
-  (if (<= n 1)
-      1
-      (* n (fact (- n 1)))))
+  ;; Confirm we have the type-check
+  (if (person? p)
+      (println "we made a person!")
+      (println "person? failed for p"))
 
+  ;; Set a field
+  (println "before:"p)
+  (set-person-email! p "anonymous@example.com")
+  (println "after:"p)
 
-;; recursion
-(defun length (xs)
-    (if (nil? xs)
-        0
-        (+ 1 (length (cdr xs)))))
+  ;; Get field values, by name
+  (println "Name:"    (person-name p))
+  (println "Address:" (person-address p))
 
-
-;;
-;; Start running some code
-;;
-(print   "Squaring some numbers: ")
-(println (map square (list 4 5 20 30 40)))
-
-;;
-;; Show that our lambda works with map, and that
-;; multiple expressions work.
-;;
-(map
-   (lambda (x) (println "LAMBDA X " x "*" x ": -> " (* x x)) (* x x))
-        (list 1 2 3 4 5))
-
-
-;;
-;; Make a closure/adder.
-;;
-(defun make-adder (n)
-    (lambda (x)
-        (+ x n)))
-
-
-(println "This is what a function looks like: " (make-adder 10))
-
-;;
-;; Create an adder, and use it
-;;
-(defvar add10 (make-adder 10))
-(println "Adder (+10) result for  5:" (add10 5))
-(println "Adder (+10) result for 25:" (add10 25))
-
-;; maths
-(println "Some maths:")
-(println "  " (+ 329 1))
-(println "  " (* 37 26))
-(println "  " (/   9 3))     ; integer division
-(println "  " (/   1.0 10))  ; need to add a ".0" suffix to force floats
-
-
-;; length tests
-(println (-  0  2 ))
-(println (- -3 -2 ))
-(println nil)
-(println (length (list )))
-(println (length (list 1)))
-(println (length (list 1 2)))
-(println (length (list 1 2 3 )))
-(println (length (list 1 2 3 4)))
-(println (length (list 1 2 3 4 5)))
-(println (length (list 1 2 3 4 5 6)))
-(println x)
-
-(println "Program time is over now!")
+  )
