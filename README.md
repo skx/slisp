@@ -1,10 +1,8 @@
 # slisp
 
-This repository contains `slisp` (either named for "Steve's Lisp Compiler", or "Simple Lisp Compiler"), which is a compiler reading Lisp programs as input, generating standalone assembly representations for Linux/AMD64 as output.
+This repository contains `slisp` a simple Lisp compiler which generates static/standalone binaries.  (The compiler reads lisp source file and generates nasm assembly language output for AMD64/linux systems.)
 
-Lisp is traditionally used in an interactive way, via a REPL.  By contrast this repository allows you to turn a lisp program into a compiled executable which will run non-interactively.
-
-> But note that I did write a **Lisp Interpreter**, complete with a REPL, which you can see described below in the [INCEPTION](#inception) section.
+Using this compiler I also wrote a lisp _interpreter_ which gives you the ability to write code in a lisp REPL interactively, which is the kind of environment Lisp users are familiar with.  The compiler is called "slisp" and the interpreter is called "inception" because it can also interpret itself - albeit rather slowly - and is documented below in the [INCEPTION](#inception) section.
 
 Quick links:
 
@@ -99,6 +97,7 @@ Anti-features:
   * A macro body may use bound parameters, literals, `quote`/`quasiquote` templates, a compile-time `if`, and `car`/`cdr`/`nil?` (for recursing over a variadic parameter) to construct its expansion - but not arbitrary compile-time computation (e.g. calling `+` directly against a parameter)
   * A macro can't substitute into "raw name" slots - the target of `set!`, `let`-binding names, or `lambda`/`defun` parameter names - since those are parsed as literal tokens, not expressions.
   * So you cannot write a decent `dolist` macro that inserts a named variable in the callee scope, however you can use an anaphoric approach.
+* There is no tail call optimization, yet.
 * We don't have "symbols" exposed to the language.
   * You may prefix a variable with "`:`" to make it visually distinct.
   * Quoting a bare symbol, e.g. `'foo`, produces the same kind of string.

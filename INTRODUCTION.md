@@ -1,6 +1,6 @@
 # Brief `slisp` Introduction
 
-`slisp` is a typical lisp implementation, complete with support for floating-point numbers, integers, strings, characters, lambdas, packages, and functions.  The compiler generates standalone binaries, which run in a self-contained way.  There is also an interpreter (which has a REPLY), and both of these benefit from a runtime stop&copy garbage-collection process.
+`slisp` is a typical lisp implementation, complete with support for floating-point numbers, integers, strings, characters, lambdas, packages, and functions.  The compiler generates standalone binaries, which run in a self-contained way.  There is also an interpreter (which has a REPL), and both of these benefit from a runtime stop&copy garbage-collection process.
 
 
 
@@ -49,10 +49,8 @@ To start a new scope with local variables use `let`:
 
     (let ((foo "bar")
           (baz  "bart"))
-      (print "foo is ")
-      (println foo)
-      (print "baz is ")
-      (println baz))
+      (println "foo is " foo)
+      (println "baz is " baz))
 
 To update the contents of a bound variable use `set!`:
 
@@ -61,17 +59,17 @@ To update the contents of a bound variable use `set!`:
 So:
 
     (let ((foo 23))
-      (print foo)           ; prints 23.
-      (newline)
+      (println foo)           ; prints 23.
       (set! foo (* 3 foo))
-      (print foo)           ; prints 69.
-      (newline))
+      (println foo))           ; prints 69.
 
 Note that bindings within the `let` statements can refer to previous bindings, and so this is also valid:
 
     (let ((x 3)
           (y (* x x)))
        (print y))
+
+(i.e. `let` is actually `let*`.)
 
 
 
@@ -82,9 +80,9 @@ The function `do` allows any number of expressions to be evaluated, and is usefu
 Any time you want to run multiple expressions but only one is permitted use `do`:
 
       (do
-        (print "I'm the first expression")
-        (print "I'm the second expression")
-        (print "Multiple expressions can happen here.."))
+        (println "I'm the first expression")
+        (println "I'm the second expression")
+        (println "Multiple expressions can happen here.."))
 
 Our `defun`, `lambda`, and `let` expressions allow an unlimited number of expressions to be executed within their bodies.  Our `if` expression only allows a single expression to be executed, but using `do` you can run more.
 
@@ -95,8 +93,8 @@ Our `defun`, `lambda`, and `let` expressions allow an unlimited number of expres
 `if` is a standard of lisp, and we support it:
 
     (if 1
-      (print "This is executed")
-     (print "This is not"))
+      (println "This is executed")
+     (println "This is not"))
 
 The return value of the expression is the return value of the last executed expression.
 
@@ -108,7 +106,7 @@ If you want to run multiple expressions in either the "true" or "false" branch u
         (print "Multiple expressions can happen here..")
         ))
 
-As noted you can use `do` to execute multiple blocks, but a simpler alternative is to use `when` and `unless`.  These are conditionals which allow running a block of code when a condition is true, or false.  The difference here is that you cannot have both a TRUE and FALSE block at the same time, only one or the other:
+As noted you can use `do` to execute multiple blocks, but a simpler alternative is to use `when` and `unless`.  These are macros which allow running a block of code when a condition is true, or false.  The difference here is that you cannot have both a TRUE and FALSE block at the same time, only one or the other:
 
     ; When the condition is true, run the expressions.
     (when (< i 10)
@@ -141,8 +139,8 @@ Optionally you may write some help/usage information in your definition:
 
 Here's another simple function:
 
-    ;; square the given argument
     (defun square (x)
+       "Square the given argument."
        (* x x))
 
 A function may be defined with the sole/last argument having an `&`-prefix, which means this is a function which will accept a variable number of arguments.  When such functions are called any extra parameters are converted into a list and available in that way.  For example:
@@ -224,9 +222,9 @@ Imagine you wanted to store details about a person you might use something like 
 Here's how you might use the functions:
 
     (let ((a (alist:new)))
-       (set! a (alist:set :name   "Steve"))
-       (set! a (alist:set :enmail "steve@example.com"))
-       (set! a (alist:set :hair   "Red"))
+       (set! a (alist:set :name  "Steve"))
+       (set! a (alist:set :email "steve@example.com"))
+       (set! a (alist:set :hair  "Red"))
 
        ;; Do stuff
        (println "Person name " (alist:get a :name)))
@@ -247,9 +245,9 @@ Compared to an alist the list is flat, so an example might look like this:
 Here's how you might use the functions:
 
     (let ((p (plist:new)))
-       (set! p (plist:set :name   "Steve"))
-       (set! p (plist:set :enmail "steve@example.com"))
-       (set! p (plist:set :hair   "Red"))
+       (set! p (plist:set :name  "Steve"))
+       (set! p (plist:set :email "steve@example.com"))
+       (set! p (plist:set :hair  "Red"))
 
        ;; Do stuff
 
@@ -284,7 +282,7 @@ In all cases the process of resolving a `(require)` statement is the same:
 * Given `(require FOO)`
   * Look to see if the file `foo.lisp` was included in our binary.  If so evaluate it.
   * Otherwise add ".lisp" suffix to FOO unless there is already a suffix of some kind.
-  * Look for it on ever directory within the current directory and the directories referenced on the `LISP_PATH` environmental variable.  (Which is `:`-separated.)
+  * Look for it on every directory within the current directory and the directories referenced on the `LISP_PATH` environmental variable.  (Which is `:`-separated.)
   * If not found continue, but perhaps log a message.
 
 
@@ -317,6 +315,35 @@ Then `(require foo)` will attempt to load, in order:
 * `./foo.lisp`
 * `/usr/share/slisp/foo.lisp`
 * `./lib/foo.lisp`
+
+
+
+## REPL Introspection
+
+The REPL has support for showing function names which match a given pattern, along with retrievng help-text from specific functions.
+
+Here we see we have no arg-parser functions:
+
+     > (functions "arg-parser")
+     <nil>
+
+But load the package and now they are visible:
+
+     > (require arg-parser)
+     <nil>
+     > (functions "arg-parser")
+     (arg-parser:expand-short-flags arg-parser:files arg-parser:flags-from-arg arg-parser:flags-helper arg-parser:new)
+
+All available functions may be returned by `(functions)` otherwise only those which contain the given string are returned.  (This is literal substring matching, rather than regular expression matches - we don't have support for regular expressions.)
+
+The `square` function we demonstrated above had a help-string, and here's how to view it:
+
+     > (defun square (x) "Square the given argument." (* x x))
+     (symbol square)
+     > (help square)
+     Arguments: (x)
+     Summary  : Square the given argument.
+     <nil>
 
 
 
