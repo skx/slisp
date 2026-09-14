@@ -49,6 +49,17 @@ Once this package has been loaded the core mathematical primitives `+`, `-`, `*`
 ```
 
 
+### regexp
+
+A minimal regular-expression matching function, which supports `.`, `?`, `*`, along with the positional anchors `^` and `$`.
+
+
+```lisp
+(require regexp)
+(println (regexp:match "^fo*$" "fooo"))
+```
+
+
 ### plist
 
 Property list code, included as part of `stdlib.lisp`, so there is no need to additionally require it.
