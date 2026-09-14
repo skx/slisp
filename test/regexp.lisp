@@ -1,0 +1,12 @@
+(require regexp)
+
+(defun main (args)
+  (println (regexp:match "hello" "hello"))
+  (println (regexp:match "h.llo" "hello"))
+  (println (regexp:match "^ab*c$" "ac"))
+  (println (regexp:match "ab*c" "abbbc"))
+  (println (regexp:match "ab?c" "ac"))
+  (println (regexp:match "ab?c" "abc"))
+  (println (regexp:match "ab?c" "abbc"))
+  (println (regexp:match "^s....$" "steve"))
+  )
