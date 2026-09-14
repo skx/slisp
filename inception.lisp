@@ -846,12 +846,6 @@
 
   (init-builtins)
 
-  ;; no args?  show error and terminate
-  (if (= (length args) 1 )
-      (do
-       (println "Usage " (car args) " --repl | --eval=xx | path/to/run")
-       (exit 1)))
-
   ;; Load the standard library
   (let ((before (now))
         (x (run-program (stdlib)))
@@ -869,7 +863,7 @@
 
   ;; Should we auto-run (defun main) ..?
   (if (member? args "--main")
-      (repl-execute-line "(main)"))
+      (repl-execute-line "(main (list \"a.out\"))"))
 
   ;; Should we evaluate some code?
   (map (lambda (arg)
@@ -884,6 +878,7 @@
        args)
 
   ;; Is this REPL mode?  Then run it
-  (if (member? args "--repl")
+  (if (or (= (length args) 1)
+          (member? args "--repl"))
        (repl))
 )

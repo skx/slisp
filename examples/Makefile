@@ -28,18 +28,17 @@ test: ../slisp
 #
 # Instead execute the test-case via the interpreter and compare the results with expected ones.
 #
-test-inception: ./inception
-	@$(MAKE) RUN='./inception $$< --eval="(main (list \"./example.test\"))"' $(TESTS)
+test-inception: ../inception
+	@$(MAKE) RUN='../inception $$< --eval="(main (list \"./example.test\"))"' $(TESTS)
 
 
 # Ensure we have the compiler
 ../slisp:
 	cd .. && go build .
 
-
-# Ensure we have inception
-inception: inception.lisp ../slisp
-	@../slisp -c $<
+# Ensure we have the interpreter
+../inception:
+	cd .. && make
 
 
 
@@ -52,14 +51,6 @@ inception: inception.lisp ../slisp
 %: %.lisp ../slisp
 	@echo "compiling $@"
 	@../slisp -c $<
-
-# inception needs a file to be named
-inception.test: ../slisp
-	@echo "compiling $@"
-	@../slisp -c -o inception.test inception.lisp
-	@echo "testing $@"
-	@./$@ inception.in > $@.out 2>&1  || true
-	@cmp $@.out $@.expected || (echo "program $< did not match" ; cat $@.out ; exit 1)
 
 wc.test:
 	@echo "ignoring $@ - as it doesn't terminate"

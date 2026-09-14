@@ -3,13 +3,22 @@ PROGRAMS := $(basename $(wildcard *.lisp))
 .PHONY: clean test test-inception
 
 
+# Default to building the compiler and the interpreter.
+ALL: slisp inception
+
 # build the compiler
 slisp: main.go
 	go build .
 
+
+# compile the interpreter
+inception: slisp inception.lisp
+	./slisp -c inception.lisp
+
+
 # clean everything
 clean:
-	rm -f slisp $(PROGRAMS) *.asm *.o
+	rm -f slisp $(PROGRAMS) *.asm *.o inception
 	cd test     && make clean
 	cd examples && make clean
 
