@@ -1,18 +1,16 @@
 ## Inception
 
-As noted this is a _compiler_ which means that for a given lisp program we produce an executable, there is no REPL.
+Our repository contains `slisp` which is a Lisp compiler, but I thought it might be fun to prove that it is a _real lisp_, and so I implemented a lisp interpreter which can be compiled.
 
-But I thought it might be fun to prove that my slisp is a _real lisp_, and so I implemented a lisp interpreter which can read lisp source code from files and execute it, and which also implements a REPL.
+As the lisp interpreter can load and execute its own source code I named it `inception`.
 
-Build the compiler, and build the interpreter:
+You can build both the compiler, and the interpreter by executing `make` at the root of the repository:
 
 ```
-go build .
-cd examples/
-make inception
+make
 ```
 
-Now you should have the executable `inception` present, which is the lisp-interpreter.  Fire it up:
+Now you can launch the interpreter like so:
 
 ```
 $ ./inception --repl
@@ -29,33 +27,37 @@ Welcome to lisp in slisp!
 > :quit
 ```
 
+
+
+## Launching Files
+
 In addition to having a REPL you can also load files (and then optionally have the REPL start).  So here's running the self-contained example that is comprised of top-level functions, without a `(defun main ..)` entry-point:
 
 ```
-$ ./inception inception.in
-Loading .. inception.in
-100
-Squaring some numbers: (16 25 400 900 1600)
-LAMBDA X 1*1: -> 1
-LAMBDA X 2*2: -> 4
-LAMBDA X 3*3: -> 9
-LAMBDA X 4*4: -> 16
-LAMBDA X 5*5: -> 25
-This is what a function looks like: (closure (x) (((symbol +) (symbol x) (symbol n))) ((n 10)))
-Adder (+10) result for  5:15
+$ ./inception examples/inception.in
+Loaded stdlib.lisp in 1761ms.
+Loading .. examples/inception.in
 ..
+Address:Somewhere in London
 ```
 
-And here is loading an existing test file.  Loading this file will not immediately run the `main` function, so we add the `--repl` flag to start that up, after loading and parsing the program.  We can then make it run by calling `(main)` ourselves:
+And here is loading an existing test file - note that loading a file will **not** automatically execute the `main` function, because it wouldn't know what to pass as the arguments.  So instead we launch with the `--repl` flag, and manually invoke the `main` function:
 
 ```
-$ ./inception ../test/closure2.lisp  --repl
-Loading .. ../test/closure2.lisp
-Welcome to lisp in slisp!
+$ ./inception test/closure2.lisp --repl
+Loaded stdlib.lisp in 1763ms.
+Loading .. test/closure2.lisp
+
+Welcome to lisp in slisp; Inception!
 Enter :quit to exit.
 
-; loading "closure2.lisp" will define (defun main)
-; now we call it via the REPL:
+Help
+====
+Help for most core functions is available - e.g. (help print)
+Run '(help-all [str])' to see all functions [matching str] and their help-text.
+Available functions may be listed with (functions), just those matching a string
+via (functions "str").
+
 > (main (list "closure2"))
 25
 35
@@ -63,9 +65,10 @@ Enter :quit to exit.
 10
 22
 40
+<nil>
 ```
 
-> **NOTE**: `(main)` takes an argument which is a list of CLI arguments the binary should have received, including the name of the binary as the first argument.
+> **NOTE**: `(main)` takes an argument which is a list of CLI arguments the binary should have received, including the name of the binary as the first argument.  Here we just pass the name of the binary.
 
 We have a series of test-cases located with `test/`, by default we compile each and execute them to ensure their output matches known-good results.  All the tests are usually run with `make test` however we can also run all the test-cases using inception:
 
@@ -77,8 +80,7 @@ make test-inception
 In addition to that we can run each of our example files too, for example [examples/nqueens.lisp](examples/nqueens.lisp):
 
 ```
-$ cd examples/ ; make inception
-$ ./inception nqueens.lisp  --main
+$ ./inception examples/nqueens.lisp  --main
 Loading .. nqueens.lisp
 
 8 Queens Solver for board size 8x8
@@ -93,6 +95,10 @@ Solution 1 (1 5 8 6 3 7 2 4):
 ```
 
 > Here you'll see we added `--main` which automatically runs the `(main)` function our examples define.
+
+
+
+## Interpreter Differences
 
 So what are the differences between our _compiler_ and our _interpreter_?  Well in some ways the interpreter is more advanced as it has a real symbol-type, and you can get references to functions using them.  The lambdas/defuns are real standalone objects which are treated largely interchangeably and which you can also print.
 
