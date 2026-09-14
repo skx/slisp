@@ -23,8 +23,8 @@ test: ../slisp
 #
 # Instead execute the test-case via the interpreter and compare the results with expected ones.
 #
-test-inception: ../examples/inception
-	@$(MAKE) RUN='../examples/inception $$< --eval="(main (list \"a.out\"))"' $(TESTS)
+test-inception: ../inception
+	@$(MAKE) RUN='../inception $$< --eval="(main (list \"a.out\"))"' $(TESTS)
 
 
 
@@ -34,8 +34,8 @@ test-inception: ../examples/inception
 
 
 # Ensure we have inception
-../examples/inception:
-	cd ../examples && make inception
+../inception:
+	cd .. && make
 
 
 #
