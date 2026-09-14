@@ -2,14 +2,14 @@
 
 This repository contains `slisp` a simple Lisp compiler which generates static/standalone binaries for Linux AMD64 systems.
 
-The repository _also_ contains a lisp _interpreter_, `inception`, which gives you the ability to write code in a lisp REPL interactively, which is what Lisp users are most familiar with.
+The repository _also_ contains a lisp _interpreter_, `inception`, which gives you the ability to write code in a lisp REPL interactively.
 
 Quick links:
 
 * [INTRODUCTION.md](INTRODUCTION.md)
   * Brief high-level overview of the facilities.
 * [INCEPTION.md](INCEPTION.md)
-  * The lisp interpreter
+  * The lisp interpreter which can interpret itself, hence the name.
 * [GC](GC.md)
   * Notes on our garbage collector, and how to retrieve stats from it or tweak the behaviour at run-time.
 * [PRIMITIVES.md](PRIMITIVES.md)
@@ -19,7 +19,7 @@ Quick links:
 
 ## Example
 
-This is a minimal, standalone, example of what a program might look like:
+This is a simple example of what a program might look like:
 
 ```lisp
     (defun fact (n)
@@ -29,13 +29,14 @@ This is a minimal, standalone, example of what a program might look like:
     ;; entry-point
     (defun main (args)
       "Command line arguments are available in the list ARGS."
+
       (println "factorial demonstration, 10!:" (fact 10))
 
       ;; exit code - use "(exit 0)" if you prefer
       0)
 ```
 
-You can find bigger examples beneath [examples/](examples/), and our [test/](test/) directory contains a large number of programs which are used for testing purposes (they are compiled and executed, and their output compared to known-good results stored alongside them).
+You can find bigger examples beneath [examples/](examples/), and our [test/](test/) directory also contains a large number of programs which are used for validation purposes (they are compiled and executed, their output compared to known-good results stored alongside them).
 
 * Notable examples
   * [examples/brainfuck.lisp](examples/brainfuck.lisp) contains a useful/working brainfuck interpreter.
@@ -52,10 +53,10 @@ You can find bigger examples beneath [examples/](examples/), and our [test/](tes
   * [test/sort3.lisp](test/sort3.lisp) - A mergesort implementation.
   * [test/vararg.lisp](test/vararg.lisp) - Demonstration of a function accepting a variable number of arguments.
 
-It should be noted that we prepend a standard library of functions to all user programs unless `-stdlib=false` is added to the compiler command line.  That library itself is a useful reference/demonstration of functionality:
+It should be noted that we prepend a "standard library" of functions to all user programs unless `-stdlib=false` is added to the compiler command line.  That library itself is a useful reference/demonstration of functionality:
 
-* [stdlib.slisp](stdlib.slisp) - Our standard library, written in `slisp` itself.
-  * Has a good `print` definition which handles known types appropriately.
+* [stdlib.slisp](stdlib.slisp)
+  * Our "standard library" written in `slisp` itself.
   * Has `map`, `length` and similar general-purpose functions.
 
 
@@ -64,11 +65,11 @@ It should be noted that we prepend a standard library of functions to all user p
 
 * Support for bindings, functions, floating-point numbers, integers, strings, lambdas, lists, etc.
   * The lambdas have support for closures.
-  * Run-time type detection via functions such as `int?`, and `cons?`.
+* Run-time type detection via functions such as `int?`, and `cons?`.
 * A rough and ready bump-allocator for memory-allocation.
-  * Floats, Lambdas, Lists, and Strings live on the heap.
-  * This is supported by a stop&copy garbage collector, using [Cheney's algorithm](https://en.wikipedia.org/wiki/Cheney%27s_algorithm) (which is named after it's inventor Chris J. Cheney).
-  * See the [Garbage Collection](#garbage-collection) section below for details.
+  * Floats, Lambdas, Lists, and Strings all live on the heap.
+  * This is supported by a stop&copy garbage collector, using [Cheney's algorithm](https://en.wikipedia.org/wiki/Cheney%27s_algorithm), named after it's inventor Chris J. Cheney.
+  * See the [Garbage Collection](GC.md) file for further details on that..
 * Mathematical operations `+`, `-`, `*`, and `/`.
   * These work against integers, floating point numbers, or combination of the two.
 * File I/O operations:
@@ -94,6 +95,8 @@ It should be noted that we prepend a standard library of functions to all user p
   * For example our standard functions `and`, `cond`, `list`, `or`, `unless`, and `when` are implemented as macros.
 
 You can see a complete list of our primitives, and their details in [PRIMITIVES.md](PRIMITIVES.md).  The primitives are grouped by their implementation location (some things are implemented in assembly, and some things are implemented in our own `slisp` language, as part of the embedded [stdlib.slisp](stdlib.slisp).)
+
+**NOTE**: Our lisp _interpreter_, inception, allows all forms at the top-level and has more complete macro support.
 
 
 ### Anti-features
@@ -152,7 +155,6 @@ ok      github.com/skx/slisp/env	(cached)
 ok      github.com/skx/slisp/lexer	0.008s
 ok      github.com/skx/slisp/parser	0.006s
 ```
-
 
 There is also support for the fuzz-testing that golang provides, you can run five minutes of fuzz-testing by executing the following (remove the `-fuzztime=300s` to run _forever_, and remove `-parallel=1` to run more than a single instance at a time):
 
