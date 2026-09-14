@@ -17,9 +17,6 @@ This directory is designed to contain bigger, or more interesting examples, than
 * [example.lisp](example.lisp) - Our first example.
 * [globals.lisp](globals.lisp) - Explicit demonstration of scopes
   * Shows that local variables always take precedence over global ones.
-* [inception.lisp](inception.lisp) - A **lisp interpreter** written in slisp
-  * This can load and evaluate named files, and optionally give a REPL mode too.
-  * Run "./inception ./inception.in" to see it in operation.
 * [life.lisp](life.lisp) - Conway's game of life.
   * Runs in real-time, and will terminate after 100 generations.
   * Run with/without an argument to see the two modes.
