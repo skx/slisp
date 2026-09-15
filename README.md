@@ -93,6 +93,7 @@ It should be noted that we prepend a "standard library" of functions to all user
   * `(while ..)`
 * Support for _simple_ macros.
   * For example our standard functions `and`, `cond`, `list`, `or`, `unless`, and `when` are implemented as macros.
+* Tail call optimization.
 
 You can see a complete list of our primitives, and their details in [PRIMITIVES.md](PRIMITIVES.md).  The primitives are grouped by their implementation location (some things are implemented in assembly, and some things are implemented in our own `slisp` language, as part of the embedded [stdlib.slisp](stdlib.slisp).)
 
@@ -105,7 +106,6 @@ You can see a complete list of our primitives, and their details in [PRIMITIVES.
   * A macro body may use bound parameters, literals, `quote`/`quasiquote` templates, a compile-time `if`, and `car`/`cdr`/`nil?` (for recursing over a variadic parameter) to construct its expansion - but not arbitrary compile-time computation (e.g. calling `+` directly against a parameter)
   * A macro can't substitute into "raw name" slots - the target of `set!`, `let`-binding names, or `lambda`/`defun` parameter names - since those are parsed as literal tokens, not expressions.
   * So you cannot write a decent `dolist` macro that inserts a named variable in the callee scope, however you can use an anaphoric approach.
-* There is no tail call optimization, yet.
 * We don't have "symbols" exposed to the language.
   * You may prefix a variable with "`:`" to make it visually distinct.
   * Quoting a bare symbol, e.g. `'foo`, produces the same kind of string.
