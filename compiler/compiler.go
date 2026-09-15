@@ -820,212 +820,7 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 	switch n := e.(type) {
 
 	case *parser.Call:
-		// Is this a function call?
-		if symbol, ok := n.Fn.(*parser.Symbol); ok {
-
-			// expand macro, if necessary
-			if macro, ok := c.macros[symbol.Name]; ok {
-
-				if c.macroDepth >= maxMacroDepth {
-					return fmt.Errorf("macro %s: expansion nested too deeply (possible infinite recursion)", symbol.Name)
-				}
-
-				c.macroDepth++
-				expanded, err := c.expandMacro(symbol.Name, macro, n.Args)
-				if err != nil {
-					c.macroDepth--
-					return err
-				}
-
-				err = c.emitExpr(expanded, ev)
-				c.macroDepth--
-				return err
-			}
-
-			// is this variadic?
-			name := symbol.Name
-			v, ok := c.functions[name]
-
-			if ok && v.Variadic {
-
-				// Variadic call.
-				err := c.emitVariadicCall(name, v.Arguments, n.Args, ev)
-				return err
-			}
-
-			// Mismatch in argument counts?
-			if ok {
-				if len(n.Args) != v.Arguments {
-					return fmt.Errorf("arity-error: function %s expects %d arguments, %d provided", name, v.Arguments, len(n.Args))
-				}
-			}
-
-			if len(n.Args) > len(registerArguments) {
-				return fmt.Errorf("%d is more than the maximum number of arguments we support", len(n.Args))
-			}
-
-			//
-			// Evaluate each argument and stash them on the frame.
-			//
-			// In the past we pushed to the stack, but that meant that the values
-			// were invisible to our GC process and we'd inevitably die with some
-			// corruption in the future.
-			//
-			argTmp := make([]int, len(n.Args))
-			for i, a := range n.Args {
-				err := c.emitExpr(a, ev)
-				if err != nil {
-					return err
-				}
-				argTmp[i] = ev.NewTemp()
-				c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", argTmp[i]))
-			}
-
-			// Load them up.
-			for i := range n.Args {
-				c.emitln(fmt.Sprintf(
-					"    mov %s, [rbp-%d]",
-					registerArguments[i],
-					argTmp[i],
-				))
-			}
-
-			// lambda?
-			// This covers the case where  a lambda is stored in the
-			// environment/symbol table, bound to a variable, such as
-			//
-			//       (let ((x (lambda (a b) (+ a b))))
-			//         (println (x 3 7)))
-			//
-			if offset, ok := ev.Lookup(name); ok {
-
-				c.emitln(fmt.Sprintf(
-					"    mov rax,[rbp-%d]",
-					offset,
-				))
-
-				// check if it is a lambda
-				c.emitln("mov rbx,rax")
-				c.emitln("GET_TAG_BITS rbx")
-				c.emitln("cmp rbx, TAG_ID_LAMBDA")
-				c.emitln("jne type_error")
-
-				// call the lambda
-				c.emitln("UNTAG_REG rax")
-				c.emitln("mov r15, rax")
-				c.emitln("mov rax, [r15]")
-				c.emitln("call rax")
-
-				return nil
-			}
-
-			//
-			// The lambda might be stored in a captured-variable,
-			// or closure, and that's valid too.
-			//
-			// We need this for the Z-combinator..
-			//
-			if offset, ok := ev.LookupCapture(name); ok {
-
-				c.emitln(fmt.Sprintf(
-					"    mov rax,[r15+%d]",
-					offset+8,
-				))
-
-				c.emitln("mov rbx,rax")
-				c.emitln("GET_TAG_BITS rbx")
-				c.emitln("cmp rbx, TAG_ID_LAMBDA")
-				c.emitln("jne type_error")
-
-				c.emitln("UNTAG_REG rax")
-				c.emitln("mov r15, rax")
-				c.emitln("mov rax, [r15]")
-				c.emitln("call rax")
-
-				return nil
-			}
-
-			// Similar story here - a lambda that is stored in a global
-			// variable instead of a local one
-			if _, ok := c.globals[name]; ok {
-
-				// get the address
-				c.emitln(fmt.Sprintf("    mov rax,[%s]  ; %s", c.addThing("global", name), name))
-
-				// check if it is a lambda
-				c.emitln("mov rbx,rax")
-				c.emitln("GET_TAG_BITS rbx")
-				c.emitln("cmp rbx, TAG_ID_LAMBDA")
-				c.emitln("jne type_error")
-
-				// call the lambda
-				c.emitln("UNTAG_REG rax")
-				c.emitln("mov r15, rax")
-				c.emitln("mov rax, [r15]")
-				c.emitln("call rax")
-
-				return nil
-			}
-
-			// OK then we assume it's a function
-			c.emitln("    call " + c.asmName(name))
-			return nil
-		}
-
-		if len(n.Args) > len(registerArguments) {
-			return fmt.Errorf("%d is more than the maximum number of arguments we support", len(n.Args))
-		}
-
-		//
-		// Here we go again.
-		//
-		// I don't love the duplication we have here.
-		//
-		// Stash args on the frame, not on the stack, so they are visible to GC.
-		//
-		argTmp := make([]int, len(n.Args))
-		for i, a := range n.Args {
-			err := c.emitExpr(a, ev)
-			if err != nil {
-				return err
-			}
-
-			argTmp[i] = ev.NewTemp()
-			c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", argTmp[i]))
-		}
-
-		// evaluate callable expression
-		err := c.emitExpr(n.Fn, ev)
-		if err != nil {
-			return err
-		}
-
-		// The callable might itself be a heap-allocated (lambda) value,
-		// so it also needs to stay in a tracked slot while we load the
-		// argument registers below.
-		fnTmp := ev.NewTemp()
-		c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", fnTmp))
-
-		for i := range n.Args {
-			c.emitln(fmt.Sprintf(
-				"    mov %s, [rbp-%d]",
-				registerArguments[i],
-				argTmp[i],
-			))
-		}
-		c.emitln(fmt.Sprintf("    mov rax, [rbp-%d]", fnTmp))
-
-		// check if it is a lambda
-		c.emitln("mov rbx,rax")
-		c.emitln("GET_TAG_BITS rbx")
-		c.emitln("cmp rbx, TAG_ID_LAMBDA")
-		c.emitln("jne type_error")
-
-		// call the lambda
-		c.emitln("UNTAG_REG rax")
-		c.emitln("mov r15, rax")
-		c.emitln("mov rax, [r15]")
-		c.emitln("call rax")
+		return c.emitCall(n, ev, false)
 
 	case *parser.Char:
 		c.emitln(fmt.Sprintf("    mov rax, %d", n.Value))
@@ -1335,6 +1130,330 @@ func (c *Compiler) emitExpr(e parser.Expr, ev *env.Env) error {
 	default:
 		return fmt.Errorf("emitExpr: Unhandled node type:%T value:%V", n, n)
 	}
+	return nil
+}
+
+// emitTailExpr emits a tail-position expression - i.e. the last thing
+// that is done before a return.  We use this to handle TCO.
+func (c *Compiler) emitTailExpr(e parser.Expr, ev *env.Env) error {
+	switch n := e.(type) {
+
+	case *parser.Call:
+		return c.emitCall(n, ev, true)
+
+	case *parser.If:
+		elseLbl := c.label("else")
+		endLbl := c.label("endif")
+
+		err := c.emitExpr(n.Cond, ev)
+		if err != nil {
+			return err
+		}
+
+		c.emitln("    GET_TAG_BITS rax     ; get type bits")
+		c.emitln("    cmp rax, TAG_ID_NIL  ; is this a nil?")
+		c.emitln("    jz " + elseLbl)
+
+		err = c.emitTailExpr(n.Then, ev)
+		if err != nil {
+			return err
+		}
+
+		c.emitln("    jmp " + endLbl)
+
+		c.emitln(elseLbl + ":")
+
+		// else branch is optional
+		if n.Else != nil {
+			err = c.emitTailExpr(n.Else, ev)
+			if err != nil {
+				return err
+			}
+		}
+		c.emitln(endLbl + ":")
+		return nil
+
+	case *parser.Do:
+		for i, expr := range n.Exprs {
+			var err error
+
+			// tail
+			if i == len(n.Exprs)-1 {
+				err = c.emitTailExpr(expr, ev)
+			} else {
+				err = c.emitExpr(expr, ev)
+			}
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+
+	case *parser.Let:
+		// create a new child environment - see the *parser.Let case
+		// of emitExpr for the non-tail equivalent of this.
+		child := env.New(ev)
+
+		for _, b := range n.Bindings {
+			offset := child.Define(b.Name)
+
+			err := c.emitExpr(b.Expr, child)
+			if err != nil {
+				return err
+			}
+
+			c.emitln(fmt.Sprintf(
+				"    mov [rbp-%d], rax",
+				offset,
+			))
+		}
+
+		for i, expr := range n.Body {
+			var err error
+
+			// tail
+			if i == len(n.Body)-1 {
+				err = c.emitTailExpr(expr, child)
+			} else {
+				err = c.emitExpr(expr, child)
+			}
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+
+	default:
+		return c.emitExpr(e, ev)
+	}
+}
+
+// emitCallTarget emits either a plain call to a target, or a tail call.
+//
+// (Tail call is really a jump, but we have to clear the stack-frame first.)
+func (c *Compiler) emitCallTarget(target string, tail bool) {
+	if tail {
+		c.emitln("    leave")
+		c.emitln("    jmp " + target)
+		return
+	}
+	c.emitln("    call " + target)
+}
+
+// emitCall compiles a function-call, optionally making a tail call.
+func (c *Compiler) emitCall(n *parser.Call, ev *env.Env, tail bool) error {
+	// Is this a function call?
+	if symbol, ok := n.Fn.(*parser.Symbol); ok {
+
+		// expand macro, if necessary
+		if macro, ok := c.macros[symbol.Name]; ok {
+
+			if c.macroDepth >= maxMacroDepth {
+				return fmt.Errorf("macro %s: expansion nested too deeply (possible infinite recursion)", symbol.Name)
+			}
+
+			c.macroDepth++
+			expanded, err := c.expandMacro(symbol.Name, macro, n.Args)
+			if err != nil {
+				c.macroDepth--
+				return err
+			}
+
+			if tail {
+				err = c.emitTailExpr(expanded, ev)
+			} else {
+				err = c.emitExpr(expanded, ev)
+			}
+			c.macroDepth--
+			return err
+		}
+
+		// is this variadic?
+		name := symbol.Name
+		v, ok := c.functions[name]
+
+		if ok && v.Variadic {
+
+			// Variadic call.
+			err := c.emitVariadicCall(name, v.Arguments, n.Args, ev, tail)
+			return err
+		}
+
+		// Mismatch in argument counts?
+		if ok {
+			if len(n.Args) != v.Arguments {
+				return fmt.Errorf("arity-error: function %s expects %d arguments, %d provided", name, v.Arguments, len(n.Args))
+			}
+		}
+
+		if len(n.Args) > len(registerArguments) {
+			return fmt.Errorf("%d is more than the maximum number of arguments we support", len(n.Args))
+		}
+
+		//
+		// Evaluate each argument and stash them on the frame.
+		//
+		// In the past we pushed to the stack, but that meant that the values
+		// were invisible to our GC process and we'd inevitably die with some
+		// corruption in the future.
+		//
+		argTmp := make([]int, len(n.Args))
+		for i, a := range n.Args {
+			err := c.emitExpr(a, ev)
+			if err != nil {
+				return err
+			}
+			argTmp[i] = ev.NewTemp()
+			c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", argTmp[i]))
+		}
+
+		// Load them up.
+		for i := range n.Args {
+			c.emitln(fmt.Sprintf(
+				"    mov %s, [rbp-%d]",
+				registerArguments[i],
+				argTmp[i],
+			))
+		}
+
+		// lambda?
+		// This covers the case where  a lambda is stored in the
+		// environment/symbol table, bound to a variable, such as
+		//
+		//       (let ((x (lambda (a b) (+ a b))))
+		//         (println (x 3 7)))
+		//
+		if offset, ok := ev.Lookup(name); ok {
+
+			c.emitln(fmt.Sprintf(
+				"    mov rax,[rbp-%d]",
+				offset,
+			))
+
+			// check if it is a lambda
+			c.emitln("mov rbx,rax")
+			c.emitln("GET_TAG_BITS rbx")
+			c.emitln("cmp rbx, TAG_ID_LAMBDA")
+			c.emitln("jne type_error")
+
+			// call the lambda
+			c.emitln("UNTAG_REG rax")
+			c.emitln("mov r15, rax")
+			c.emitln("mov rax, [r15]")
+			c.emitCallTarget("rax", tail)
+
+			return nil
+		}
+
+		//
+		// The lambda might be stored in a captured-variable,
+		// or closure, and that's valid too.
+		//
+		// We need this for the Z-combinator..
+		//
+		if offset, ok := ev.LookupCapture(name); ok {
+
+			c.emitln(fmt.Sprintf(
+				"    mov rax,[r15+%d]",
+				offset+8,
+			))
+
+			c.emitln("mov rbx,rax")
+			c.emitln("GET_TAG_BITS rbx")
+			c.emitln("cmp rbx, TAG_ID_LAMBDA")
+			c.emitln("jne type_error")
+
+			c.emitln("UNTAG_REG rax")
+			c.emitln("mov r15, rax")
+			c.emitln("mov rax, [r15]")
+			c.emitCallTarget("rax", tail)
+
+			return nil
+		}
+
+		// Similar story here - a lambda that is stored in a global
+		// variable instead of a local one
+		if _, ok := c.globals[name]; ok {
+
+			// get the address
+			c.emitln(fmt.Sprintf("    mov rax,[%s]  ; %s", c.addThing("global", name), name))
+
+			// check if it is a lambda
+			c.emitln("mov rbx,rax")
+			c.emitln("GET_TAG_BITS rbx")
+			c.emitln("cmp rbx, TAG_ID_LAMBDA")
+			c.emitln("jne type_error")
+
+			// call the lambda
+			c.emitln("UNTAG_REG rax")
+			c.emitln("mov r15, rax")
+			c.emitln("mov rax, [r15]")
+			c.emitCallTarget("rax", tail)
+
+			return nil
+		}
+
+		// OK then we assume it's a function
+		c.emitCallTarget(c.asmName(name), tail)
+		return nil
+	}
+
+	if len(n.Args) > len(registerArguments) {
+		return fmt.Errorf("%d is more than the maximum number of arguments we support", len(n.Args))
+	}
+
+	//
+	// Here we go again.
+	//
+	// I don't love the duplication we have here.
+	//
+	// Stash args on the frame, not on the stack, so they are visible to the
+	// GC process which walks stack-frames.
+	//
+	argTmp := make([]int, len(n.Args))
+	for i, a := range n.Args {
+		err := c.emitExpr(a, ev)
+		if err != nil {
+			return err
+		}
+
+		argTmp[i] = ev.NewTemp()
+		c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", argTmp[i]))
+	}
+
+	// evaluate callable expression
+	err := c.emitExpr(n.Fn, ev)
+	if err != nil {
+		return err
+	}
+
+	// The callable might itself be a heap-allocated (lambda) value,
+	// so it also needs to stay in a tracked slot while we load the
+	// argument registers below.
+	fnTmp := ev.NewTemp()
+	c.emitln(fmt.Sprintf("    mov [rbp-%d], rax", fnTmp))
+
+	for i := range n.Args {
+		c.emitln(fmt.Sprintf(
+			"    mov %s, [rbp-%d]",
+			registerArguments[i],
+			argTmp[i],
+		))
+	}
+	c.emitln(fmt.Sprintf("    mov rax, [rbp-%d]", fnTmp))
+
+	// check if it is a lambda
+	c.emitln("mov rbx,rax")
+	c.emitln("GET_TAG_BITS rbx")
+	c.emitln("cmp rbx, TAG_ID_LAMBDA")
+	c.emitln("jne type_error")
+
+	// call the lambda
+	c.emitln("UNTAG_REG rax")
+	c.emitln("mov r15, rax")
+	c.emitln("mov rax, [r15]")
+	c.emitCallTarget("rax", tail)
+
 	return nil
 }
 
@@ -1868,7 +1987,7 @@ func (c *Compiler) asExprList(e parser.Expr) ([]parser.Expr, error) {
 // emitVariadicCall compiles a call to a function which expects a variable number of arguments,
 // what this means is that any arguments which are present are converted into a list and passed
 // as a single argument.
-func (c *Compiler) emitVariadicCall(name string, expected int, args []parser.Expr, ev *env.Env) error {
+func (c *Compiler) emitVariadicCall(name string, expected int, args []parser.Expr, ev *env.Env, tail bool) error {
 
 	//
 	// Fixed arguments.
@@ -1929,7 +2048,7 @@ func (c *Compiler) emitVariadicCall(name string, expected int, args []parser.Exp
 	}
 	c.emitln(fmt.Sprintf("    mov %s, [rbp-%d]", registerArguments[fixed], listTmp))
 
-	c.emitln("    call " + c.asmName(name))
+	c.emitCallTarget(c.asmName(name), tail)
 	return nil
 }
 
@@ -2017,8 +2136,16 @@ func (c *Compiler) emitCallable(obj any) error {
 	//
 	// Now back to the shared/defun-related epilogue.
 	//
-	for _, xpr := range d.Exprs {
-		err := c.emitExpr(xpr, ev)
+	//
+	for i, xpr := range d.Exprs {
+		var err error
+
+		// tail
+		if i == len(d.Exprs)-1 {
+			err = c.emitTailExpr(xpr, ev)
+		} else {
+			err = c.emitExpr(xpr, ev)
+		}
 		if err != nil {
 			return err
 		}
