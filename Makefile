@@ -7,7 +7,7 @@ PROGRAMS := $(basename $(wildcard *.lisp))
 ALL: slisp inception
 
 # build the compiler
-slisp: main.go
+slisp: $(shell find . -name '*.go' -print) stdlib.slisp
 	go build .
 
 
