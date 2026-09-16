@@ -51,7 +51,7 @@ Once this package has been loaded the core mathematical primitives `+`, `-`, `*`
 
 ### regexp
 
-A minimal regular-expression matching function, which supports `.`, `?`, `*`, along with the positional anchors `^` and `$`.
+A minimal regular-expression matching function, which supports `.`, `?`, `*`, and sets, along with the positional anchors `^` and `$`.
 
 
 ```lisp

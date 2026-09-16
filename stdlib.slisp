@@ -259,6 +259,10 @@ Use (rmdir) to remove directories instead of files."
   "Return true if A != B"
   (not (= a b)))
 
+(defun list? (x)
+  "Return true if the given item is a list"
+  (cons? x))
+
 (defun string< (a b)
   "Return true if A < B."
   (< (strcmp a b) 0))
