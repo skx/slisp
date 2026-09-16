@@ -9,4 +9,7 @@
   (println (regexp:match "ab?c" "abc"))
   (println (regexp:match "ab?c" "abbc"))
   (println (regexp:match "^s....$" "steve"))
+  (println (regexp:match "^s[ie]x$" "six"))
+  (println (regexp:match "^[0123456789]+$" "1234"))
+  (println (regexp:match "^[0123456789]+$" "1234.77"))
   )
