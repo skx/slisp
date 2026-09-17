@@ -40,15 +40,13 @@ You can find bigger examples beneath [examples/](examples/), and our [test/](tes
 
 * Notable examples
   * [examples/brainfuck.lisp](examples/brainfuck.lisp) contains a useful/working brainfuck interpreter.
-  * [examples/example.lisp](examples/example.lisp) has other misc. snippets.
   * [examples/life.lisp](examples/life.lisp) - Game of Life.
-  * [examples/globals.lisp](examples/globals.lisp) - Explicit demonstration of scopes, showing that local variables always take precedence over global ones.
   * [examples/nqueens.lisp](examples/nqueens.lisp) is a solver for the N Queens problem, defaults to solving the 8x8 grid but you may specify different sizes via a CLI argument.
   * [examples/wc.lisp](examples/wc.lisp) is a clone of the standard `wc` utility, which demonstrates our included argument-parser [packages/](package/).
 
 * Notable tests:
   * [test/entries.lisp](test/entries.lisp) - Read all the files in a directory, filter them, sort them, and print their names.
-  * Standard programs: [test/factorial.lisp](test/factorial.lisp), [test/fibonacci.lisp](test/fibonacci.lisp), [test/fizzbuzz.lisp](test/fizzbuzz.lisp).
+  * Standard programs: [test/factorial.lisp](test/factorial.lisp), [test/fibonacci.lisp](test/fibonacci.lisp), & [test/fizzbuzz.lisp](test/fizzbuzz.lisp).
   * File I/O: [test/fread.lisp](test/fread.lisp) and [test/fwrite.lisp](test/fwrite.lisp).
   * [test/sort3.lisp](test/sort3.lisp) - A mergesort implementation.
   * [test/vararg.lisp](test/vararg.lisp) - Demonstration of a function accepting a variable number of arguments.
@@ -69,7 +67,7 @@ It should be noted that we prepend a "standard library" of functions to all user
 * A rough and ready bump-allocator for memory-allocation.
   * Floats, Lambdas, Lists, and Strings all live on the heap.
   * This is supported by a stop&copy garbage collector, using [Cheney's algorithm](https://en.wikipedia.org/wiki/Cheney%27s_algorithm), named after it's inventor Chris J. Cheney.
-  * See the [Garbage Collection](GC.md) file for further details on that..
+  * See the [Garbage Collection](GC.md) file for further details on how the GC process works, and can be inspected/modified.
 * Mathematical operations `+`, `-`, `*`, and `/`.
   * These work against integers, floating point numbers, or combination of the two.
 * File I/O operations:
@@ -78,7 +76,7 @@ It should be noted that we prepend a "standard library" of functions to all user
   * `dir?`, `entries`, `exists?`, `file?`, `mkdir`, `mkdirs`, `rmdir`, `stat`, `unlink` and `which`.
 * Comparison operations:
   * `=`, `<`, `<=`, `>=`, `>`, and `!` to invert a result.
-* Special forms (only some of which are valid at the top-level, those are marked with `*`):
+* Special forms (only some of which are valid at the top-level, those are marked with `*` - all forms are valid in our interpreter):
   * `(alias! ..)` - `*` - Alias/overwrite a function.
   * `(defmacro ..)` - `*` - declare a macro.
   * `(defun ..)` - `*` - declare a function.
@@ -93,6 +91,7 @@ It should be noted that we prepend a "standard library" of functions to all user
   * `(while ..)`
 * Support for _simple_ macros.
   * For example our standard functions `and`, `cond`, `list`, `or`, `unless`, and `when` are implemented as macros.
+  * Our interpreter has full macro-support, but the compiler is limited.
 * Tail call optimization.
 
 You can see a complete list of our primitives, and their details in [PRIMITIVES.md](PRIMITIVES.md).  The primitives are grouped by their implementation location (some things are implemented in assembly, and some things are implemented in our own `slisp` language, as part of the embedded [stdlib.slisp](stdlib.slisp).)
@@ -121,13 +120,13 @@ Build the compiler and interpreter by running `make`.  If you just want the comp
 
 Using the compiler you can then compile, assemble and link a program like so:
 
-    ./slisp -compile example/example.lisp
+    ./slisp -compile examples/example.lisp
 
 If you prefer to run the commands manually you may do it this way:
 
-    ./slisp example/example.lisp  > example.s
+    ./slisp examples/example.lisp  > example.s
     nasm -f elf64 example.s
-    ld -o example --gc-sections example.o
+    ld -o example -s --gc-sections example.o
 
 Finally you may execute your compiled program:
 
