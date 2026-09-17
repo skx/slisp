@@ -515,7 +515,7 @@ alloc:
     inc qword [alloc_count]        ; count allocations to trigger GC
     inc qword [alloc_count_total]  ; count allocations, in total
 
-    add rax, 24               ; Prefix allocation with the header size
+    add rax, OBJ_PAYLOAD      ; Add extra space for the header we prefix to the allocation.
 
     add rax,15                ; Round up requested size to 16 byte alignment.
     and rax,-16
@@ -539,7 +539,7 @@ alloc:
     mov       [rcx+OBJ_TYPE], rbx    ; type
 
     mov rax, rcx                     ; the initial value which is now ours
-    add rax, 24                      ; skip past the header when returning to caller
+    add rax, OBJ_PAYLOAD             ; skip past the header when returning to caller
     pop rdx
     pop rcx
     ret
@@ -550,7 +550,7 @@ alloc:
 
 
 
-;; check stack limit checks to makes ure we're not in danger of running
+;; check stack limit checks to make sure we're not in danger of running
 ;; out of stack-space.
 ;;
 ;; We get the size of the stack on startup, and save that in `initial_rsp`,
@@ -3205,7 +3205,7 @@ align 16
 dash_c:
     db "-c",0
 
-;; Avoid calling the user's at_exit funciton more than once.
+;; Avoid calling the user's at_exit function more than once.
 at_exit_called:
     db 0x00
 
@@ -3214,9 +3214,11 @@ at_exit_called:
 ;; too.  Because why not?
 align 16
 random_buffer:
+    db 0x68, 0x74, 0x74, 0x70, 0x73, 0x3A, 0x2F, 0x2F, 0x67
+    db 0x69, 0x74, 0x68, 0x75, 0x62, 0x2E, 0x63, 0x6F, 0x6D
+    db 0x2F, 0x73, 0x6B, 0x78, 0x2F, 0x73, 0x6C, 0x69, 0x73, 0x70
     db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    db `https://github.com/skx/slisp`
     db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     db 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 random_buffer_end:
@@ -3383,8 +3385,7 @@ section .text
 ;;
 ;; This function is called by our (cons..) primitive.
 ;;
-;; Decide if we should trigger garbage collection, and do
-;; so if we should.
+;; Decide if we should trigger garbage collection, and do so if we should.
 ;;
 possibly_trigger_gc:
 
