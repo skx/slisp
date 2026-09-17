@@ -6,14 +6,12 @@
     ((= (% n 5)  0) "Buzz")
     (1                  n)))
 
-
 ;; handle the numbers in the list (0-100)
 (defun handle_number (xs)
-  (if xs
-      (do
-       (println (fizzbuzz (car xs)))
-       (handle_number (cdr xs)))))
+  (when xs
+    (println (fizzbuzz (car xs)))
+    (handle_number (cdr xs))))
 
-;; Show fizzbuzz for values 0-100.
+;; Show fizzbuzz for values 1-100.
 (defun main (args)
   (handle_number (nat 100)))
