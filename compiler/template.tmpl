@@ -251,7 +251,7 @@ TAG_ID_NIL     equ 0b111  ; 7
 
 
 ;;
-;; Declare a function which will record itself as having  been started.
+;; Declare a function which will record itself as having been started.
 ;;
 ;; The function will also be be in its own section, which allows easy
 ;; dead-code elimination by the linker.
@@ -340,6 +340,12 @@ _start:
     ; know what to do when processing the stack-local variables which
     ; were "args".
     ;
+    ; XXX:
+    ; (This is no longer required however, as our GC is smart enough to only
+    ; consider values which are contained within our heap areas, however having
+    ; a copy of the strings is still logically cleaner, and we know that way
+    ; that "we" own then.)
+    ;
     ; So here create a list of the command-line arguments, but rather than
     ; using the raw strings we get are passed we have to call "strdup" on
     ; each one.
@@ -397,7 +403,7 @@ _start:
 
     cmp byte [at_exit_called], 0
     jne .exit_called
-    mov byte [at_exit_called], 1
+    inc byte [at_exit_called]
     call fn_at_exit            ; Call the "at_exit" function.
 
 .exit_called:
@@ -576,7 +582,7 @@ check_stack_limit:
 
 
 
-;; xmm0 contains a float, store it on the heap and return it
+;; xmm0 contains a float, store it on the heap and return it's tagged representation.
 return_float:
     mov rax, 8              ; size to allocate
     mov rbx, TAG_ID_FLOAT
@@ -1003,8 +1009,7 @@ section .text.printing,"ax",@progbits
 FUNC fn_sys_newline
     mov rax, SYS_write
     mov rdi, 1              ; stdout
-    mov rsi, random_buffer  ; point to the buffer
-    mov byte [rsi], 10      ; add a newline character there
+    mov rsi, newline        ; point to newline character.
     mov rdx, 1
     syscall
     STORE_NIL_REG rax
@@ -1221,7 +1226,8 @@ fn_printstr:
     UNTAG_REG rdi
 
     call strlen               ; string in rdi will stay unmodified
-    mov rdx, rax              ; length goes to rdx
+    push rax
+    pop rdx                   ; set length in rdx.
 
     mov rsi,rdi
     mov rax, SYS_write
@@ -1328,7 +1334,7 @@ FUNC fn_sys_chr
 
 ;; Allocate space for a new cons cell, return it in RAX.
 ;;
-;; 16-bytes; first has the CAR, second the CDR.
+;; 16-bytes is space to hold two 8-byte addresses, first for the CAR, second for the CDR.
 ;;
 ;; NOTE: This function is a little special, if more than XXX memory
 ;; allocations have been made this function will trigger a GC cycle.
@@ -1399,7 +1405,7 @@ FUNC fn_sys_entries
     js .failure
 
     mov r12, rax                     ; directory fd
-    STORE_NIL_REG r13                     ; head of list
+    STORE_NIL_REG r13                ; head of list
 
 .read_directory:
 
@@ -1499,7 +1505,7 @@ FUNC fn_sys_exit
     push rdi
     cmp byte [at_exit_called], 0
     jne .exit_called
-    mov byte [at_exit_called], 1
+    inc byte [at_exit_called]
     call fn_at_exit            ; Call the "at_exit" function.
 .exit_called:
     pop rdi
@@ -1765,8 +1771,8 @@ FUNC fn_sys_getc
     cmp rax, 1
     jne .getc_failed
 
-    xor rax,rax
     mov al, byte [random_buffer]
+    and rax, 0xFF                 ; Mask the value to 0-255.
     TAG_INTEGER_REG rax
     ret
 .getc_failed:
@@ -2170,7 +2176,7 @@ FUNC fn_sys_not
 
 
 
-;; Get milliseconds since epoc
+;; Get milliseconds since epoch
 FUNC fn_sys_now
     sub rsp, 16                  ; Reserve space for struct timespec
 
@@ -2373,10 +2379,10 @@ FUNC fn_sys_putc
     mov rax, rdi
     push rax
     UNTAG_REG rax
-    mov [random_buffer],  al  ; store character
+    mov rsi, random_buffer    ; destination
+    mov [rsi], al             ; store character
     mov rax, SYS_write
     mov rdi, 1                ; STDOUT
-    mov rsi, random_buffer
     mov rdx, 1                ; 1 byte
     syscall
     pop rax                   ; This is the tagged input value
@@ -3209,9 +3215,8 @@ dash_c:
 at_exit_called:
     db 0x00
 
-;; buffer for our random function to read into.
-;; other functions, such as getc, newline, use it
-;; too.  Because why not?
+;; buffer for our random function to read into.  Other functions, such as getc also use it,
+;; because why not?
 align 16
 random_buffer:
     db 0x68, 0x74, 0x74, 0x70, 0x73, 0x3A, 0x2F, 0x2F, 0x67
@@ -3458,6 +3463,11 @@ forward:
     ;
     ; We exclude those by making sure we only forward items which are located
     ; within the heap area - this preserves our stdlib too as a happy accident (ha!)
+    ;
+    ; XXX:
+    ; Remember I said at the start that we'd no longer get confused about pointers
+    ; to the OS-provided ArgV and Env strings?  This is why - we only consider forwarding
+    ; and examining things that live within the heap-space.
     ;
     mov     rcx, [from_space]
     cmp     rax, rcx
