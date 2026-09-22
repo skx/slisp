@@ -116,12 +116,12 @@ But this doesn't work, if it did we'd have a recursion problem too of course:
 
 The interpreter is obviously much slower than our compiled binaries, due to the overhead of interpreting everything manually.  Sometimes this slowdown is minor, other times it is signification, it really depends upon the nature of the program:
 
-* `time ./example` -> 0.006s
-  * `time ./inception example.lisp --main` -> 0.026s
-* `time ./nqueens`  .> 0.053s
-  * `time ./inception nqueens.lisp --main` -> 20.846s
-* `time ./brainfuck` -> 0.010s
-  * `time ./inception brainfuck.lisp --main` -> 6.775s
+* `time examples/example` -> 0.006s
+  * `time ./inception examples/example.lisp --main` -> 1.854s
+* `time examples/nqueens`  .> 0.043s
+  * `time ./inception examples/nqueens.lisp --main` -> 11.545s
+* `time examples/brainfuck` -> 0.010s
+  * `time ./inception examples/brainfuck.lisp --main` -> 2.323s
 
 That said, and as demonstrated above, the interpreter can run many of the same programs that the compiler can.
 
@@ -141,8 +141,8 @@ You can of course use the interpreter to run itself, which provides true incepti
      Welcome to lisp in slisp; Inception!
      Enter :quit to exit.
 
-     self-hosted> (require brainfuck)            ; Using that load brainfuck.lisp
-     Loading .. brainfuck.lisp
+     self-hosted> (require examples/brainfuck)   ; Using that load brainfuck.lisp
+     Loading .. examples/brainfuck.lisp
      <nil>
      self-hosted> (main)                         ; And launch it
      main: too few arguments supplied
@@ -155,14 +155,14 @@ You can of course use the interpreter to run itself, which provides true incepti
 
 You could also try this:
 
-     > (require brainfuck)
-     Loading .. brainfuck.lisp
+     > (require examples/brainfuck)
+     Loading .. examples/brainfuck.lisp
      <nil>
-     > (main (list "xx" "bf/hello-world.bf"))
+     > (main (list "xx" "examples/bf/hello-world.bf"))
      Hello World!
      107
 
-Either will work and produce the `Hello World!` output we all know and love, although it is slow.  Slower than using the compiled interpreter to run the same program (which would be "`./inception brainfuck.lisp --main`").
+Either will work and produce the `Hello World!` output we all know and love, although it is slow.  Slower than using the compiled interpreter to run the same program (which would be "`./inception examples/brainfuck.lisp --main`").
 
-> **NOTE** You might need to run `ulimit -s unlimited` to avoid segfaults due to stack exhaustion with the nested inception usage.
+> **NOTE** You _might_ need to run `ulimit -s unlimited` to avoid segfaults due to stack exhaustion with the nested inception usage.   Now that I've added tail call optimizations that seems unnecessary, but if stack exhaustion is reached a message will alert you of that fact.
 </details>
