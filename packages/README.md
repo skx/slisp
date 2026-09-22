@@ -26,7 +26,7 @@ Association list code, included as part of `stdlib.lisp`, so there is no need to
 
 A simple utility package which allows parsing command-line arguments into "flags" and "other" (named "files" on the basis that is probably what they are).
 
-Usage is demonstrated in the [examples/wc.lisp](examples/wc.lisp) utility program, but in-brief create an instance of the object:
+Usage is demonstrated in the [../examples/wc.lisp](../examples/wc.lisp) utility program, but in-brief create an instance of the object:
 
     (require arg-parser)
     (defun main(args)
