@@ -239,12 +239,10 @@ This returns a list of the form (TYPE SIZE MODE)."
   "Return the length, in bytes, of the given string."
   (sys_strlen str))
 
-;; Route to a wrapper to allow passing a specific number of arguments to our
-;; syscall function.
-;;
-;; We do this because we need to allow inception to have a variable number of
-;; arguments and this is the simplest way.
+;; Route to a wrapper to allow passing a specific number of arguments to our syscall primitive.
 (defun syscall(&args)
+  "Make an arbitrary Linux kernel system-call.
+The first argument is the number of the function to call, after that the arguments are call-specific."
   (let ((len (length args)))
     (cond
       ((= len 1) (syscall_linux_1 (nth args 0)))
@@ -255,24 +253,29 @@ This returns a list of the form (TYPE SIZE MODE)."
       ((= len 6) (syscall_linux_6 (nth args 0) (nth args 1) (nth args 2) (nth args 3) (nth args 4) (nth args 5)))
       (t nil))))
 
-
-(defun syscall_linux_1 ( a )
+(defun syscall_linux_1 (a)
+  "Invoke a kernel system-call with one argument."
   (sys_syscall a nil nil nil nil nil))
 
-(defun syscall_linux_2 ( a b )
+(defun syscall_linux_2 (a b)
+  "Invoke a kernel system-call with two arguments."
   (sys_syscall a b nil nil nil nil))
 
-(defun syscall_linux_3 ( a b c)
+(defun syscall_linux_3 (a b c)
+  "Invoke a kernel system-call with three arguments."
   (sys_syscall a b c nil nil nil))
 
-(defun syscall_linux_4 ( a b c d)
+(defun syscall_linux_4 (a b c d)
+  "Invoke a kernel system-call with four arguments."
   (sys_syscall a b c d nil nil))
 
-(defun syscall_linux_5 ( a b c d e)
+(defun syscall_linux_5 (a b c d e)
+  "Invoke a kernel system-call with five arguments."
   (sys_syscall a b c d e nil))
 
-(defun syscall_linux_6 ( a b c d e f)
-  (sys_syscall a b c d e f ))
+(defun syscall_linux_6 (a b c d e f)
+  "Invoke a kernel system-call with six arguments."
+  (sys_syscall a b c d e f))
 
 (defun unlink (str)
   "Delete the given file from the filesystem.
