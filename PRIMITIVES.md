@@ -323,6 +323,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Find a string within another.
 * `sum`
   * Sum the values in the given list.
+* `syscall`
+  * Allow making an arbitrary Linux syscall.  (i.e. Calling a Linux kernel function.)
 * `system`
   * Run a command via `sys_run`,  return the output on success, and nil on failure.
 * `upper`

@@ -93,6 +93,7 @@ It should be noted that we prepend a "standard library" of functions to all user
   * For example our standard functions `and`, `cond`, `list`, `or`, `unless`, and `when` are implemented as macros.
   * Our interpreter has full macro-support, but the compiler is limited.
 * Tail call optimization.
+* Support for making arbitrary calls to Linux syscalls, which can be used to implement networking & similar functions.
 
 You can see a complete list of our primitives, and their details in [PRIMITIVES.md](PRIMITIVES.md).  The primitives are grouped by their implementation location (some things are implemented in assembly, and some things are implemented in our own `slisp` language, as part of the embedded [stdlib.slisp](stdlib.slisp).)
 
