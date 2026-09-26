@@ -3039,6 +3039,26 @@ FUNC fn_sys_substr
     ret
 
 
+;; Make an arbitrary system call
+FUNC fn_sys_syscall
+    mov rax, rdi   ; syscall number
+    mov rdi, rsi  ; first arg from second
+    mov rsi, rdx  ; second arg from third
+    mov rdx, rcx  ; etc
+    mov rcx, r8
+    mov r8,  r9
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    UNTAG_REG rdx
+    UNTAG_REG rcx
+    UNTAG_REG rax
+    UNTAG_REG r8
+    UNTAG_REG r9
+    syscall
+    TAG_INTEGER_REG rax
+    ret
+
+
 ;; Delete the given file.
 FUNC fn_sys_unlink
     mov rbx, rdi
