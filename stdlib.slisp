@@ -116,7 +116,6 @@ Mode is \"r\" for read, \"w\" for write, and \"a\" for append."
 It is assumed the filehandle came from fopen, but nil is also accepted."
   (sys_fread handle))
 
-
 (defun fwrite (handle data len)
   "Write the given data, of length LEN, to the specified file-handle.
 
@@ -239,6 +238,41 @@ This returns a list of the form (TYPE SIZE MODE)."
 (defun strlen (str)
   "Return the length, in bytes, of the given string."
   (sys_strlen str))
+
+;; Route to a wrapper to allow passing a specific number of arguments to our
+;; syscall function.
+;;
+;; We do this because we need to allow inception to have a variable number of
+;; arguments and this is the simplest way.
+(defun syscall(&args)
+  (let ((len (length args)))
+    (cond
+      ((= len 1) (syscall_linux_1 (nth args 0)))
+      ((= len 2) (syscall_linux_2 (nth args 0) (nth args 1)))
+      ((= len 3) (syscall_linux_3 (nth args 0) (nth args 1) (nth args 2)))
+      ((= len 4) (syscall_linux_4 (nth args 0) (nth args 1) (nth args 2) (nth args 3)))
+      ((= len 5) (syscall_linux_5 (nth args 0) (nth args 1) (nth args 2) (nth args 3) (nth args 4)))
+      ((= len 6) (syscall_linux_6 (nth args 0) (nth args 1) (nth args 2) (nth args 3) (nth args 4) (nth args 5)))
+      (t nil))))
+
+
+(defun syscall_linux_1 ( a )
+  (sys_syscall a nil nil nil nil nil))
+
+(defun syscall_linux_2 ( a b )
+  (sys_syscall a b nil nil nil nil))
+
+(defun syscall_linux_3 ( a b c)
+  (sys_syscall a b c nil nil nil))
+
+(defun syscall_linux_4 ( a b c d)
+  (sys_syscall a b c d nil nil))
+
+(defun syscall_linux_5 ( a b c d e)
+  (sys_syscall a b c d e nil))
+
+(defun syscall_linux_6 ( a b c d e f)
+  (sys_syscall a b c d e f ))
 
 (defun unlink (str)
   "Delete the given file from the filesystem.
