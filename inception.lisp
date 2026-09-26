@@ -341,6 +341,7 @@
   (register-builtin "sys_strdup" (lambda (args) (sys_strdup (car args))))
   (register-builtin "sys_strlen" (lambda (args) (sys_strlen (car args))))
   (register-builtin "sys_substr" (lambda (args) (sys_substr (car args) (cadr args) (caddr args))))
+  (register-builtin "sys_syscall" (lambda (args) (sys_syscall (nth args 0) (nth args 1) (nth args 2) (nth args 3) (nth args 4)(nth args 5))))
   (register-builtin "sys_unlink" (lambda (args) (sys_unlink (car args))))
 )
 
