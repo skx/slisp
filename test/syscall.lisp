@@ -1,6 +1,6 @@
 ;; Test making syscalls
 
-(defun main()
+(defun main(args)
 
   ;; write to stdout
   (syscall 1 1 "STDOUT\n" 7)
