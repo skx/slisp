@@ -317,7 +317,6 @@
   (register-builtin "sys_int" (lambda (args) (sys_int (car args))))
   (register-builtin "sys_isqrt" (lambda (args) (sys_isqrt (car args))))
   (register-builtin "sys_minus" (lambda (args) (sys_minus (car args) (cadr args))))
-  (register-builtin "sys_mkdir" (lambda (args) (sys_mkdir (car args))))
   (register-builtin "sys_multiply" (lambda (args) (sys_multiply (car args) (cadr args))))
   (register-builtin "sys_newline" (lambda (args) (sys_newline)))
   (register-builtin "sys_not" (lambda (args) (sys_not (car args))))
@@ -330,7 +329,6 @@
   (register-builtin "sys_plus" (lambda (args) (sys_plus (car args) (cadr args))))
   (register-builtin "sys_putc" (lambda (args) (sys_putc (car args))))
   (register-builtin "sys_random" (lambda (args) (sys_random (car args))))
-  (register-builtin "sys_rmdir" (lambda (args) (sys_rmdir (car args))))
   (register-builtin "sys_run" (lambda (args) (sys_run (car args) (cadr args))))
   (register-builtin "sys_split" (lambda (args) (sys_split (car args) (cadr args))))
   (register-builtin "sys_sqrt" (lambda (args) (sys_sqrt (car args))))
@@ -342,7 +340,6 @@
   (register-builtin "sys_strlen" (lambda (args) (sys_strlen (car args))))
   (register-builtin "sys_substr" (lambda (args) (sys_substr (car args) (cadr args) (caddr args))))
   (register-builtin "sys_syscall" (lambda (args) (sys_syscall (nth args 0) (nth args 1) (nth args 2) (nth args 3) (nth args 4)(nth args 5))))
-  (register-builtin "sys_unlink" (lambda (args) (sys_unlink (car args))))
 )
 
 ;; eval: where the magic happens.
