@@ -677,6 +677,18 @@ and run BODY for side-effects.  Returns nil."
       (sys_divide a (car b))
       (sys_divide 1 (+ a 0.0))))
 
+(defun & (a b)
+  "Binary AND between two integers."
+  (sys_and a b))
+
+(defun | (a b)
+  "Binary OR between two integers."
+  (sys_or a b))
+
+(defun ^ (a b)
+  "Binary XOR between two integers."
+  (sys_xor a b))
+
 (defun abs (n)
   "Return the absolute value of N, as a positive number"
   (if (< n 0) (- 0 n) n))

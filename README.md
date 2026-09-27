@@ -70,6 +70,7 @@ It should be noted that we prepend a "standard library" of functions to all user
   * See the [Garbage Collection](GC.md) file for further details on how the GC process works, and can be inspected/modified.
 * Mathematical operations `+`, `-`, `*`, and `/`.
   * These work against integers, floating point numbers, or combination of the two.
+* Binary operations `&` (and), `|` (or) `^` (xor) which work against integers.
 * File I/O operations:
   * `fopen`, `fclose`, `fread`, and `fwrite`.
 * Filesystem primitive:

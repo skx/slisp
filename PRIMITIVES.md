@@ -97,6 +97,7 @@ added to them too.
   * The `numeric?` primitive will return true for ints, floats, and characters.
 * mathematical operations  `*`, `+`, `-`, and `/`.
   * These work against integers, floating point numbers, or mixed operands.
+* Binary operations `&` (and), `|` (or) `^` (xor) which work against integers.
 * (Integer) comparison operations
   * `<`, `<=`, `>=`, `>`, and `=`.
 * Other functions implemented in assembly:

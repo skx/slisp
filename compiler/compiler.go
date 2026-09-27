@@ -55,6 +55,9 @@ var labelRemapping = map[string]string{
 	"<": "LT",
 	"=": "EQUALS",
 	"/": "DIVIDE",
+	"&": "AMPERSAND",
+	"^": "CARET",
+	"|": "PIPE",
 }
 
 // FunctionArgs records the arguments which a given defun accepts.
