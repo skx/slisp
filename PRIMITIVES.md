@@ -118,11 +118,6 @@ added to them too.
     * Terminate execution.
   * `explode`
     * Convert the supplied string to a list of characters.
-  * `fclose`
-    * Close the given file-handle, and always return nil.
-    * To simplify usage `fclose` will accept a nil-filehandle.
-  * `fopen`
-    * Open the given filename, for read/write, and return a handle.
   * `fread`
     * Read ALL available data from the given handle.
     * To simplify usage `fread` will accept a nil-filehandle, and return nil.
@@ -242,6 +237,11 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return the offset of matching items inside the given list.
 * `flatten`
   * Flatten the given list of lists into a single list
+* `fclose`
+  * Close the given file-handle, and always return nil.
+  * To simplify usage `fclose` will accept a nil-filehandle.
+* `fopen`
+  * Open the given filename, for read/write, and return a handle.
 * `getc`
   * Read a single character from STDIN, return NIL on failure.
 * `getenv`

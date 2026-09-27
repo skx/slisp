@@ -98,18 +98,6 @@
   "Convert a string to a list of characters."
   (sys_explode str))
 
-(defun fclose (n)
-  "Close the given file-handle.
-
-It is assumed the filehandle came from fopen, but nil is also accepted."
-  (sys_fclose n))
-
-(defun fopen (str mode)
-  "Open a file with the given mode.
-
-Mode is \"r\" for read, \"w\" for write, and \"a\" for append."
-  (sys_fopen str mode))
-
 (defun fread (handle)
   "Read all available data from the given file-handle.
 
@@ -408,6 +396,40 @@ do the right thing for each entry in the given list."
 (defun exists? (path)
   "Does the named path exist?"
   (cons? (stat path)))
+
+(defconst SYS_close 3)
+
+(defun fclose (handle)
+  "Close the given handle.
+
+As a special case closing a NIL file-handle is valid"
+  (cond
+    ((nil? handle) nil)
+    ((int? handle)
+      (let ((res 0))
+        (set! res (syscall SYS_close handle))
+        (if (> res 0)
+          res
+         nil)))
+    (t   (do (println "Calling fclose with an invalid handle-type") (exit 1)))))
+
+(defconst SYS_open 2)
+
+(defun fopen (str mode)
+  "Open a file with the given mode.
+
+Mode is \"r\" for read, \"w\" for write, and \"a\" for append."
+  (let ((flags 0)
+        (handle 0))
+    (cond
+      ((= 0 (strcmp mode "a")) (set! flags 1089)) ; O_WRONLY|O_CREAT|O_APPEND
+      ((= 0 (strcmp mode "r")) (set! flags    0)) ; O_RDONLY
+      ((= 0 (strcmp mode "w")) (set! flags  577)) ; O_WRONLY|O_CREAT|O_TRUNC
+      (t (do (println "unknown mode for fopen:" mode ) (exit 1))))
+    (set! handle (syscall SYS_open str flags 420)) ; 420 == mode, 644 in octal
+    (if (> handle 0)
+      handle
+     nil)))
 
 (defun file? (path)
   "Is the given path a file?"
