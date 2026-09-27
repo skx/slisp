@@ -213,6 +213,12 @@ This returns a list of the form (TYPE SIZE MODE)."
   "Return the contents of the stdlib.slisp standard-library."
   (sys_stdlib))
 
+(defun strat(str n)
+  "Return the integer value of the character at offset N for the given string.
+
+This ignores embedded NULLs which would otherwise break substr and explode."
+  (sys_strat str n))
+
 (defun strcat(a b)
   "Return the result of concatenating the two specified strings into one."
   (sys_strcat a b))

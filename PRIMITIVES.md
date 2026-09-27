@@ -175,6 +175,9 @@ added to them too.
     * Returns file information as a list (TYPE SIZE MODE), or nil on failure.
   * `stdlib`
      * Return the contents of our slisp stdlib at runtime.
+  * `strat`
+    * Read the byte at offset N from the given string.
+    * This is a dangerous function, with no bounds-checking, which works around the fact `explode` and `substr` get foiled by embedded NULL characters.
   * `strcat`
     * Join two strings together and return them.
   * `strcmp`
