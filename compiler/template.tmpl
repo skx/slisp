@@ -39,21 +39,6 @@
 ;;; 0. definitions
 
 ;;
-;; We don't really use conditional code, but we have some constants
-;; defined below for the various syscalls we make.
-;;
-;; We can also print a "^" character every time GC runs, which is
-;; somewhat useful for debugging.  We also print a "!" if GC was
-;; disabled because it was attempted inside an internal function.
-;;
-;; (We test our GC-threshold within the "(cons ..)" implementation,
-;; but internal functions can call that, so we disable GC for their
-;; durations.)
-;;
-%undef  DEBUG_GC       ;; Disabled by default.
-; %define DEBUG_GC 1   ;; Uncomment to enable.
-
-;;
 ;; Size of our heap: 4Gb
 ;;
 ;; Remember of course we have two heaps, both of
@@ -3340,33 +3325,9 @@ scan_object:
 ;;  3. The contents of the registers RSI & RDI (optional).
 ;;
 gc_collect:
-
-%ifdef DEBUG_GC
-    push rsi                        ; Print a caret when we GC
-    push rdi
-    push rdx
-    mov rdi,'^'
-    TAG_INTEGER_REG rdi
-    call fn_sys_putc
-    pop rdx
-    pop rdi
-    pop rsi
-%endif
-
     mov rax, [disable_gc]
     cmp rax, 0
     jz .run_gc
-%ifdef DEBUG_GC
-    push rsi                        ; Print a ! when GC was disabled
-    push rdi
-    push rdx
-    mov rdi,'!'
-    TAG_INTEGER_REG rdi
-    call fn_sys_putc
-    pop rdx
-    pop rdi
-    pop rsi
-%endif
     ret
 
 .run_gc:
