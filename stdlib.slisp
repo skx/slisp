@@ -66,6 +66,15 @@
   "Perform A modulus B"
   (sys_% a b))
 
+(defun alloc (n)
+  "Allocate N bytes of string memory, and fill it with ASCII.
+
+This is only supposed to be used alongside the `syscall` function.
+
+NOTE There is no corresponding free function, the garbage collector will
+reap orphaned memory."
+  (sys_alloc n))
+
 (defun car (xs)
   "Return the first item from the list"
   (sys_car xs))

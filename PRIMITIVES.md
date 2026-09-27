@@ -101,6 +101,10 @@ added to them too.
 * (Integer) comparison operations
   * `<`, `<=`, `>=`, `>`, and `=`.
 * Other functions implemented in assembly:
+  * `alloc`
+    * Allocate N bytes of string memory.
+    * This is only supposed to be used in conjunction with the `syscall` primitive.
+    * NOTE: There is no `free`, we rely upon our [garbage collector](GC.md) to free allocated memory.
   * `car`
     * Return the first item of a list.
   * `cdr`

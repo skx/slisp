@@ -299,6 +299,7 @@
   (register-builtin "sys_=" (lambda (args) (sys_= (car args) (cadr args))))
   (register-builtin "sys_>" (lambda (args) (sys_> (car args) (cadr args))))
   (register-builtin "sys_>=" (lambda (args) (sys_>= (car args) (cadr args))))
+  (register-builtin "sys_alloc" (lambda (args) (sys_alloc (car args))))
   (register-builtin "sys_car" (lambda (args) (sys_car (car args))))
   (register-builtin "sys_cdr" (lambda (args) (sys_cdr (car args))))
   (register-builtin "sys_chr" (lambda (args) (sys_chr (car args))))
