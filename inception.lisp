@@ -305,6 +305,7 @@
   (register-builtin "sys_cons" (lambda (args) (sys_cons (car args) (cadr args))))
   (register-builtin "sys_divide" (lambda (args) (sys_divide (car args) (cadr args))))
   (register-builtin "sys_entries" (lambda (args) (sys_entries (car args))))
+  (register-builtin "sys_and" (lambda (args) (sys_and (car args) (cadr args))))
   (register-builtin "sys_environment" (lambda (args) (sys_environment)))
   (register-builtin "sys_exit" (lambda (args) (sys_exit (car args))))
   (register-builtin "sys_explode" (lambda (args) (sys_explode (car args))))
@@ -323,6 +324,7 @@
   (register-builtin "sys_now" (lambda (args) (sys_now)))
   (register-builtin "sys_nth!" (lambda (args) (sys_nth! (car args) (cadr args) (caddr args))))
   (register-builtin "sys_nth" (lambda (args) (sys_nth (car args) (cadr args))))
+  (register-builtin "sys_or" (lambda (args) (sys_or (car args) (cadr args))))
   (register-builtin "sys_ord" (lambda (args) (sys_ord (car args))))
   (register-builtin "sys_package" (lambda (args) (sys_package (car args))))
   (register-builtin "sys_packages" (lambda (args) (sys_packages )))
@@ -340,6 +342,7 @@
   (register-builtin "sys_strlen" (lambda (args) (sys_strlen (car args))))
   (register-builtin "sys_substr" (lambda (args) (sys_substr (car args) (cadr args) (caddr args))))
   (register-builtin "sys_syscall" (lambda (args) (sys_syscall (nth args 0) (nth args 1) (nth args 2) (nth args 3) (nth args 4)(nth args 5))))
+  (register-builtin "sys_xor" (lambda (args) (sys_xor (car args) (cadr args))))
 )
 
 ;; eval: where the magic happens.

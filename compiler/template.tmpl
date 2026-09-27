@@ -846,6 +846,45 @@ integer_multiply:
     ret
 
 
+;; &
+FUNC fn_sys_and
+    call are_both_integers
+    jz binary_and_integer
+    jmp type_error       ; type error
+binary_and_integer:
+    UNTAG_REG rdi
+    UNTAG_REG rsi        ; untag arguments
+    mov rax, rdi
+    and rax, rsi
+    TAG_INTEGER_REG rax
+    ret
+
+;; |
+FUNC fn_sys_or
+    call are_both_integers
+    jz binary_or_integer
+    jmp type_error       ; type error
+binary_or_integer:
+    UNTAG_REG rdi
+    UNTAG_REG rsi        ; untag arguments
+    mov rax, rdi
+    or rax, rsi
+    TAG_INTEGER_REG rax
+    ret
+
+;; ^
+FUNC fn_sys_xor
+    call are_both_integers
+    jz binary_xor_integer
+    jmp type_error       ; type error
+binary_xor_integer:
+    UNTAG_REG rdi
+    UNTAG_REG rsi        ; untag arguments
+    mov rax, rdi
+    xor rax, rsi
+    TAG_INTEGER_REG rax
+    ret
+
 ;; %
 FUNC fn_sys_PERCENT
     call are_both_integers
