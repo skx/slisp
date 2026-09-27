@@ -134,12 +134,6 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
   "Convert the given thing to an integer, if possible."
   (sys_int x))
 
-(defun mkdir (str)
-  "Make the given directory.
-
-Note that this does not create parents, use (mkdirs) for that."
-  (sys_mkdir str))
-
 (defun newline ()
   "Print a newline."
   (sys_newline))
@@ -434,6 +428,17 @@ do the right thing for each entry in the given list."
         (if (= 0 (car res))
             t))))
 
+(defconst SYS_mkdir 83)
+
+(defun mkdir (path)
+  "Make the given directory.
+
+Note that this does not create parents, use (mkdirs) for that."
+  (syscall SYS_mkdir
+           path
+           493   ; octal 0755 in decimal
+           ))
+
 (defun mkdirs (path)
   "Make the given directory, creating parent directories as necessary"
   (mkdirs-helper (split-all path #\/) nil))
@@ -458,6 +463,15 @@ do the right thing for each entry in the given list."
         (join (list (car res) "/" binary)))))
 
 
+(defconst SYS_rmdir 84)
+
+(defun rmdir (path)
+  (syscall SYS_rmdir path))
+
+(defconst SYS_unlink 87)
+
+(defun unlink (path)
+  (syscall SYS_unlink path))
 
 
 ;;; 4. Macros

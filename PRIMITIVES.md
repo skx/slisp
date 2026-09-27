@@ -137,8 +137,6 @@ added to them too.
     * Anything else becomes zero.
   * `isqrt`
     * Integer square root, which rounds down.
-  * `mkdir`
-    * Create the named directory.  **NOTE**: Mode is fixed at 0755, and parent directories must exist unless you use `mkdirs`.
   * `newline`
     * Print a newline.
   * `now`
@@ -165,8 +163,6 @@ added to them too.
     * Print the given string.
   * `random`
     * Return a random integer between zero and N.
-  * `rmdir`
-    * Remove the named directory.
   * `split`
     * Split a string by the given character, and return a list of "(before after)".  Return nil if the character isn't found.
   * `split-all`
@@ -201,8 +197,6 @@ added to them too.
     * Return the number of objects stored within our heap.
   * `sys_run`
     * Helper for command execution.
-  * `unlink`
-    * Delete the named file.
 
 
 
@@ -275,6 +269,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Tests if the given item is present in the specified list.
 * `min`
   * Return the lowest integer in the list of numbers provided.
+* `mkdir`
+    * Create the named directory.  **NOTE**: Mode is fixed at 0755, and parent directories must exist unless you use `mkdirs`.
 * `mkdirs`
   * Create the given directory, creating any parents as required.  (e.g. "`(mkdirs "foo/bar/baz")`".)
 * `nat`
@@ -315,6 +311,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Call the given function N times.
 * `reverse`
   * Reverse the contents of the specified list.
+* `rmdir`
+  * Remove the named directory, note that this must be empty.
 * `seq`
   * Return a list of numbers from 0 to N.
 * `some`
@@ -327,6 +325,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Allow making an arbitrary Linux syscall.  (i.e. Calling a Linux kernel function.)
 * `system`
   * Run a command via `sys_run`,  return the output on success, and nil on failure.
+* `unlink`
+  * Delete the named file.
 * `upper`
   * Return the given string, converted to upper-case.
 * `which`
