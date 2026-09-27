@@ -101,6 +101,10 @@ added to them too.
 * (Integer) comparison operations
   * `<`, `<=`, `>=`, `>`, and `=`.
 * Other functions implemented in assembly:
+  * `alloc`
+    * Allocate N bytes of string memory.
+    * This is only supposed to be used in conjunction with the `syscall` primitive.
+    * NOTE: There is no `free`, we rely upon our [garbage collector](GC.md) to free allocated memory.
   * `car`
     * Return the first item of a list.
   * `cdr`
@@ -118,12 +122,6 @@ added to them too.
     * Terminate execution.
   * `explode`
     * Convert the supplied string to a list of characters.
-  * `fread`
-    * Read ALL available data from the given handle.
-    * To simplify usage `fread` will accept a nil-filehandle, and return nil.
-  * `fwrite`
-    * Write the given data, with length, to the open file handle.
-    * To simplify usage `fwrite` will accept a nil-filehandle, and return nil.
   * `implode`
     * Convert the given list of characters to a string.
   * `int`
@@ -242,6 +240,12 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * To simplify usage `fclose` will accept a nil-filehandle.
 * `fopen`
   * Open the given filename, for read/write, and return a handle.
+* `fread`
+  * Read ALL available data from the given handle.
+  * To simplify usage `fread` will accept a nil-filehandle, and return nil.
+* `fwrite`
+  * Write the given data, with length, to the open file handle.
+  * To simplify usage `fwrite` will accept a nil-filehandle, and return nil.
 * `getc`
   * Read a single character from STDIN, return NIL on failure.
 * `getenv`
