@@ -129,8 +129,6 @@ added to them too.
   * `fwrite`
     * Write the given data, with length, to the open file handle.
     * To simplify usage `fwrite` will accept a nil-filehandle, and return nil.
-  * `getc`
-    * Read a single character from STDIN, return NIL on failure.
   * `implode`
     * Convert the given list of characters to a string.
   * `int`
@@ -154,8 +152,6 @@ added to them too.
      * Return the contents of one of our embedded packages at runtime.
   * `packages`
      * Return the names of our embedded packages.
-  * `putc`
-    * Print the given character.
   * `printfloat`
     * Print the specified floating point number.
   * `printint`
@@ -246,6 +242,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return the offset of matching items inside the given list.
 * `flatten`
   * Flatten the given list of lists into a single list
+* `getc`
+  * Read a single character from STDIN, return NIL on failure.
 * `getenv`
   * Return the value of the given environmental variable, nor NIL if not found.
   * Uses `environment`.
@@ -299,6 +297,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Print "anything".
 * `println`
   * Print "anything" by invoking `print`, then outputting a newline.
+* `putc`
+  * Print the given character.
 * `random`
   * Return a random integer between zero and N-1.
 * `range`
