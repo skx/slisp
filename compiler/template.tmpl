@@ -78,7 +78,6 @@ SYS_read          equ   0
 SYS_write         equ   1
 SYS_open          equ   2
 SYS_close         equ   3
-SYS_stat          equ   4
 SYS_lseek         equ   8
 SYS_dup2          equ  33
 SYS_fork          equ  57
@@ -93,16 +92,6 @@ SYS_getrandom     equ 318
 ;; (entries)
 O_RDONLY        equ 0
 O_DIRECTORY     equ 0200000o
-
-;; (stat)
-S_IFMT          equ 0170000o
-S_IFSOCK        equ 0140000o
-S_IFLNK         equ 0120000o
-S_IFREG         equ 0100000o
-S_IFBLK         equ 0060000o
-S_IFDIR         equ 0040000o
-S_IFCHR         equ 0020000o
-S_IFIFO         equ 0010000o
 
 ;; stack size fetch
 RLIMIT_STACK  equ 3
@@ -2669,100 +2658,6 @@ FUNC fn_sys_sqrt
 
     jmp return_float
 
-;;
-;; stat(path)
-;;
-;; Returns:
-;;
-;;    (type size mode)
-;;
-;; type:
-;;    0 = regular file
-;;    1 = directory
-;;    2 = symlink
-;;    3 = character device
-;;    4 = block device
-;;    5 = fifo
-;;    6 = socket
-;;
-;; Returns NIL on failure.
-;;
-
-FUNC fn_sys_stat
-    mov rbx,rdi                      ; type-check arg1: string
-    GET_TAG_BITS rbx
-    cmp rbx,TAG_ID_STRING
-    jne type_error
-    UNTAG_REG rdi
-
-    sub rsp, 160                     ; Reserve space for struct stat.
-
-    mov eax,SYS_stat
-    mov rsi,rsp                      ; stack buffer
-    syscall
-    test rax,rax
-    js .failure
-
-    movzx eax,word [rsp+24]          ; Get the mode
-    mov ecx,eax                      ; save it
-
-    and eax,S_IFMT
-    xor edx,edx                      ; default = regular file
-
-    cmp eax,S_IFREG                  ; compare against other explicitly known types
-    je .type_done
-    mov edx,1
-    cmp eax,S_IFDIR
-    je .type_done
-    mov edx,2
-    cmp eax,S_IFLNK
-    je .type_done
-    mov edx,3
-    cmp eax,S_IFCHR
-    je .type_done
-    mov edx,4
-    cmp eax,S_IFBLK
-    je .type_done
-    mov edx,5
-    cmp eax,S_IFIFO
-    je .type_done
-    mov edx,6
-    cmp eax,S_IFSOCK
-    je .type_done
-
-    xor edx,edx                        ; unknown -> regular file
-
-.type_done:
-    STORE_NIL_REG r13               ; list tail
-
-    mov eax,ecx                ; add mode
-    and eax,0777o
-    TAG_INTEGER_REG rax
-    mov rdi,rax
-    mov rsi,r13
-    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
-    mov r13,rax
-
-    mov rax,[rsp+48]           ; add size
-    TAG_INTEGER_REG rax
-    mov rdi,rax
-    mov rsi,r13
-    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
-    mov r13,rax
-
-    mov eax,edx                ; add type
-    TAG_INTEGER_REG rax
-    mov rdi,rax
-    mov rsi,r13
-    call fn_sys_cons_NOGC     ; Disable GC for the duration of this call.
-    add rsp, 160               ; restore stack
-    ret
-
-.failure:
-    add rsp, 160               ; restore stack
-    STORE_NIL_REG rax
-    ret
-
 
 ;; return the contents of our standard library
 FUNC fn_sys_stdlib
@@ -2802,7 +2697,6 @@ FUNC fn_sys_strat
     mov al, byte [rdi]
     TAG_INTEGER_REG rax
     ret
-
 
 ;; join the two given strings and return a new one.
 FUNC fn_sys_strcat
