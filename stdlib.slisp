@@ -203,12 +203,6 @@ Return a list of (BEFORE . AFTER)."
   "Return the floating-point square root of the given number."
   (sys_sqrt x))
 
-(defun stat(str)
-  "Return details of the given filesystem entry.
-
-This returns a list of the form (TYPE SIZE MODE)."
-  (sys_stat str))
-
 (defun stdlib()
   "Return the contents of the stdlib.slisp standard-library."
   (sys_stdlib))
@@ -473,6 +467,51 @@ Note that this does not create parents, use (mkdirs) for that."
 
 (defun rmdir (path)
   (syscall SYS_rmdir path))
+
+(defun u8 (buf pos)
+  "Read and return a 8-bit value from the specified offset in the given buffer."
+  (sys_strat buf pos))
+
+(defun u16 (buf pos)
+  "Read and return a 16-bit value from the specified offset in the given buffer."
+  (+ (u8 buf pos) (* (u8 buf (+ pos 1)) 256)))
+
+(defun u32 (buf pos)
+  "Read and return a 32-bit value from the specified offset in the given buffer."
+  (+ (u16 buf pos) (* (u16 buf (+ pos 2)) 65536)))
+
+(defun u64 (buf pos)
+  "Read and return a 64-bit value from the specified offset in the given buffer."
+  (+ (u32 buf pos) (* (u32 buf (+ pos 4)) 4294967296)))
+
+(defconst SYS_stat 4)
+
+(defun stat (path)
+  "Return details of the given filesystem entry.
+
+This returns a list of the form (TYPE SIZE MODE)."
+
+ ;; buf holds the return value from the stat call.
+ ;; 64-bit Linux (x86_64): The struct stat structure is typically 144 bytes so this string is 145 bytes long.
+ (let ((buf "                                                                                                                                                 "))
+    (let ((result (syscall SYS_stat path buf)))
+      (if (< result 0)
+         nil                                     ; stat failed
+          (do
+            (let ((type (& (u32 buf 24) 61440))  ; type is file type
+                  (mode (& (u32 buf 24)   511))  ; mode holds permission bits
+                  (size (u64 buf 48)))           ; file size
+              (cond
+                ((= type 32768) (set! type 0))   ; FILE    -> 0
+                ((= type 16384) (set! type 1))   ; DIR     -> 1
+                ((= type 40960) (set! type 2))   ; LINK    -> 2
+                ((= type  8192) (set! type 3))   ; CHR     -> 3
+                ((= type 24576) (set! type 4))   ; BLOCK   -> 4
+                ((= type  4096) (set! type 5))   ; FIFO    -> 5
+                ((= type 49152) (set! type 6))   ; SOCKET  -> 6
+                (t (set! type -1))               ; UNKNOWN -> -1
+                )
+              (list type size mode)))))))        ; return the list
 
 (defconst SYS_unlink 87)
 

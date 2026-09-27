@@ -171,8 +171,6 @@ added to them too.
     * e.g. `(split-all (getenv "PATH") #\:)` to find all directories on the PATH.
   * `sqrt`
     * Square root.
-  * `stat`
-    * Returns file information as a list (TYPE SIZE MODE), or nil on failure.
   * `stdlib`
      * Return the contents of our slisp stdlib at runtime.
   * `strat`
@@ -321,6 +319,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return a list of numbers from 0 to N.
 * `some`
   * Return the first non-nil result of calling the given function against each item of the specified list.
+* `stat`
+  * Returns file information as a list (TYPE SIZE MODE), or nil on failure.
 * `strstr`
   * Find a string within another.
 * `sum`

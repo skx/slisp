@@ -334,7 +334,6 @@
   (register-builtin "sys_run" (lambda (args) (sys_run (car args) (cadr args))))
   (register-builtin "sys_split" (lambda (args) (sys_split (car args) (cadr args))))
   (register-builtin "sys_sqrt" (lambda (args) (sys_sqrt (car args))))
-  (register-builtin "sys_stat" (lambda (args) (sys_stat (car args))))
   (register-builtin "sys_stdlib" (lambda (args) (sys_stdlib)))
   (register-builtin "sys_strat" (lambda (args) (sys_strat (car args) (cadr args))))
   (register-builtin "sys_strcat" (lambda (args) (sys_strcat (car args) (cadr args))))
