@@ -122,10 +122,6 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
 It is assumed the filehandle came from fopen, but nil is also accepted."
   (sys_fwrite handle data len))
 
-(defun getc ()
-  "Read a single character from STDIN, and return it."
-  (sys_getc))
-
 (defun implode (xs)
   "Convert a list of characters to a string."
   (sys_implode xs))
@@ -169,10 +165,6 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
 (defun packages ()
   "Return the names of all embedded packages."
   (sys_packages))
-
-(defun putc (c)
-  "Write the single specified character to STDOUT."
-  (sys_putc c))
 
 ;; NOP: This is a special form in our compiler
 ;; However if we make this then we can pretend
@@ -1015,6 +1007,15 @@ Incrementing by the given step each time."
 ;; These are functions which are designed to interface with the
 ;; system environment more than just with File I/O
 
+(defconst SYS_read 0)
+
+(defun getc ()
+  "Read a single character from STDIN, and return it."
+  (let ((str "s"))
+    (if (> (syscall SYS_read 0 str 1) 0)
+      (strat str 0)
+     0)))
+
 (defun getenv (name)
   "Return the contents of a given environmental variable.
 
@@ -1031,6 +1032,14 @@ Uses (environment) to get all environmental variables, and filters."
             (getenv-loop name (cdr xs))))
       nil))
 
+
+(defun putc (c)
+  "Write the single specified character to STDOUT."
+  (cond
+    ((str?  c) (syscall 1 1 (substr c 0 1) 1))
+    ((char? c) (syscall 1 1 (string c) 1))
+    ((int?  c) (syscall 1 1 (string (chr (& 255 c))) 1))
+    (t         (do (println "putc called with bogus arg") (exit 1)))))
 
 (defconst SYS_getrandom 318)
 
