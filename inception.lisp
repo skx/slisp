@@ -310,8 +310,6 @@
   (register-builtin "sys_environment" (lambda (args) (sys_environment)))
   (register-builtin "sys_exit" (lambda (args) (sys_exit (car args))))
   (register-builtin "sys_explode" (lambda (args) (sys_explode (car args))))
-  (register-builtin "sys_fread" (lambda (args) (sys_fread (car args))))
-  (register-builtin "sys_fwrite" (lambda (args)  (sys_fwrite (car args) (cadr args) (caddr args))))
   (register-builtin "sys_implode" (lambda (args) (sys_implode (car args))))
   (register-builtin "sys_int" (lambda (args) (sys_int (car args))))
   (register-builtin "sys_isqrt" (lambda (args) (sys_isqrt (car args))))

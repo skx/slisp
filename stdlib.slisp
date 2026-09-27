@@ -107,18 +107,6 @@ reap orphaned memory."
   "Convert a string to a list of characters."
   (sys_explode str))
 
-(defun fread (handle)
-  "Read all available data from the given file-handle.
-
-It is assumed the filehandle came from fopen, but nil is also accepted."
-  (sys_fread handle))
-
-(defun fwrite (handle data len)
-  "Write the given data, of length LEN, to the specified file-handle.
-
-It is assumed the filehandle came from fopen, but nil is also accepted."
-  (sys_fwrite handle data len))
-
 (defun implode (xs)
   "Convert a list of characters to a string."
   (sys_implode xs))
@@ -439,6 +427,47 @@ Mode is \"r\" for read, \"w\" for write, and \"a\" for append."
     (if (> handle 0)
       handle
      nil)))
+
+(defconst SYS_lseek 8)
+(defconst SEEK_END   2)
+
+(defconst SEEK_START 0)
+
+(defun fread (handle)
+  "Read all available data from the given file-handle.
+
+It is assumed the filehandle came from fopen, but nil is also accepted."
+  (if (nil? handle)
+    nil
+    (let ((size 0))
+      ; seek to end of handle to get size
+      (set! size (syscall SYS_lseek handle 0 SEEK_END))
+      (if (< size 0)
+         nil
+         (do
+           ; seek back to the start
+           (syscall SYS_lseek handle 0 SEEK_START)
+
+           ; allocate memory and read into it
+           (let ((mem (alloc size))
+                 (res (syscall SYS_read handle mem size)))
+             (if (< res 0)
+                nil
+              mem)))))))
+
+(defconst SYS_write 1)
+
+(defun fwrite (handle data len)
+  "Write the given data, of length LEN, to the specified file-handle.
+
+It is assumed the filehandle came from fopen, but nil is also accepted."
+  (if (nil? handle)
+    nil
+    (let ((res (syscall SYS_write handle data len)))
+      (if (> res 0)
+        res
+       nil))))
+
 
 (defun file? (path)
   "Is the given path a file?"
