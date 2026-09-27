@@ -87,7 +87,6 @@ SYS_wait4         equ  61
 SYS_getdents64    equ 217
 SYS_clock_gettime equ 228
 SYS_prlimit64     equ 302
-SYS_getrandom     equ 318
 
 ;; (entries)
 O_RDONLY        equ 0
@@ -2393,34 +2392,6 @@ FUNC fn_sys_putc
     syscall
     pop rax                   ; This is the tagged input value
     ret
-
-
-
-;; Generate a random number 0-N
-FUNC fn_sys_random
-    mov rbx, rdi             ; type-check arg1
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_INTEGER
-    jne type_error
-
-    UNTAG_REG rdi
-    push rdi                        ; push the limit
-
-    mov rax, SYS_getrandom
-    lea rdi, [random_buffer]   ; random value location
-    mov rsi, 4                 ; number of bytes
-    xor rdx, rdx               ; flags = 0
-    syscall
-
-    pop rcx                    ; limit the value
-    mov eax, [random_buffer]
-    xor edx, edx
-    div ecx
-
-    mov rax, rdx
-    TAG_INTEGER_REG rax
-    ret
-
 
 
 ;; system helper

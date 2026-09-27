@@ -162,8 +162,6 @@ added to them too.
     * Print the specified integer.
   * `printstr`
     * Print the given string.
-  * `random`
-    * Return a random integer between zero and N.
   * `split`
     * Split a string by the given character, and return a list of "(before after)".  Return nil if the character isn't found.
   * `split-all`
@@ -301,6 +299,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Print "anything".
 * `println`
   * Print "anything" by invoking `print`, then outputting a newline.
+* `random`
+  * Return a random integer between zero and N-1.
 * `range`
   * Return a list of numbers between the given start/end, using the specified step-size.
 * `read-line`

@@ -330,7 +330,6 @@
   (register-builtin "sys_packages" (lambda (args) (sys_packages )))
   (register-builtin "sys_plus" (lambda (args) (sys_plus (car args) (cadr args))))
   (register-builtin "sys_putc" (lambda (args) (sys_putc (car args))))
-  (register-builtin "sys_random" (lambda (args) (sys_random (car args))))
   (register-builtin "sys_run" (lambda (args) (sys_run (car args) (cadr args))))
   (register-builtin "sys_split" (lambda (args) (sys_split (car args) (cadr args))))
   (register-builtin "sys_sqrt" (lambda (args) (sys_sqrt (car args))))
