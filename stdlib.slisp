@@ -1035,10 +1035,11 @@ Uses (environment) to get all environmental variables, and filters."
 
 (defun putc (c)
   "Write the single specified character to STDOUT."
-  (let ((lst (list #\x)))
-    (nth! lst 0 c)
-    (let ((str (implode lst)))
-      (syscall 1 1 str 1))))
+  (cond
+    ((str?  c) (syscall 1 1 (substr c 0 1) 1))
+    ((char? c) (syscall 1 1 (string c) 1))
+    ((int?  c) (syscall 1 1 (string (chr (& 255 c))) 1))
+    (t         (do (println "putc called with bogus arg") (exit 1)))))
 
 (defconst SYS_getrandom 318)
 
