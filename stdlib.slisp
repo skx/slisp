@@ -174,10 +174,6 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
   "Write the single specified character to STDOUT."
   (sys_putc c))
 
-(defun random (n)
-  "Return a random number 0-N."
-  (sys_random n))
-
 ;; NOP: This is a special form in our compiler
 ;; However if we make this then we can pretend
 ;; we load packages.
@@ -1034,6 +1030,15 @@ Uses (environment) to get all environmental variables, and filters."
                 (getenv-loop name (cdr xs)))
             (getenv-loop name (cdr xs))))
       nil))
+
+
+(defconst SYS_getrandom 318)
+
+(defun random (n)
+  "Return a random number between zero and N-1, (both zero and N-1 are valid return values.)"
+  (let ((buf "skx/slisp"))
+    (syscall SYS_getrandom buf 8)
+    (% (abs (u64 buf 0)) n)))
 
 (defun read-line ()
   "Read and return a line of text from STDIN"
