@@ -518,15 +518,12 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
   (if (nil? handle)
     nil
     (let ((size 0))
-      ; seek to end of handle to get size
       (set! size (syscall SYS_lseek handle 0 SEEK_END))
       (if (< size 0)
          nil
          (do
-           ; seek back to the start
            (syscall SYS_lseek handle 0 SEEK_START)
 
-           ; allocate memory and read into it
            (let ((mem (alloc size))
                  (res (syscall SYS_read handle mem size)))
              (if (< res 0)
