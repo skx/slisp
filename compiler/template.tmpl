@@ -1291,6 +1291,19 @@ fn_printstr:
 ;;
 
 
+;; Return the size of the allocation for the given object.
+FUNC fn_sys_alen
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    UNTAG_REG rdi
+    mov rbx, rdi
+    OBJ_TO_HEADER rbx     ; move to header
+    mov rax, [rbx]        ; get the size
+    TAG_INTEGER_REG rax
+    ret
+
 ;; Allocate (string) memory and return it.
 FUNC fn_sys_alloc
     mov rbx, rdi
@@ -3565,8 +3578,14 @@ gc_scan_stack:
 
 section .data
 
+;; Fake header before each string so that we can perform
+;; bounds-checking in strat and strat!
+
 {{ range .StringTable }}
 align 16
+    dq {{ .Length }} + OBJ_PAYLOAD  ; object_size
+    dq 0                            ; object_forward
+    dq TAG_ID_STRING                ; object_type
 {{ .Name }}:
     db `{{ .Value }}`, 0x00
 {{end}}
