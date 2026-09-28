@@ -158,8 +158,11 @@ added to them too.
   * `stdlib`
      * Return the contents of our slisp stdlib at runtime.
   * `strat`
-    * Read the byte at offset N from the given string.
-    * This is a dangerous function, with no bounds-checking, which works around the fact `explode` and `substr` get foiled by embedded NULL characters.
+    * Read the byte at offset N within the given string.
+    * This function works around the fact `explode` and `substr` get foiled by embedded NULL characters.
+  * `strat!`
+    * Update the byte at offset N within the given string.
+    * This corresponds to the `strat` function which reads a byte.
   * `strcat`
     * Join two strings together and return them.
   * `strcmp`
@@ -170,7 +173,7 @@ added to them too.
      * Convert characters, integers, and floats to strings.
      * Everything else returns an empty string.
   * `strlen`
-    * Return the length of the given string.
+    * Return the length of the given string, stopping at the first NULL character.
   * `substr`
     * Return a substring from a given string.
   * `sys-gc`

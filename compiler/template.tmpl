@@ -1291,6 +1291,19 @@ fn_printstr:
 ;;
 
 
+;; Return the size of the allocation for the given string.
+FUNC fn_sys_alen
+    mov rbx, rdi
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    UNTAG_REG rdi
+    mov rbx, rdi
+    OBJ_TO_HEADER rbx     ; move to header
+    mov rax, [rbx]        ; get the size
+    TAG_INTEGER_REG rax
+    ret
+
 ;; Allocate (string) memory and return it.
 FUNC fn_sys_alloc
     mov rbx, rdi
@@ -1300,7 +1313,7 @@ FUNC fn_sys_alloc
     UNTAG_REG rdi
     cmp rdi, 0                 ; N must be >= 1
     jle .nil
-    push rdi
+    push rdi                   ; size
     mov rax, rdi
     mov rbx, TAG_ID_STRING
     call alloc
@@ -2410,14 +2423,11 @@ FUNC fn_sys_stdlib
 
 ;; Return the given byte from the string, as an integer.
 ;;
-;; This function is dangerous as it has no bound checking, we could add
-;; it since we know the size of all allocations made with alloc..
+;; This is a workaround for the fact our strings can't have embedded null-characters - if
+;; they do "explode" and "substr" don't work any longer.
 ;;
-;; For the moment it is a workaround for the fact our strings can't have
-;; embedded null-characters - if they do "explode" and "substr" don't work
-;; any longer.
-;;
-;; TODO: Add bound-checking.
+;; Users should avoid this function, although it is required for some of the calls
+;; relating to linux syscalls.
 ;;
 FUNC fn_sys_strat
     mov rbx, rdi             ; type-check arg1
@@ -2432,8 +2442,21 @@ FUNC fn_sys_strat
     UNTAG_REG rdi
     UNTAG_REG rsi
 
+    ; Get the size of the allocation to make sure we're not moving past it
+    mov rax, rdi          ; start of object
+    OBJ_TO_HEADER rax     ; move to header
+    mov rax, [rax]        ; read size from header
+    sub rax, OBJ_PAYLOAD  ; Remove the size of the header itself, to leave only the size requested.
+    add rax, rdi          ; Add the size to the starting address.
+
     ; RDI points to the string, add the RSI/offset to it
     add rdi, rsi
+
+    ; Run the range-check.  Note that this will allow access past the end of strings
+    ; as allocations are rounded up to 16 bytes, however it will not allow access to
+    ; anything that follows the string.
+    cmp rdi, rax
+    ja out_of_range
 
     ; Load and return the character/byte as an integer.
     xor rax, rax
@@ -2443,14 +2466,12 @@ FUNC fn_sys_strat
 
 ;; Allow updating the Nth byte of the given string.
 ;;
-;; This function is dangerous as it has no bound checking, we could add
-;; it since we know the size of all allocations made with alloc..
-;;
 ;; For the moment it is a workaround for the fact our strings can't have
 ;; embedded null-characters - if they do "explode" and "substr" don't work
 ;; any longer.
 ;;
-;; TODO: Add bound-checking.
+;; Users should avoid this function, although it is required for some of the calls
+;; relating to linux syscalls.
 ;;
 FUNC fn_sys_stratBANG
     mov rbx, rdi             ; type-check arg1
@@ -2466,10 +2487,24 @@ FUNC fn_sys_stratBANG
     UNTAG_REG rsi
     UNTAG_REG rdx
 
+
+    ; Get the size of the allocation to make sure we're not moving past it
+    mov rax, rdi          ; start of object
+    OBJ_TO_HEADER rax     ; move to header
+    mov rax, [rax]        ; read size from header
+    sub rax, OBJ_PAYLOAD  ; Remove the size of the header itself, to leave only the size requested.
+    add rax, rdi          ; Add the size to the starting address.
+
     ; RDI points to the string, add the RSI/offset to it
     add rdi, rsi
 
-    ; Load and return the character/byte as an integer.
+    ; Run the range-check.  Note that this will allow access past the end of strings
+    ; as allocations are rounded up to 16 bytes, however it will not allow access to
+    ; anything that follows the string.
+    cmp rdi, rax
+    ja out_of_range
+
+    ; Store the value into the address.
     mov byte [rdi], dl
     mov rax, rdx
     and rax, 0xFF
@@ -3543,8 +3578,14 @@ gc_scan_stack:
 
 section .data
 
+;; Fake header before each string so that we can perform
+;; bounds-checking in strat and strat!
+
 {{ range .StringTable }}
 align 16
+    dq {{ .Length }} + OBJ_PAYLOAD  ; object_size
+    dq 0                            ; object_forward
+    dq TAG_ID_STRING                ; object_type
 {{ .Name }}:
     db `{{ .Value }}`, 0x00
 {{end}}

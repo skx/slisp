@@ -568,16 +568,19 @@ func (c *Compiler) Compile() (string, error) {
 	// from our string-table
 	//
 	type String struct {
-		Name  string
-		Value string
+		Length int
+		Name   string
+		Value  string
 	}
 
 	stringLiterals := []String{}
 	for id, str := range c.strings {
+		val := strings.ReplaceAll(str, "`", "\\`")
 		stringLiterals = append(stringLiterals,
 			String{
-				Name:  id,
-				Value: strings.ReplaceAll(str, "`", "\\`"),
+				Length: len(val),
+				Name:   id,
+				Value:  val,
 			})
 	}
 
