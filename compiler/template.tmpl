@@ -1291,7 +1291,7 @@ fn_printstr:
 ;;
 
 
-;; Return the size of the allocation for the given object.
+;; Return the size of the allocation for the given string.
 FUNC fn_sys_alen
     mov rbx, rdi
     GET_TAG_BITS rbx
@@ -2453,7 +2453,7 @@ FUNC fn_sys_strat
     add rdi, rsi
 
     ; Run the range-check.  Note that this will allow access past the end of strings
-    ; as allocates are rounded up to 16 bytes, however it will not allow access to
+    ; as allocations are rounded up to 16 bytes, however it will not allow access to
     ; anything that follows the string.
     cmp rdi, rax
     ja out_of_range
@@ -2499,7 +2499,7 @@ FUNC fn_sys_stratBANG
     add rdi, rsi
 
     ; Run the range-check.  Note that this will allow access past the end of strings
-    ; as allocates are rounded up to 16 bytes, however it will not allow access to
+    ; as allocations are rounded up to 16 bytes, however it will not allow access to
     ; anything that follows the string.
     cmp rdi, rax
     ja out_of_range
