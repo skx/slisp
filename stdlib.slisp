@@ -75,6 +75,10 @@ NOTE There is no corresponding free function, the garbage collector will
 reap orphaned memory."
   (sys_alloc n))
 
+(defun alen (str)
+  "Return the allocated size of the given string."
+  (sys_alen str))
+
 (defun car (xs)
   "Return the first item from the list"
   (sys_car xs))
