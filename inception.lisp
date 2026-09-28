@@ -305,6 +305,7 @@
   (register-builtin "sys_chr" (lambda (args) (sys_chr (car args))))
   (register-builtin "sys_cons" (lambda (args) (sys_cons (car args) (cadr args))))
   (register-builtin "sys_divide" (lambda (args) (sys_divide (car args) (cadr args))))
+  (register-builtin "sys_alen" (lambda (args) (sys_alen (car args))))
   (register-builtin "sys_and" (lambda (args) (sys_and (car args) (cadr args))))
   (register-builtin "sys_environment" (lambda (args) (sys_environment)))
   (register-builtin "sys_exit" (lambda (args) (sys_exit (car args))))
