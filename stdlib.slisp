@@ -91,10 +91,6 @@ reap orphaned memory."
   "Join A and B into a list"
   (sys_cons a b))
 
-(defun entries (str)
-  "Return the names of all filesystem entries beneath the given directory."
-  (sys_entries str))
-
 (defun environment ()
   "Return a list of all known environmental variables, and their values."
   (sys_environment))
@@ -389,6 +385,80 @@ do the right thing for each entry in the given list."
     (if res
         (if (= 1 (car res))
             t))))
+
+(defconst SYS_getdents64 217)
+
+(defconst O_RDONLY       0)
+(defconst O_DIRECTORY    65536)
+
+(defun entries (path)
+  "Return a list of directory entries beneath PATH.
+Return nil on failure.
+
+The implementation here is either horrid, or awesome.  You decide."
+
+  (let ((fd 0)
+        (size 8192)          ; size of the pool we read entries into.
+        (buf (alloc size))   ; Allocate that pool for the results.
+        (result nil)
+        (n 0)
+        (pos 0))
+
+    (set! fd (syscall SYS_open path (+ O_RDONLY O_DIRECTORY) 0))
+    (if (< fd 0)
+        nil
+
+        (do
+          ;; Read a batch of directory entries.
+          (set! n (syscall SYS_getdents64 fd buf size))
+
+          (while (> n 0)
+
+            (set! pos 0)
+
+            ;; Walk the linux_dirent64 records.
+            (while (< pos n)
+
+              ;; offset 16: uint16 d_reclen
+              ;; offset 18: uint8  d_type
+              ;; offset 19: char[] d_name
+
+              (let ((reclen (u16 buf (+ pos 16)))
+                    (name-pos (+ pos 19))
+                    (name-len 0))
+
+                ;; Find the NUL terminator in d_name.
+                (while (and
+                         (< name-len (- reclen 19))
+                         (not (= (u8 buf (+ name-pos name-len)) 0)))
+                  (set! name-len (+ name-len 1)))
+
+                ;; Allocate name + terminating NUL to copy the entry's filename into.
+                (let ((name (alloc (+ name-len 1)))
+                      (i 0))
+
+                  ;; Copy the name byte-by-byte.
+                  (while (< i name-len)
+                    (sys_strat! name i
+                                (u8 buf (+ name-pos i)))
+                    (set! i (+ i 1)))
+
+                  ;; Add the terminating NUL.
+                  (sys_strat! name name-len 0)
+
+                  ;; Add name to the result list.
+                  (set! result (cons name result)))
+
+                (set! pos (+ pos reclen))))
+            (set! n (syscall SYS_getdents64 fd buf size)))
+
+          (if (< n 0)
+              (do
+                (syscall SYS_close fd)
+                nil)
+              (do
+                (syscall SYS_close fd)
+                result))))))
 
 (defun exists? (path)
   "Does the named path exist?"

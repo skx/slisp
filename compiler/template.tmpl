@@ -2441,6 +2441,43 @@ FUNC fn_sys_strat
     TAG_INTEGER_REG rax
     ret
 
+;; Allow updating the Nth byte of the given string.
+;;
+;; This function is dangerous as it has no bound checking, we could add
+;; it since we know the size of all allocations made with alloc..
+;;
+;; For the moment it is a workaround for the fact our strings can't have
+;; embedded null-characters - if they do "explode" and "substr" don't work
+;; any longer.
+;;
+;; TODO: Add bound-checking.
+;;
+FUNC fn_sys_stratBANG
+    mov rbx, rdi             ; type-check arg1
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+    mov rbx, rsi             ; type-check arg2
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+
+    UNTAG_REG rdi
+    UNTAG_REG rsi
+    UNTAG_REG rdx
+
+    ; RDI points to the string, add the RSI/offset to it
+    add rdi, rsi
+
+    ; Load and return the character/byte as an integer.
+    mov byte [rdi], dl
+    mov rax, rdx
+    and rax, 0xFF
+    TAG_INTEGER_REG rax
+    ret
+
+
+
 ;; join the two given strings and return a new one.
 FUNC fn_sys_strcat
     mov rbx, rdi
