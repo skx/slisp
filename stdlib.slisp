@@ -591,18 +591,22 @@ Note that this does not create parents, use (mkdirs) for that."
 (defun rmdir (path)
   (syscall SYS_rmdir path))
 
+;; undocumented
 (defun u8 (buf pos)
   "Read and return a 8-bit value from the specified offset in the given buffer."
   (strat buf pos))
 
+;; undocumented
 (defun u16 (buf pos)
   "Read and return a 16-bit value from the specified offset in the given buffer."
   (+ (u8 buf pos) (* (u8 buf (+ pos 1)) 256)))
 
+;; undocumented
 (defun u32 (buf pos)
   "Read and return a 32-bit value from the specified offset in the given buffer."
   (+ (u16 buf pos) (* (u16 buf (+ pos 2)) 65536)))
 
+;; undocumented
 (defun u64 (buf pos)
   "Read and return a 64-bit value from the specified offset in the given buffer."
   (+ (u32 buf pos) (* (u32 buf (+ pos 4)) 4294967296)))
@@ -1221,6 +1225,7 @@ Uses (environment) to get all environmental variables, and filters."
 (defconst SYS_wait4  61)
 (defconst SYS_exit   60)
 
+;; undocumented
 (defun sys_run (command output)
   "Run the given command, under the shell /bin/sh, and capture the output in the named file."
   (let ((pid 0)
