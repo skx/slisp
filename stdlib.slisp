@@ -182,6 +182,10 @@ Return a list of (BEFORE . AFTER)."
 This ignores embedded NULLs which would otherwise break substr and explode."
   (sys_strat str n))
 
+(defun strat!(str n x)
+  "Update the content of the given string, by changing the byte at offset N to be X."
+  (sys_strat! str n x))
+
 (defun strcat(a b)
   "Return the result of concatenating the two specified strings into one."
   (sys_strcat a b))
@@ -439,12 +443,12 @@ The implementation here is either horrid, or awesome.  You decide."
 
                   ;; Copy the name byte-by-byte.
                   (while (< i name-len)
-                    (sys_strat! name i
+                    (strat! name i
                                 (u8 buf (+ name-pos i)))
                     (set! i (+ i 1)))
 
                   ;; Add the terminating NUL.
-                  (sys_strat! name name-len 0)
+                  (strat! name name-len 0)
 
                   ;; Add name to the result list.
                   (set! result (cons name result)))
@@ -588,7 +592,7 @@ Note that this does not create parents, use (mkdirs) for that."
 
 (defun u8 (buf pos)
   "Read and return a 8-bit value from the specified offset in the given buffer."
-  (sys_strat buf pos))
+  (strat buf pos))
 
 (defun u16 (buf pos)
   "Read and return a 16-bit value from the specified offset in the given buffer."
