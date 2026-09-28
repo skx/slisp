@@ -113,9 +113,6 @@ added to them too.
     * Return the ASCII character corresponding to the given integer.
   * `cons`
     * Add the element to the start of the given (potentially empty) list.
-  * `entries`
-    * Return the names of all files in the given directory.
-    * See [test/entries.lisp](test/entries.lisp) for an example
   * `environment`
     * Return a list of all environmental variables.
   * `exit`
@@ -223,6 +220,9 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Does the given path exist as a directory?
 * `even?`
   * Return 1 if the given number is even, nil otherwise.
+* `entries`
+  * Return the names of all files in the given directory.
+  * See [test/entries.lisp](test/entries.lisp) for an example
 * `every`
   * Does every list item return non-nil when the given function is called?
 * `exists?`
