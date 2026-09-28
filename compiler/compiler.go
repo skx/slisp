@@ -181,8 +181,8 @@ func (c *Compiler) trimComments(str string) (string, error) {
 		line = strings.TrimSpace(line)
 
 		// Remove trailing comment.
-		if strings.HasPrefix(line, ";") {
-			line = strings.TrimPrefix(line, ";")
+		if after, ok := strings.CutPrefix(line, ";"); ok {
+			line = after
 			line = strings.TrimSpace(line)
 			if line == "" {
 				continue
@@ -485,10 +485,7 @@ func (c *Compiler) Compile() (string, error) {
 	//
 	initGlobalsLocals := e.MaxOffset()
 	initGlobalsFrameSize := (initGlobalsLocals + 15) &^ 15
-	initGlobalsRootBytes := initGlobalsLocals - 8
-	if initGlobalsRootBytes < 0 {
-		initGlobalsRootBytes = 0
-	}
+	initGlobalsRootBytes := max(initGlobalsLocals-8, 0)
 
 	//
 	// Have we seen a "main" function, at the top-level
@@ -801,15 +798,15 @@ func (c *Compiler) asmName(name string) string {
 	}
 
 	// But any other non-letter/numeric is just renamed
-	tmp := ""
+	var tmp strings.Builder
 	for _, r := range name {
 		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
-			tmp += "_"
+			tmp.WriteString("_")
 		} else {
-			tmp += string(r)
+			tmp.WriteString(string(r))
 		}
 	}
-	name = tmp
+	name = tmp.String()
 
 	// other functions just get "fn_" prefix
 	if strings.HasPrefix(name, "fn_") {
@@ -2181,10 +2178,7 @@ func (c *Compiler) emitCallable(obj any) error {
 	c.emitln("    leave")
 	c.emitln("    ret")
 
-	localBytes := locals - 8
-	if localBytes < 0 {
-		localBytes = 0
-	}
+	localBytes := max(locals-8, 0)
 	c.emitln("section .data")
 	c.emitln(fmt.Sprintf("fn_%s_gc:", nm))
 	c.emitln("dq 0x47430001     ; GC01")
