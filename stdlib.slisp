@@ -1364,14 +1364,15 @@ The newline which terminates input is not included."
                  (u32 status 0))))))))
 
 (defun system(cmd)
-  "Run a command and return the output."
-  (let ((tmp     "/tmp/mktmp")         ; tmp file for output
-        (res     (sys_run cmd tmp))    ; run command
-        (handle  (fopen tmp "r"))      ; open file
-        (data    (fread handle))       ; read output
-        (ignore1 (fclose handle))      ; close file
-        (ignore2 (unlink tmp)))        ; delete temporary file
-    (if (= 0 res)                      ; return either data, or nil
+  "Run a command and return the output, or nil on failure."
+  (let ((suffix  (random_string 8))             ; avoid predictable filenames
+        (tmp     (strcat "/tmp/mktmp." suffix)) ; tmp file for output
+        (res     (sys_run cmd tmp))             ; run command
+        (handle  (fopen tmp "r"))               ; open file
+        (data    (fread handle))                ; read output
+        (ignore1 (fclose handle))               ; close file
+        (ignore2 (unlink tmp)))                 ; delete temporary file
+    (if (= 0 res)                               ; return either data, or nil
         data
         nil)))
 
