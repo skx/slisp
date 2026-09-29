@@ -123,10 +123,6 @@ reap orphaned memory."
   "Return true when given NIL, otherwise return NIL"
   (sys_not x))
 
-(defun now ()
-  "Return the number of milliseconds since the Unix EPOCH."
-  (sys_now))
-
 (defun isqrt(x)
   "Perform an integer square root of the given number."
   (sys_isqrt x))
@@ -1186,6 +1182,16 @@ Uses (environment) to get all environmental variables, and filters."
                 (getenv-loop name (cdr xs)))
             (getenv-loop name (cdr xs))))
       nil))
+
+(defconst SYS_clock_gettime 228)
+
+(defun now ()
+  "Return the number of milliseconds since the Unix EPOCH."
+  (let ((buffer (alloc 16)))
+    (syscall SYS_clock_gettime 0 buffer)
+    (let ((tv_sec  (u64 buffer 0))
+          (tv_nsec (u64 buffer 8)))
+          (+ (* tv_sec 1000) (/ tv_nsec 1000000)))))
 
 
 (defun putc (c)
