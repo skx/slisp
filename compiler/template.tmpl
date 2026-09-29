@@ -61,7 +61,6 @@
 
 SYS_write         equ   1
 SYS_exit          equ  60
-SYS_clock_gettime equ 228
 SYS_prlimit64     equ 302
 
 ;; stack size fetch
@@ -1880,33 +1879,6 @@ FUNC fn_sys_not
     ret
 .nil:
     mov rax, 1
-    TAG_INTEGER_REG rax
-    ret
-
-
-
-;; Get milliseconds since epoch
-FUNC fn_sys_now
-    sub rsp, 16                  ; Reserve space for struct timespec
-
-    mov eax, SYS_clock_gettime
-    mov edi, 0                   ; CLOCK_REALTIME
-    mov rsi, rsp
-    syscall
-
-    ; Convert to milliseconds:
-    ; ms = tv_sec * 1000 + tv_nsec / 1,000,000
-    mov rax, [rsp]               ; tv_sec
-    imul rax, rax, 1000
-    mov r8, rax                  ; Save seconds in ms
-    mov rax, [rsp+8]             ; tv_nsec
-    xor edx, edx
-    mov ecx, 1000000
-    div rcx                      ; RAX = tv_nsec / 1,000,000
-    add rax, r8                  ; Total milliseconds
-    add rsp, 16                  ; Free stack space
-
-    ; RAX now contains milliseconds since the Unix epoch
     TAG_INTEGER_REG rax
     ret
 

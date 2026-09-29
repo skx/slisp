@@ -128,8 +128,6 @@ added to them too.
     * Integer square root, which rounds down.
   * `newline`
     * Print a newline.
-  * `now`
-    * Get the milliseconds past the epoch.
   * `not`
     * If the supplied value is `nil` return 1, otherwise return `nil`.
   * `nth`
@@ -184,6 +182,7 @@ added to them too.
     * Return the size of the heap, in bytes.
   * `sys-heap-objects`
     * Return the number of objects stored within our heap.
+
 
 
 ## Standard Library
@@ -279,6 +278,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return the list of natural numbers 1 to N.
 * `neg?`
   * Return true if the number is negative.
+* `now`
+  * Get the milliseconds past the epoch.
 * `odd?`
   * Return 1 if the given number is odd, nil otherwise.
 * `one?`

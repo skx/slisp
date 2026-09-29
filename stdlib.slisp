@@ -123,10 +123,6 @@ reap orphaned memory."
   "Return true when given NIL, otherwise return NIL"
   (sys_not x))
 
-(defun now ()
-  "Return the number of milliseconds since the Unix EPOCH."
-  (sys_now))
-
 (defun isqrt(x)
   "Perform an integer square root of the given number."
   (sys_isqrt x))
@@ -161,10 +157,6 @@ reap orphaned memory."
 (defun require-all()
   "Load all packages which are embedded in our run-time."
   (map (lambda (p) (require p)) (packages)))
-
-(defun rmdir (str)
-  "Remove the given directory."
-  (sys_rmdir str))
 
 (defun split (str c)
   "Split a string on the given character.
@@ -248,11 +240,6 @@ The first argument is the number of the function to call, after that the argumen
   "Invoke a kernel system-call with six arguments."
   (sys_syscall a b c d e f))
 
-(defun unlink (str)
-  "Delete the given file from the filesystem.
-
-Use (rmdir) to remove directories instead of files."
-  (sys_unlink str))
 
 ;;; 1. Compatibility
 
@@ -647,6 +634,9 @@ This returns a list of the form (TYPE SIZE MODE)."
 (defconst SYS_unlink 87)
 
 (defun unlink (path)
+  "Delete the given file from the filesystem.
+
+Use (rmdir) to remove directories instead of files."
   (syscall SYS_unlink path))
 
 
@@ -1186,6 +1176,16 @@ Uses (environment) to get all environmental variables, and filters."
                 (getenv-loop name (cdr xs)))
             (getenv-loop name (cdr xs))))
       nil))
+
+(defconst SYS_clock_gettime 228)
+
+(defun now ()
+  "Return the number of milliseconds since the Unix EPOCH."
+  (let ((buffer (alloc 16)))
+    (syscall SYS_clock_gettime 0 buffer)
+    (let ((tv_sec  (u64 buffer 0))
+          (tv_nsec (u64 buffer 8)))
+          (+ (* tv_sec 1000) (/ tv_nsec 1000000)))))
 
 
 (defun putc (c)
