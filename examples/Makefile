@@ -52,8 +52,21 @@ test-inception: ../inception
 	@echo "compiling $@"
 	@../slisp -c $<
 
-wc.test:
-	@echo "ignoring $@ - as it doesn't terminate"
+# dump needs a filename specified
+dump.test: dump.lisp ../slisp
+	@echo "compiling $@"
+	@../slisp -c -o $@ $<
+	@echo "testing $@"
+	@$(RUN) dump.lisp > $@.out 2>&1 || true
+	@cmp $@.out $@.expected || (echo "program $< did not match" ; cat $@.out ; exit 1)
+
+# wc needs a filename specified
+wc.test: wc.lisp ../slisp
+	@echo "compiling $@"
+	@../slisp -c -o $@ $<
+	@echo "testing $@"
+	@$(RUN) wc.lisp > $@.out 2>&1 || true
+	@cmp $@.out $@.expected || (echo "program $< did not match" ; cat $@.out ; exit 1)
 
 life.test:
 	@echo "ignoring $@ - as it doesn't terminate"
