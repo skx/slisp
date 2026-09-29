@@ -14,6 +14,7 @@ This directory is designed to contain bigger, or more interesting examples, than
   * Sample brainfuck programs located beneath [bf/](bf/)
   * Run it with no arguments to execute the "Hello world" program.
   * Or pass the path to a script to load and run instead.
+* [dump.lisp](dump.lisp) - Output hex/ASCII dumps of the given file(s).
 * [example.lisp](example.lisp) - Our first example.
 * [globals.lisp](globals.lisp) - Explicit demonstration of scopes
   * Shows that local variables always take precedence over global ones.
