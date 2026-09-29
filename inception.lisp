@@ -317,7 +317,6 @@
   (register-builtin "sys_multiply" (lambda (args) (sys_multiply (car args) (cadr args))))
   (register-builtin "sys_newline" (lambda (args) (sys_newline)))
   (register-builtin "sys_not" (lambda (args) (sys_not (car args))))
-  (register-builtin "sys_now" (lambda (args) (sys_now)))
   (register-builtin "sys_nth!" (lambda (args) (sys_nth! (car args) (cadr args) (caddr args))))
   (register-builtin "sys_nth" (lambda (args) (sys_nth (car args) (cadr args))))
   (register-builtin "sys_or" (lambda (args) (sys_or (car args) (cadr args))))
