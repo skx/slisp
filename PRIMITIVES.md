@@ -215,6 +215,12 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Does the given string look like a binary number, with 0b-prefix?
 * `binary`
   * Parse the given string, with 0b-prefix, as a binary number and return the integer value.
+* `dec2binary`
+  * Convert an integer to a string containing the binary version of that number (e.g. 7 -> 0b111)
+* `dec2hex`
+  * Convert an integer to a string containing the hex version of that number. (e.g. 255 -> 0xFF).
+* `dec2octal`
+  * Convert an integer to a string containing the octal version of that number. (e.g. 255 -> 0o173).
 * `dir?`
   * Does the given path exist as a directory?
 * `even?`
@@ -280,6 +286,10 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Return true if the number is negative.
 * `now`
   * Get the milliseconds past the epoch.
+* `octal?`
+  * Does the given string look like an octal number, with 0o prefix?
+* `octal`
+  * Parse the given string, with 0o-prefix, as an octal number and return the integer value.
 * `odd?`
   * Return 1 if the given number is odd, nil otherwise.
 * `one?`
