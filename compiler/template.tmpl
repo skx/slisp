@@ -2851,11 +2851,6 @@ alloc_count_total:
 disable_gc:
     resq 1
 
-;; buffer for reading directory entries
-dir_buffer:
-    resb 1024 * 1024
-dir_buffer_end:
-
 ;; stack address on startup
 initial_rsp:
     resq 1
