@@ -12,7 +12,7 @@
 (require arg-parser)
 
 (defun dump (str)
-  "Dump an allocated region of memory to STDOUT as hex and ASCCI characters."
+  "Dump an allocated region of memory to STDOUT as hex and ASCII characters."
 
   ;; remove header from the allocated length
   (let ((len (- (alen str) 24))
@@ -46,9 +46,8 @@
       ;; Next loop
       (set! i (+ 1 i)))
 
-    ;; If the dump wasn't a multiple of 8 bytes in size
-    ;; print the remainder.  But pad out the hex to make
-    ;; the ASCII line up properly.
+    ;; Print the remainder of any contents, for the case when
+    ;; the output didn't end up aligned.
     (while (<= (strlen hex) (* 5 16))  ;; "0x00 " = 5 bytes
       (set! hex (strcat hex " ")))
 
@@ -83,9 +82,9 @@
     ;; process flags.
     (map (lambda (arg)
            (cond
-             ((or (= arg "--help") (= arg "-?"))  (help))
-             ((or (= arg "-h") (= arg "-?"))      (help))
-             (t                                   (do (println "Unknown argument: " arg "\n") (help)))))
+             ((or (= arg "--help") (= arg "-help")) (help))
+             ((or (= arg "-h") (= arg "-?"))        (help))
+             (t                                     (do (println "Unknown argument: " arg "\n") (help)))))
          (parser :flags))
 
     ;; If we have files process them, otherwise show help
