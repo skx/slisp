@@ -447,13 +447,9 @@ The implementation here is either horrid, or awesome.  You decide."
                 (set! pos (+ pos reclen))))
             (set! n (syscall SYS_getdents64 fd buf size)))
 
-          (if (< n 0)
-              (do
-                (syscall SYS_close fd)
-                nil)
-              (do
-                (syscall SYS_close fd)
-                result))))))
+          (syscall SYS_close fd)
+
+          (if (< n 0) nil result)))))
 
 (defun exists? (path)
   "Does the named path exist?"
@@ -470,7 +466,7 @@ As a special case closing a NIL file-handle is valid"
     ((int? handle)
       (let ((res 0))
         (set! res (syscall SYS_close handle))
-        (if (> res 0)
+        (if (>= res 0)
           res
          nil)))
     (t   (do (println "Calling fclose with an invalid handle-type") (exit 1)))))
@@ -489,7 +485,7 @@ Mode is \"r\" for read, \"w\" for write, and \"a\" for append."
       ((= 0 (strcmp mode "w")) (set! flags  577)) ; O_WRONLY|O_CREAT|O_TRUNC
       (t (do (println "unknown mode for fopen:" mode ) (exit 1))))
     (set! handle (syscall SYS_open str flags (octal "0o644")))
-    (if (> handle 0)
+    (if (>= handle 0)
       handle
      nil)))
 
@@ -506,16 +502,16 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
     nil
     (let ((size 0))
       (set! size (syscall SYS_lseek handle 0 SEEK_END))
-      (if (< size 0)
+      (if (<= size 0)
          nil
          (do
-           (syscall SYS_lseek handle 0 SEEK_START)
-
-           (let ((mem (alloc size))
-                 (res (syscall SYS_read handle mem size)))
-             (if (< res 0)
-                nil
-              mem)))))))
+           (if (<= (syscall SYS_lseek handle 0 SEEK_START) 0)
+             nil
+             (let ((mem (alloc size))
+                   (res (syscall SYS_read handle mem size)))
+               (if (<= res 0)
+                   nil
+                   mem))))))))
 
 (defconst SYS_write 1)
 
@@ -526,7 +522,7 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
   (if (nil? handle)
     nil
     (let ((res (syscall SYS_write handle data len)))
-      (if (> res 0)
+      (if (>= res 0)
         res
        nil))))
 
@@ -544,7 +540,9 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
   "Make the given directory.
 
 Note that this does not create parents, use (mkdirs) for that."
-  (syscall SYS_mkdir path (octal "0o755")))
+  (if (< (syscall SYS_mkdir path (octal "0o755")) 0)
+      nil
+    1))
 
 (defun mkdirs (path)
   "Make the given directory, creating parent directories as necessary"
@@ -573,7 +571,9 @@ Note that this does not create parents, use (mkdirs) for that."
 (defconst SYS_rmdir 84)
 
 (defun rmdir (path)
-  (syscall SYS_rmdir path))
+  (if (< (syscall SYS_rmdir path) 0)
+      nil
+    1))
 
 ;; undocumented
 (defun u8 (buf pos)
@@ -634,7 +634,9 @@ This returns a list of the form (TYPE SIZE MODE)."
   "Delete the given file from the filesystem.
 
 Use (rmdir) to remove directories instead of files."
-  (syscall SYS_unlink path))
+  (if (< (syscall SYS_unlink path) 0)
+      nil
+    1))
 
 
 ;;; 4. Macros
@@ -1259,10 +1261,11 @@ Uses (environment) to get all environmental variables, and filters."
 (defun now ()
   "Return the number of milliseconds since the Unix EPOCH."
   (let ((buffer (alloc 16)))
-    (syscall SYS_clock_gettime 0 buffer)
-    (let ((tv_sec  (u64 buffer 0))
-          (tv_nsec (u64 buffer 8)))
-          (+ (* tv_sec 1000) (/ tv_nsec 1000000)))))
+    (if (< (syscall SYS_clock_gettime 0 buffer) 0)
+       nil
+       (let ((tv_sec  (u64 buffer 0))
+             (tv_nsec (u64 buffer 8)))
+             (+ (* tv_sec 1000) (/ tv_nsec 1000000))))))
 
 
 (defun putc (c)
