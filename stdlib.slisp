@@ -488,7 +488,7 @@ Mode is \"r\" for read, \"w\" for write, and \"a\" for append."
       ((= 0 (strcmp mode "r")) (set! flags    0)) ; O_RDONLY
       ((= 0 (strcmp mode "w")) (set! flags  577)) ; O_WRONLY|O_CREAT|O_TRUNC
       (t (do (println "unknown mode for fopen:" mode ) (exit 1))))
-    (set! handle (syscall SYS_open str flags 420)) ; 420 == mode, 644 in octal
+    (set! handle (syscall SYS_open str flags (octal "0o644")))
     (if (> handle 0)
       handle
      nil)))
@@ -544,10 +544,7 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
   "Make the given directory.
 
 Note that this does not create parents, use (mkdirs) for that."
-  (syscall SYS_mkdir
-           path
-           493   ; octal 0755 in decimal
-           ))
+  (syscall SYS_mkdir path (octal "0o755")))
 
 (defun mkdirs (path)
   "Make the given directory, creating parent directories as necessary"
@@ -797,25 +794,105 @@ and run BODY for side-effects.  Returns nil."
 
 
 (defun binary (text)
-  "Parse the given text as a binary number, complet with 0b prefix."
+  "Parse the given text as a binary number, complete with an 0b prefix.
+
+See-also dec2binary."
   (parse-integer text "b" 2))
 
 (defun binary? (text)
   (integer-base? text "b" 2))
 
 (defun hex (text)
-  "Parse the given text as a hex number, complet with 0x prefix."
+  "Parse the given text as a hex number, complete with an 0x prefix.
+
+See-also dec2hex."
   (parse-integer text "x" 16))
 
 (defun hex? (text)
   (integer-base? text "x" 16))
 
 (defun octal (text)
-  "Parse the given text as a binary number, complet with 0o prefix."
+  "Parse the given text as a binary number, complete with an 0o prefix.
+
+See-also dec2octal"
   (parse-integer text "o" 8))
 
 (defun octal? (text)
   (integer-base? text "o" 8))
+
+
+;;; 5.1.1  base conversions from decimal
+
+(defun base-digit (value)
+  "Return the character representation of a digit value 0-15."
+  (cond
+    ((= value 0) "0")
+    ((= value 1) "1")
+    ((= value 2) "2")
+    ((= value 3) "3")
+    ((= value 4) "4")
+    ((= value 5) "5")
+    ((= value 6) "6")
+    ((= value 7) "7")
+    ((= value 8) "8")
+    ((= value 9) "9")
+    ((= value 10) "A")
+    ((= value 11) "B")
+    ((= value 12) "C")
+    ((= value 13) "D")
+    ((= value 14) "E")
+    ((= value 15) "F")
+    (t nil)))
+
+(defun decimal-base (value prefix base)
+  "Convert a decimal integer to a number in the specified base."
+  (let ((result "")
+        (remainder 0)
+        (digit "")
+        (negative nil))
+
+    ;; Remember if our value was negative
+    (if (< value 0)
+        (do
+          (set! negative t)
+          (set! value (- 0 value))))
+
+    ;; Zero is a special case because the loop below would not run.
+    (if (= value 0)
+        (set! result "0")
+
+        (while (> value 0)
+          (set! remainder (% value base))
+          (set! digit (base-digit remainder))
+          (set! result (strcat digit result))
+          (set! value (/ value base))))
+
+    ;; Restore sign if we need to.
+    (if negative (set! result (strcat "-" result)))
+
+    ;; Minimum width is two digits; mostly for hex digits.
+    (if (= (strlen result) 1)
+        (set! result (strcat "0" result)))
+
+    (strcat prefix result)))
+
+(defun dec2binary (value)
+  "Convert a decimal integer to binary, with a 0b prefix.
+
+See also binary, and binary?"
+  (decimal-base value "0b" 2))
+
+(defun dec2hex (value)
+  "Convert a decimal integer to hexadecimal, with a 0x prefix.
+
+See also hex, and hex?"
+  (decimal-base value "0x" 16))
+
+(defun dec2octal (value)
+  "Convert a decimal integer to octal, with a 0o prefix.
+
+See also octal, and octal?"
+  (decimal-base value "0o" 8))
 
 
 
