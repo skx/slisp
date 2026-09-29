@@ -325,7 +325,6 @@
   (register-builtin "sys_package" (lambda (args) (sys_package (car args))))
   (register-builtin "sys_packages" (lambda (args) (sys_packages )))
   (register-builtin "sys_plus" (lambda (args) (sys_plus (car args) (cadr args))))
-  (register-builtin "sys_run" (lambda (args) (sys_run (car args) (cadr args))))
   (register-builtin "sys_split" (lambda (args) (sys_split (car args) (cadr args))))
   (register-builtin "sys_sqrt" (lambda (args) (sys_sqrt (car args))))
   (register-builtin "sys_stdlib" (lambda (args) (sys_stdlib)))
@@ -337,6 +336,7 @@
   (register-builtin "sys_strlen" (lambda (args) (sys_strlen (car args))))
   (register-builtin "sys_substr" (lambda (args) (sys_substr (car args) (cadr args) (caddr args))))
   (register-builtin "sys_syscall" (lambda (args) (sys_syscall (nth args 0) (nth args 1) (nth args 2) (nth args 3) (nth args 4)(nth args 5))))
+  (register-builtin "sys_u64!" (lambda (args) (sys_u64! (car args) (cadr args) (caddr args))))
   (register-builtin "sys_xor" (lambda (args) (sys_xor (car args) (cadr args))))
 )
 

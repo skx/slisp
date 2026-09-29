@@ -518,15 +518,12 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
   (if (nil? handle)
     nil
     (let ((size 0))
-      ; seek to end of handle to get size
       (set! size (syscall SYS_lseek handle 0 SEEK_END))
       (if (< size 0)
          nil
          (do
-           ; seek back to the start
            (syscall SYS_lseek handle 0 SEEK_START)
 
-           ; allocate memory and read into it
            (let ((mem (alloc size))
                  (res (syscall SYS_read handle mem size)))
              (if (< res 0)
@@ -594,21 +591,29 @@ Note that this does not create parents, use (mkdirs) for that."
 (defun rmdir (path)
   (syscall SYS_rmdir path))
 
+;; undocumented
 (defun u8 (buf pos)
   "Read and return a 8-bit value from the specified offset in the given buffer."
   (strat buf pos))
 
+;; undocumented
 (defun u16 (buf pos)
   "Read and return a 16-bit value from the specified offset in the given buffer."
   (+ (u8 buf pos) (* (u8 buf (+ pos 1)) 256)))
 
+;; undocumented
 (defun u32 (buf pos)
   "Read and return a 32-bit value from the specified offset in the given buffer."
   (+ (u16 buf pos) (* (u16 buf (+ pos 2)) 65536)))
 
+;; undocumented
 (defun u64 (buf pos)
   "Read and return a 64-bit value from the specified offset in the given buffer."
   (+ (u32 buf pos) (* (u32 buf (+ pos 4)) 4294967296)))
+
+;; undocumented
+(defun u64! (buf pos val)
+  (sys_u64! buf pos val))
 
 (defconst SYS_stat 4)
 
@@ -1147,6 +1152,18 @@ Incrementing by the given step each time."
 
 (defconst SYS_read 0)
 
+;; undocumented
+(defun lst2array (lst)
+  "Convert a lisp list to a C-style array of strings"
+  (let ((i 0)
+        (n (length lst))
+        (m (alloc (* (+ 1 n) 8))))
+    (while (< i n)
+      (u64! m (* i 8) (nth lst i))
+      (set! i (+ i 1)))
+    (u64! m (* i 8) 0)
+    m))
+
 (defun getc ()
   "Read a single character from STDIN, and return it."
   (let ((str "s"))
@@ -1201,6 +1218,53 @@ Uses (environment) to get all environmental variables, and filters."
               (set! text
                     (strcat text (string (chr ch)))))))
     text))
+
+(defconst SYS_fork   57)
+(defconst SYS_execve 59)
+(defconst SYS_dup2   33)
+(defconst SYS_wait4  61)
+(defconst SYS_exit   60)
+
+;; undocumented
+(defun sys_run (command output)
+  "Run the given command, under the shell /bin/sh, and capture the output in the named file."
+  (let ((pid 0)
+        (fd 0)
+        (argv nil)
+        (status 0))
+
+    (set! pid (syscall SYS_fork))
+
+    (if (< pid 0)
+        (do (println "sys_run: fork failed") nil)
+
+        (if (= pid 0)
+
+            ;; Child.
+            (do
+              (set! fd (syscall SYS_open output 577 420))
+
+              (if (< fd 0)
+                  (do (println "sys_run: failed to open output")   (syscall SYS_exit 127))
+
+                  (do
+                    (syscall SYS_dup2 fd 1)
+                    (syscall SYS_dup2 fd 2)
+                    (syscall SYS_close fd)
+
+                    (let ((argv (lst2array (list "/bin/sh" "-c" command)))
+                          (env  (lst2array (environment))))
+
+                      ;; execute
+                      (syscall SYS_execve "/bin/sh" argv env)
+
+                      ;; execve only returns on failure.
+                      (syscall SYS_exit 127)))))
+            ;; Parent.
+            (do
+             (let ((status (alloc 8)))
+               (let ((r (syscall SYS_wait4 pid status 0 0)))
+                 (u32 status 0))))))))
 
 (defun system(cmd)
   "Run a command and return the output."

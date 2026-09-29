@@ -59,23 +59,10 @@
 ;; syscalls - searchable list online here
 ;;  https://filippo.io/linux-syscall-table/
 
-SYS_read          equ   0
 SYS_write         equ   1
-SYS_open          equ   2
-SYS_close         equ   3
-SYS_lseek         equ   8
-SYS_dup2          equ  33
-SYS_fork          equ  57
-SYS_exec          equ  59
 SYS_exit          equ  60
-SYS_wait4         equ  61
-SYS_getdents64    equ 217
 SYS_clock_gettime equ 228
 SYS_prlimit64     equ 302
-
-;; (entries)
-O_RDONLY        equ 0
-O_DIRECTORY     equ 0200000o
 
 ;; stack size fetch
 RLIMIT_STACK  equ 3
@@ -1439,89 +1426,6 @@ fn_sys_cons_NOGC:
     ret
 
 
-;; Return a list of directory-entries beneath the given prefix.
-;; Return nil on failure.
-FUNC fn_sys_entries
-    mov rbx, rdi
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-
-    mov eax, SYS_open
-    mov esi, O_RDONLY | O_DIRECTORY
-    xor edx, edx
-    syscall
-    test rax, rax
-    js .failure
-
-    mov r12, rax                     ; directory fd
-    STORE_NIL_REG r13                ; head of list
-
-.read_directory:
-
-    mov eax, SYS_getdents64
-    mov rdi, r12
-    mov rsi, dir_buffer
-    mov edx, dir_buffer_end-dir_buffer
-    syscall
-
-    test rax, rax
-    js .close_failure
-    test rax, rax
-    jz .done_reading
-
-    mov r14, dir_buffer
-    lea r15, [dir_buffer+rax]
-
-.next_entry:
-    cmp r14, r15
-    jae .read_directory
-
-    movzx ebx, word [r14+16]         ; record length
-
-    lea rdi, [r14+19]
-    call strlen
-    inc rax                          ; include terminating NUL
-    push rbx
-    mov rbx, TAG_ID_STRING
-    call alloc
-    pop rbx
-    mov r11, rax                     ; destination buffer
-
-    lea rdi, [r14+19]                ; recompute source
-    mov rdx, r11
-    call strcpy
-
-    mov byte [rdx], 0
-
-    mov rdi, r11
-    TAG_STRING_REG rdi
-    mov rsi, r13
-    call fn_sys_cons_NOGC
-    mov r13, rax
-    add r14, rbx
-    jmp .next_entry
-
-.done_reading:
-    mov eax, SYS_close
-    mov rdi, r12
-    syscall
-    mov rax, r13
-    ret
-
-.close_failure:
-    mov eax, SYS_close
-    mov rdi, r12
-    syscall
-
-.failure:
-    STORE_NIL_REG rax
-    ret
-
-
-
 ;; Return a list of all environmental variables
 FUNC fn_sys_environment
     mov rbx, [envp_ptr]
@@ -2179,101 +2083,6 @@ FUNC fn_sys_packages
     ret
 
 
-;; system helper
-FUNC fn_sys_run
-    mov rbx, rdi               ; type check
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-    mov rbx, rsi               ; type check
-    GET_TAG_BITS rbx
-    cmp rbx, TAG_ID_STRING
-    jne type_error
-
-    UNTAG_REG rdi
-    UNTAG_REG rsi
-
-    mov r12, rdi            ; command
-    mov r13, rsi            ; output filename
-
-    mov eax, SYS_fork
-    syscall
-    test rax, rax
-    js .error
-    jz .child
-
-.parent:
-    mov r14, rax            ; child pid
-    sub rsp, 16
-    mov edi, r14d           ; pid
-    mov rsi, rsp            ; &status
-    xor edx, edx            ; options = 0
-    xor r10, r10            ; rusage = NULL
-    mov eax, SYS_wait4
-    syscall
-
-    mov eax, [rsp]          ; exit code
-    and eax, 0xff00
-    shr eax, 8
-
-    add rsp, 16
-    TAG_INTEGER_REG rax
-    ret
-
-.child:
-    mov eax, SYS_open
-    mov rdi, r13
-    mov esi, 577            ; O_WRONLY|O_CREAT|O_TRUNC
-    mov edx, 0600o
-    syscall
-
-    test rax, rax
-    js .child_fail
-
-    mov r14, rax            ; fd
-
-    mov eax, SYS_dup2       ; STDOUT
-    mov rdi, r14
-    mov esi, 1
-    syscall
-
-    mov eax, SYS_dup2       ; STDERR
-    mov rdi, r14
-    mov esi, 2
-    syscall
-
-    mov eax, SYS_close
-    mov rdi, r14
-    syscall
-
-    ;;
-    ;; argv[] = { "/bin/sh", "-c", command, NULL }
-    ;;
-    sub rsp, 32
-    lea rax, [rel shell_path]
-    mov [rsp], rax
-    lea rax, [rel dash_c]
-    mov [rsp+8], rax
-    mov [rsp+16], r12
-    mov qword [rsp+24], 0
-
-    mov eax, SYS_exec
-    lea rdi, [rel shell_path]
-    mov rsi, rsp
-    mov rdx, [rel envp_ptr]
-    syscall
-
-.child_fail:
-    mov edi, 127
-    mov eax, SYS_exit
-    syscall
-
-.error:
-    STORE_NIL_REG rax
-    ret
-
-
-
 ;; split(string, char)
 FUNC fn_sys_split
     mov rbx, rdi              ; type-check arg1: string
@@ -2782,23 +2591,66 @@ FUNC fn_sys_substr
 
 ;; Make an arbitrary system call
 FUNC fn_sys_syscall
-    mov rax, rdi   ; syscall number
-    mov rdi, rsi  ; first arg from second
-    mov rsi, rdx  ; second arg from third
-    mov rdx, rcx  ; etc
-    mov rcx, r8
-    mov r8,  r9
+    mov rax, rdi       ; syscall number
+
+    mov rdi, rsi       ; arg 1
+    mov rsi, rdx       ; arg 2
+    mov rdx, rcx       ; arg 3
+    mov r10, r8        ; arg 4
+    mov r8,  r9        ; arg 5
+
     UNTAG_REG rdi
     UNTAG_REG rsi
     UNTAG_REG rdx
-    UNTAG_REG rcx
-    UNTAG_REG rax
+    UNTAG_REG r10
     UNTAG_REG r8
     UNTAG_REG r9
+    UNTAG_REG rax
+
     syscall
     TAG_INTEGER_REG rax
     ret
 
+;; Store a 64-bit value at the specified offset in the given string/buffer.
+;;
+;; The value is stored in native x86-64 little-endian byte order.
+;;
+;; This is used specifically for creating an array of strings, for the use
+;; in our system function, however it may be more generally useful.
+;;
+;; undocumented.
+FUNC fn_sys_u64BANG
+    mov rbx, rdi             ; type-check arg1
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_STRING
+    jne type_error
+
+    mov rbx, rsi             ; type-check arg2
+    GET_TAG_BITS rbx
+    cmp rbx, TAG_ID_INTEGER
+    jne type_error
+
+    UNTAG_REG rdi            ; buffer
+    UNTAG_REG rsi            ; offset
+    UNTAG_REG rdx            ; value
+
+    mov rax, rdi             ; start of object
+    OBJ_TO_HEADER rax        ; move to header
+    mov rax, [rax]           ; read allocation size
+    sub rax, OBJ_PAYLOAD     ; leave payload size
+    add rax, rdi             ; RAX = end address (exclusive)
+
+    add rdi, rsi            ; RDI = destination.
+
+    lea rcx, [rdi + 8]      ; bounds checking
+    cmp rcx, rax
+    ja out_of_range
+
+    mov qword [rdi], rdx    ; Store the 64-bit value.
+
+    mov rax, rdx            ; return the same value..
+    TAG_INTEGER_REG rax
+    ret
 
 
 
@@ -2942,16 +2794,6 @@ align 16
 nan_msg:
     db "NaN"
 nan_msg_end:
-
-;; Used by sys_run
-align 16
-shell_path:
-    db "/bin/sh",0
-
-;; Used by sys_run
-align 16
-dash_c:
-    db "-c",0
 
 ;; Avoid calling the user's at_exit function more than once.
 at_exit_called:

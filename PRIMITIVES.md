@@ -184,9 +184,6 @@ added to them too.
     * Return the size of the heap, in bytes.
   * `sys-heap-objects`
     * Return the number of objects stored within our heap.
-  * `sys_run`
-    * Helper for command execution.
-
 
 
 ## Standard Library
