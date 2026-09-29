@@ -91,7 +91,7 @@ reap orphaned memory."
   "Convert the given integer to a character."
   (sys_chr x))
 
-(defun cons(a b)
+(defun cons (a b)
   "Join A and B into a list"
   (sys_cons a b))
 
@@ -104,7 +104,9 @@ reap orphaned memory."
   (sys_exit n))
 
 (defun explode (str)
-  "Convert a string to a list of characters."
+  "Convert a string to a list of characters.
+
+NOTE: This stops at the first NULL byte (0x00)."
   (sys_explode str))
 
 (defun implode (xs)
@@ -123,16 +125,16 @@ reap orphaned memory."
   "Return true when given NIL, otherwise return NIL"
   (sys_not x))
 
-(defun isqrt(x)
+(defun isqrt (x)
   "Perform an integer square root of the given number."
   (sys_isqrt x))
 
-(defun nth(xs n)
-  "Return the Nth item of the given list."
+(defun nth (xs n)
+  "Return the Nth item from the given list."
   (sys_nth xs n))
 
-(defun nth!(xs n x)
-  "Update the Nth item of the given list, in-place."
+(defun nth! (xs n x)
+  "Change the value of the Nth item from the given list, in-place."
   (sys_nth! xs n x))
 
 (defun ord (c)
@@ -140,11 +142,11 @@ reap orphaned memory."
   (sys_ord c))
 
 (defun package (str)
-  "Return the contents of the embedded package, if available."
+  "Return the contents of the specified embedded package, if available."
   (sys_package str))
 
 (defun packages ()
-  "Return the names of all embedded packages."
+  "Return the names of all available embedded packages."
   (sys_packages))
 
 ;; NOP: This is a special form in our compiler
@@ -154,7 +156,7 @@ reap orphaned memory."
 
 ;; Load all embedded packages, again this is a nop
 ;; for compiled code, but inception can use it.
-(defun require-all()
+(defun require-all ()
   "Load all packages which are embedded in our run-time."
   (map (lambda (p) (require p)) (packages)))
 
@@ -164,33 +166,33 @@ reap orphaned memory."
 Return a list of (BEFORE . AFTER)."
   (sys_split str c))
 
-(defun sqrt(x)
+(defun sqrt (x)
   "Return the floating-point square root of the given number."
   (sys_sqrt x))
 
-(defun stdlib()
+(defun stdlib ()
   "Return the contents of the stdlib.slisp standard-library."
   (sys_stdlib))
 
-(defun strat(str n)
+(defun strat (str n)
   "Return the integer value of the character at offset N for the given string.
 
 This ignores embedded NULLs which would otherwise break substr and explode."
   (sys_strat str n))
 
-(defun strat!(str n x)
+(defun strat! (str n x)
   "Update the content of the given string, by changing the byte at offset N to be X."
   (sys_strat! str n x))
 
-(defun strcat(a b)
+(defun strcat (a b)
   "Return the result of concatenating the two specified strings into one."
   (sys_strcat a b))
 
-(defun strcmp(a b)
+(defun strcmp (a b)
   "Compare the two specified strings, return zero if equal."
   (sys_strcmp a b))
 
-(defun strdup(str)
+(defun strdup (str)
   "Return a heap-allocated copy of the given string."
   (sys_strdup str))
 
@@ -203,7 +205,7 @@ This ignores embedded NULLs which would otherwise break substr and explode."
   (sys_strlen str))
 
 ;; Route to a wrapper to allow passing a specific number of arguments to our syscall primitive.
-(defun syscall(&args)
+(defun syscall (&args)
   "Make an arbitrary Linux kernel system-call.
 The first argument is the number of the function to call, after that the arguments are call-specific."
   (let ((len (length args)))
@@ -359,7 +361,7 @@ do the right thing for each entry in the given list."
       nil
       (if (cons? (cdr xs))
           (do
-           (putc 32)
+           (print " ")
            (print_cons (cdr xs)))
           (do
            (printstr " . ")
@@ -387,8 +389,7 @@ do the right thing for each entry in the given list."
 (defconst O_DIRECTORY    65536)
 
 (defun entries (path)
-  "Return a list of directory entries beneath PATH.
-Return nil on failure.
+  "Return a list of directory entries beneath PATH, or nil on failure.
 
 The implementation here is either horrid, or awesome.  You decide."
 
@@ -525,7 +526,6 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
       (if (>= res 0)
         res
        nil))))
-
 
 (defun file? (path)
   "Is the given path a file?"
@@ -828,16 +828,16 @@ See-also dec2octal"
 (defun base-digit (value)
   "Return the character representation of a digit value 0-15."
   (cond
-    ((= value 0) "0")
-    ((= value 1) "1")
-    ((= value 2) "2")
-    ((= value 3) "3")
-    ((= value 4) "4")
-    ((= value 5) "5")
-    ((= value 6) "6")
-    ((= value 7) "7")
-    ((= value 8) "8")
-    ((= value 9) "9")
+    ((= value 0)  "0")
+    ((= value 1)  "1")
+    ((= value 2)  "2")
+    ((= value 3)  "3")
+    ((= value 4)  "4")
+    ((= value 5)  "5")
+    ((= value 6)  "6")
+    ((= value 7)  "7")
+    ((= value 8)  "8")
+    ((= value 9)  "9")
     ((= value 10) "A")
     ((= value 11) "B")
     ((= value 12) "C")
@@ -1279,24 +1279,38 @@ Uses (environment) to get all environmental variables, and filters."
 (defconst SYS_getrandom 318)
 
 (defun random (n)
-  "Return a random number between zero and N-1, (both zero and N-1 are valid return values.)"
+  "Return a random number between zero and N-1, (both zero and N-1 are valid return values.)
+
+See-also random_string."
   (let ((buf "skx/slisp"))
     (syscall SYS_getrandom buf 8)
     (% (abs (u64 buf 0)) n)))
 
+(defun random_string (len)
+  "Return a random ASCII string of the given length.
+
+See-also random."
+  (let ((choices "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+        (count   (length choices))
+        (txt ""))
+    (while (< (length txt) len)
+      (let ((c (substr choices (random count) 1)))
+       (set! txt (strcat txt c))))
+   txt))
+
 (defun read-line ()
-  "Read and return a line of text from STDIN"
+  "Read and return a line of text from STDIN.
+The newline which terminates input is not included."
   (let ((text "")
         (done nil)
         (ch ""))
     (while (not done)
       (set! ch (getc))
-      (if (not  ch)
-          (set! done t)
+      (if (not ch)
+          (set! done t) ; failed to read
           (if (= ch #\Newline)
               (set! done t)
-              (set! text
-                    (strcat text (string (chr ch)))))))
+              (set! text (strcat text (string (chr ch)))))))
     text))
 
 (defconst SYS_fork   57)
@@ -1304,6 +1318,9 @@ Uses (environment) to get all environmental variables, and filters."
 (defconst SYS_dup2   33)
 (defconst SYS_wait4  61)
 (defconst SYS_exit   60)
+
+;; shell to use for running system commands.
+(defvar sys_run_shell "/bin/sh")
 
 ;; undocumented
 (defun sys_run (command output)
@@ -1325,18 +1342,18 @@ Uses (environment) to get all environmental variables, and filters."
               (set! fd (syscall SYS_open output 577 420))
 
               (if (< fd 0)
-                  (do (println "sys_run: failed to open output")   (syscall SYS_exit 127))
+                  (do (println "sys_run: failed to open output") (syscall SYS_exit 127))
 
                   (do
                     (syscall SYS_dup2 fd 1)
                     (syscall SYS_dup2 fd 2)
                     (syscall SYS_close fd)
 
-                    (let ((argv (lst2array (list "/bin/sh" "-c" command)))
+                    (let ((argv (lst2array (list sys_run_shell "-c" command)))
                           (env  (lst2array (environment))))
 
                       ;; execute
-                      (syscall SYS_execve "/bin/sh" argv env)
+                      (syscall SYS_execve sys_run_shell argv env)
 
                       ;; execve only returns on failure.
                       (syscall SYS_exit 127)))))

@@ -316,6 +316,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Print the given character.
 * `random`
   * Return a random integer between zero and N-1.
+* `random_string`
+  * Return a random string, suitable for a filename, of the given length.
 * `range`
   * Return a list of numbers between the given start/end, using the specified step-size.
 * `read-line`
