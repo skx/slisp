@@ -505,11 +505,11 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
       (if (<= size 0)
          nil
          (do
-           (if (<= (syscall SYS_lseek handle 0 SEEK_START) 0)
+           (if (< (syscall SYS_lseek handle 0 SEEK_START) 0)
              nil
              (let ((mem (alloc size))
                    (res (syscall SYS_read handle mem size)))
-               (if (<= res 0)
+               (if (< res 0)
                    nil
                    mem))))))))
 
