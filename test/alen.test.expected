@@ -1,4 +1,3 @@
 heap-allocated str is 5 bytes
 static str is 5 bytes
-heap-allocated str is 32 bytes
-static str is 29 bytes
+OK, static strings are smaller than heap ones

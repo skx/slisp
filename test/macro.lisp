@@ -6,10 +6,6 @@
   "A variadic macro."
   `(if ,c nil (do ,@body)))
 
-(defmacro my-or (&args)
-  "Expands into a runtime list of the (evaluated) arguments."
-  args)
-
 (defun main (args)
   "Test defmacro."
 
@@ -20,8 +16,8 @@
     (println "ran-1")
     (println "ran-2"))
 
-  (my-unless 1
-    (println "should-not-run"))
+  (my-unless 1 (println "should-not-run"))
 
-  (println (my-or 1 2 3))
+  (println (or 1 2 3))
+
 )

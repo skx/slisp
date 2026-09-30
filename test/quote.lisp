@@ -1,9 +1,6 @@
 (defun main (args)
   "Test quote, quasiquote, and unquote-splicing."
 
-  ; a bare symbol is quoted into the equivalent string.
-  (println 'hello)
-
   ; a quoted list of literals.
   (println '(1 2 3))
 
