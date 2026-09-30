@@ -1263,6 +1263,14 @@ Uses (environment) to get all environmental variables, and filters."
             (getenv-loop name (cdr xs))))
       nil))
 
+(defconst SYS_getpid 39)
+
+(defun getpid ()
+  "Return the process ID of the current process."
+  (let ((res (syscall 39)))
+    (if (< res 0)
+      nil  res )))
+
 (defconst SYS_uname 63)
 
 (defun hostname ()
