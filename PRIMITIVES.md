@@ -258,8 +258,12 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
 * `getenv`
   * Return the value of the given environmental variable, nor NIL if not found.
   * Uses `environment`.
+* `getgid`
+  * Return the group ID of the current user.
 * `getpid`
   * Return the current process ID.
+* `getuid`
+  * Return the ID of the current user.
 * `hex?`
   * Does the given string look like a hex number, with 0x prefix?
 * `hex`

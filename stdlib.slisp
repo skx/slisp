@@ -1263,11 +1263,27 @@ Uses (environment) to get all environmental variables, and filters."
             (getenv-loop name (cdr xs))))
       nil))
 
+(defconst SYS_getgid 104)
+
+(defun getgid ()
+  "Return the group ID of the current user."
+  (let ((res (syscall SYS_getgid)))
+    (if (< res 0)
+      nil  res )))
+
 (defconst SYS_getpid 39)
 
 (defun getpid ()
   "Return the process ID of the current process."
-  (let ((res (syscall 39)))
+  (let ((res (syscall SYS_getpid)))
+    (if (< res 0)
+      nil  res )))
+
+(defconst SYS_getuid 102)
+
+(defun getuid ()
+  "Return the ID of the current user."
+  (let ((res (syscall SYS_getuid)))
     (if (< res 0)
       nil  res )))
 
