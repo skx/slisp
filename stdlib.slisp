@@ -1233,6 +1233,13 @@ Incrementing by the given step each time."
     (u64! m (* i 8) 0)
     m))
 
+(defconst SYS_chdir 80)
+
+(defun cd (path)
+  "Change to the given working directory"
+  (if (< (syscall SYS_chdir path) 0)
+    nil 1))
+
 (defun getc ()
   "Read a single character from STDIN, and return it."
   (let ((str "s"))
@@ -1275,6 +1282,16 @@ Uses (environment) to get all environmental variables, and filters."
     ((char? c) (syscall 1 1 (string c) 1))
     ((int?  c) (syscall 1 1 (string (chr (& 255 c))) 1))
     (t         (do (println "putc called with bogus arg") (exit 1)))))
+
+(defconst SYS_getcwd 79)
+
+(defun pwd ()
+  "Return the current working directory"
+  (let ((len 1024)
+        (buf (alloc len)))
+    (if (>= (syscall SYS_getcwd buf len) 0)
+      buf  nil)))
+
 
 (defconst SYS_getrandom 318)
 
