@@ -262,6 +262,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Does the given string look like a hex number, with 0x prefix?
 * `hex`
   * Parse the given string, with 0x-prefix, as a hex number and return the integer value.
+* `hostname`
+  * Return the system hostname.
 * `join`
   * Join all (string) items of a list into a single string.
 * `join-by`

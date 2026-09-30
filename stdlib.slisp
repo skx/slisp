@@ -1263,6 +1263,22 @@ Uses (environment) to get all environmental variables, and filters."
             (getenv-loop name (cdr xs))))
       nil))
 
+(defconst SYS_uname 63)
+
+(defun hostname ()
+  "Return the system hostname, via the uname syscall."
+  (let ((len 1024)
+        (hst "")
+        (i 0)
+        (buf (alloc len)))
+    (if (< (syscall SYS_uname buf len) 0)
+        nil
+      (do
+       (while (!= (strat buf (+ i 65)) 0)
+         (set! hst (strcat hst (string (chr (strat buf (+ i 65))))))
+         (set! i (+ i 1)))
+        hst))))
+
 (defconst SYS_clock_gettime 228)
 
 (defun now ()
