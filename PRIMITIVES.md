@@ -215,6 +215,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Does the given string look like a binary number, with 0b-prefix?
 * `binary`
   * Parse the given string, with 0b-prefix, as a binary number and return the integer value.
+* `cd`
+  * Change the present working directory.  (Lookup the value with `pwd`.)
 * `dec2binary`
   * Convert an integer to a string containing the binary version of that number (e.g. 7 -> 0b111)
 * `dec2hex`
@@ -256,10 +258,18 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
 * `getenv`
   * Return the value of the given environmental variable, nor NIL if not found.
   * Uses `environment`.
+* `getgid`
+  * Return the group ID of the current user.
+* `getpid`
+  * Return the current process ID.
+* `getuid`
+  * Return the ID of the current user.
 * `hex?`
   * Does the given string look like a hex number, with 0x prefix?
 * `hex`
   * Parse the given string, with 0x-prefix, as a hex number and return the integer value.
+* `hostname`
+  * Return the system hostname.
 * `join`
   * Join all (string) items of a list into a single string.
 * `join-by`
@@ -314,6 +324,8 @@ The implementation of these primitives can be found in the file [stdlib.slisp](s
   * Print "anything" by invoking `print`, then outputting a newline.
 * `putc`
   * Print the given character.
+* `pwd`
+  * Return the present working directory.  (Change with `cd`.)
 * `random`
   * Return a random integer between zero and N-1.
 * `random_string`

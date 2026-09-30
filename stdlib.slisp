@@ -1233,6 +1233,13 @@ Incrementing by the given step each time."
     (u64! m (* i 8) 0)
     m))
 
+(defconst SYS_chdir 80)
+
+(defun cd (path)
+  "Change to the given working directory"
+  (if (< (syscall SYS_chdir path) 0)
+    nil 1))
+
 (defun getc ()
   "Read a single character from STDIN, and return it."
   (let ((str "s"))
@@ -1256,6 +1263,46 @@ Uses (environment) to get all environmental variables, and filters."
             (getenv-loop name (cdr xs))))
       nil))
 
+(defconst SYS_getgid 104)
+
+(defun getgid ()
+  "Return the group ID of the current user."
+  (let ((res (syscall SYS_getgid)))
+    (if (< res 0)
+      nil  res )))
+
+(defconst SYS_getpid 39)
+
+(defun getpid ()
+  "Return the process ID of the current process."
+  (let ((res (syscall SYS_getpid)))
+    (if (< res 0)
+      nil  res )))
+
+(defconst SYS_getuid 102)
+
+(defun getuid ()
+  "Return the ID of the current user."
+  (let ((res (syscall SYS_getuid)))
+    (if (< res 0)
+      nil  res )))
+
+(defconst SYS_uname 63)
+
+(defun hostname ()
+  "Return the system hostname, via the uname syscall."
+  (let ((len 1024)
+        (hst "")
+        (i 0)
+        (buf (alloc len)))
+    (if (< (syscall SYS_uname buf len) 0)
+        nil
+      (do
+       (while (!= (strat buf (+ i 65)) 0)
+         (set! hst (strcat hst (string (chr (strat buf (+ i 65))))))
+         (set! i (+ i 1)))
+        hst))))
+
 (defconst SYS_clock_gettime 228)
 
 (defun now ()
@@ -1275,6 +1322,16 @@ Uses (environment) to get all environmental variables, and filters."
     ((char? c) (syscall 1 1 (string c) 1))
     ((int?  c) (syscall 1 1 (string (chr (& 255 c))) 1))
     (t         (do (println "putc called with bogus arg") (exit 1)))))
+
+(defconst SYS_getcwd 79)
+
+(defun pwd ()
+  "Return the current working directory"
+  (let ((len 1024)
+        (buf (alloc len)))
+    (if (>= (syscall SYS_getcwd buf len) 0)
+      buf  nil)))
+
 
 (defconst SYS_getrandom 318)
 
