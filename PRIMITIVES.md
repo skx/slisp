@@ -187,185 +187,113 @@ added to them too.
 
 ## Standard Library
 
-The standard library consists of routines, and helpers, which are written in 100% `slisp` itself.
+The standard library consists of routines, and helpers, which are written in 100% `slisp` itself, their implementations may be found in the file [stdlib.slisp](stdlib.slisp).
 
-The implementation of these primitives can be found in the file [stdlib.slisp](stdlib.slisp).
+The summary here is incomplete, but gives an overview, in logical groups:
 
-* `abs`
-  * Return the absolute value of the given integer.  (e.g. 3 -> 3, and -3 -> 3).
-* `alist:new`
-  * Create a new alist.
-* `alist:get`
-  * Get an item from an alist.
-* `alist:keys`
-  * Return all known keys from the given alist.
-* `alist:remove`
-  * Remove an item, by key, from an alist.
-* `alist:set`
-  * Add the given key/value to an alist.
-* `alist:values`
-  * Return all known values from the given alist.
-* `append`
-  * Append the given value to the specified list.  If the list is empty just return the specified item.
-* `atoi`
-  * Convert a string such as `"123"` to an integer.
-* `atof`
-  * Convert a string such as `"123.25"` to a float.
-* `binary?`
-  * Does the given string look like a binary number, with 0b-prefix?
-* `binary`
-  * Parse the given string, with 0b-prefix, as a binary number and return the integer value.
-* `cd`
-  * Change the present working directory.  (Lookup the value with `pwd`.)
-* `dec2binary`
-  * Convert an integer to a string containing the binary version of that number (e.g. 7 -> 0b111)
-* `dec2hex`
-  * Convert an integer to a string containing the hex version of that number. (e.g. 255 -> 0xFF).
-* `dec2octal`
-  * Convert an integer to a string containing the octal version of that number. (e.g. 255 -> 0o173).
-* `dir?`
-  * Does the given path exist as a directory?
-* `even?`
-  * Return 1 if the given number is even, nil otherwise.
-* `entries`
-  * Return the names of all files in the given directory.
-  * See [test/entries.lisp](test/entries.lisp) for an example
-* `every`
-  * Does every list item return non-nil when the given function is called?
-* `exists?`
-  * Does the given filename exist?
-* `file?`
-  * Does the given path exist as a file?
-* `filter`
-  * Return a list consisting of all members of the input list for which the given predicate returns non-nil.
-* `find`
-  * Return the offset of matching items inside the given list.
-* `flatten`
-  * Flatten the given list of lists into a single list
-* `fclose`
-  * Close the given file-handle, and always return nil.
-  * To simplify usage `fclose` will accept a nil-filehandle.
-* `fopen`
-  * Open the given filename, for read/write, and return a handle.
-* `fread`
-  * Read ALL available data from the given handle.
-  * To simplify usage `fread` will accept a nil-filehandle, and return nil.
-* `fwrite`
-  * Write the given data, with length, to the open file handle.
-  * To simplify usage `fwrite` will accept a nil-filehandle, and return nil.
-* `getc`
-  * Read a single character from STDIN, return NIL on failure.
-* `getenv`
-  * Return the value of the given environmental variable, nor NIL if not found.
-  * Uses `environment`.
-* `getgid`
-  * Return the group ID of the current user.
-* `getpid`
-  * Return the current process ID.
-* `getuid`
-  * Return the ID of the current user.
-* `hex?`
-  * Does the given string look like a hex number, with 0x prefix?
-* `hex`
-  * Parse the given string, with 0x-prefix, as a hex number and return the integer value.
-* `hostname`
-  * Return the system hostname.
-* `join`
-  * Join all (string) items of a list into a single string.
-* `join-by`
-  * Join all (string) items of a list into a single string, with the given separator.
-* `length`
-  * Return the length of the specified list, or string.
-* `lower`
-  * Return the given string, converted to lower-case.
-* `map`
-  * Create a new list by calling the given function over every element of the supplied list.
-* `max`
-  * Return the highest integer in the list of numbers provided.
-* `member?`
-  * Tests if the given item is present in the specified list.
-* `min`
-  * Return the lowest integer in the list of numbers provided.
-* `mkdir`
-    * Create the named directory.  **NOTE**: Mode is fixed at 0755, and parent directories must exist unless you use `mkdirs`.
-* `mkdirs`
-  * Create the given directory, creating any parents as required.  (e.g. "`(mkdirs "foo/bar/baz")`".)
-* `nat`
-  * Return the list of natural numbers 1 to N.
-* `neg?`
-  * Return true if the number is negative.
-* `now`
-  * Get the milliseconds past the epoch.
-* `octal?`
-  * Does the given string look like an octal number, with 0o prefix?
-* `octal`
-  * Parse the given string, with 0o-prefix, as an octal number and return the integer value.
-* `odd?`
-  * Return 1 if the given number is odd, nil otherwise.
-* `one?`
-  * Return true if the number is one.
-* `plist:new`
-  * Create a new property-list
-* `plist:get`
-  * Get an item from a property-list.
-* `plist:keys`
-  * Return all known keys from the given plist.
-* `plist:remove`
-  * Remove an item, by key, from a property-list.
-* `plist:set`
-  * Set a given key/value in a property-list.
-* `plist:values`
-  * Return all known values from the given plist.
-* `pos?`
-  * Return true if the number is positive.
-* `print`
-  * Print "anything".
-* `println`
-  * Print "anything" by invoking `print`, then outputting a newline.
-* `putc`
-  * Print the given character.
-* `pwd`
-  * Return the present working directory.  (Change with `cd`.)
-* `random`
-  * Return a random integer between zero and N-1.
-* `random_string`
-  * Return a random string, suitable for a filename, of the given length.
-* `range`
-  * Return a list of numbers between the given start/end, using the specified step-size.
-* `read-line`
-  * Return a single line of input from STDIN, built on top of `getc`.
-* `reduce`
-  * Reduce combines all elements of a list with a function and accumulator.
-* `repeated`
-  * Create a list with the given value repeated the specified number of times.
-* `repeat`
-  * Call the given function N times.
-* `reverse`
-  * Reverse the contents of the specified list.
-* `rmdir`
-  * Remove the named directory, note that this must be empty.
-* `seq`
-  * Return a list of numbers from 0 to N.
-* `some`
-  * Return the first non-nil result of calling the given function against each item of the specified list.
-* `stat`
-  * Returns file information as a list (TYPE SIZE MODE), or nil on failure.
-* `strstr`
-  * Find a string within another.
-* `sum`
-  * Sum the values in the given list.
-* `syscall`
-  * Allow making an arbitrary Linux syscall.  (i.e. Calling a Linux kernel function.)
-* `system`
-  * Run a command via `sys_run`,  return the output on success, and nil on failure.
-* `unlink`
-  * Delete the named file.
-* `upper`
-  * Return the given string, converted to upper-case.
-* `which`
-  * Find the complete path to the given binary, searching each directory on the $PATH.
-* `zero?`
-  * Return true if the number is zero.
+* Maths Functions
+  * `abs` - Return the absolute value of the given integer.  (e.g. 3 -> 3, and -3 -> 3).
+  * `atof` - Convert a string such as `"123.25"` to a float.
+  * `atoi` - Convert a string such as `"123"` to an integer.
+  * `even?` - Return 1 if the given number is even, nil otherwise.
+  * `max` - Return the highest integer in the list of numbers provided.
+  * `min` - Return the lowest integer in the list of numbers provided.
+  * `neg?` - Return true if the number is negative.
+  * `odd?` - Return 1 if the given number is odd, nil otherwise.
+  * `one?` - Return true if the number is one.
+  * `pos?` - Return true if the number is positive.
+  * `sum` - Sum the values in the given list.
+  * `zero?` - Return true if the number is zero.
+
+* Maths Functions: Base conversion
+  * `binary` - Parse the given string, with 0b-prefix, as a binary number and return the integer value.
+  * `binary?` - Does the given string look like a binary number, with 0b-prefix?
+  * `dec2binary` - Convert an integer to a string containing the binary version of that number (e.g. 7 -> 0b111)
+  * `dec2hex` - Convert an integer to a string containing the hex version of that number. (e.g. 255 -> 0xFF).
+  * `dec2octal` - Convert an integer to a string containing the octal version of that number. (e.g. 255 -> 0o173).
+  * `hex` - Parse the given string, with 0x-prefix, as a hex number and return the integer value.
+  * `hex?` - Does the given string look like a hex number, with 0x prefix?
+  * `octal` - Parse the given string, with 0o-prefix, as an octal number and return the integer value.
+  * `octal?` - Does the given string look like an octal number, with 0o prefix?
+
+* Datastructures
+  * `alist:new` - Create a new alist.
+  * `alist:get` - Get an item from an alist.
+  * `alist:keys` - Return all known keys from the given alist.
+  * `alist:remove` - Remove an item, by key, from an alist.
+  * `alist:set` - Add the given key/value to an alist.
+  * `alist:values` - Return all known values from the given alist.
+  * `plist:new` - Create a new property-list
+  * `plist:get` - Get an item from a property-list.
+  * `plist:keys` - Return all known keys from the given property-list.
+  * `plist:remove` - Remove an item, by key, from a property-list.
+  * `plist:set` - Set a given key/value in a property-list.
+  * `plist:values` - Return all known values from the given property-list.
+
+* File processing and filesystem utilties
+  * `dir?` - Does the given path exist as a directory?
+  * `entries` - Return the names of all files in the given directory.
+     * See [test/entries.lisp](test/entries.lisp) for an example.
+  * `exists?` - Does the given filename exist?
+  * `file?` - Does the given path exist as a file?
+  * `fclose` - Close the given file-handle, and always return nil.
+    * To simplify usage this will accept a nil-filehandle, and return nil.
+  * `fopen` - Open the given filename, for read/write, and return a handle.
+  * `fread` - Read ALL available data from the given handle.
+    * To simplify usage this will accept a nil-filehandle, and return nil.
+  * `fwrite` - Write the given data, with length, to the open file handle.
+    * To simplify usage this will accept a nil-filehandle, and return nil.
+  * `mkdir` - Create the named directory.  **NOTE**: Mode is fixed at 0755, and parent directories must exist unless you use `mkdirs`.
+  * `mkdirs` - Create the given directory, creating any parents as required.  (e.g. "`(mkdirs "foo/bar/baz")`".)
+  * `rmdir`- Remove the named directory, note that this must be empty.
+  * `stat` - Returns file information as a list (TYPE SIZE MODE), or nil on failure.
+  * `unlink` - Delete the named file.
+  * `which` - Find the complete path to the given binary, searching each directory on the $PATH.
+
+* List Functions
+  * `append` - Append the given value to the specified list.  If the list is empty just return the specified item.
+  * `every` -  Does every list item return non-nil when the given function is called?
+  * `filter` - Return a list consisting of all members of the input list for which the given predicate returns non-nil.
+  * `find` - Return the offset of matching items inside the given list.
+  * `flatten` - Flatten the given list of lists into a single list
+  * `join-by` - Join all (string) items of a list into a single string, with the given separator.
+  * `join` - Join all (string) items of a list into a single string.
+  * `length`- Return the length of the specified list, or string.
+  * `map` - Create a new list by calling the given function over every element of the supplied list.
+  * `member?` - Tests if the given item is present in the specified list.
+  * `nat` - Return the list of natural numbers 1 to N. (See also `seq`)
+  * `range` - Return a list of numbers between the given start/end, using the specified step-size.
+  * `reduce` -Reduce combines all elements of a list with a function and accumulator.
+  * `repeat` - Call the given function N times.
+  * `repeated` - Create a list with the given value repeated the specified number of times.
+  * `reverse` - Reverse the contents of the specified list.
+  * `seq` - Return a list of numbers from 0 to N.  See also `nat`.
+  * `some` - Return the first non-nil result of calling the given function against each item of the specified list.
+
+* System Functions (mostly implemented via `syscall`)
+  * `cd` - Change the present working directory.  (Lookup the value with `pwd`.)
+  * `getc` - Read a single character from STDIN, return NIL on failure.
+  * `getenv` - Return the value of the given environmental variable, nor NIL if not found.
+  * `getgid` - Return the group ID of the current user.
+  * `getpid` - Return the current process ID.
+  * `getuid` - Return the ID of the current user.
+  * `hostname` - Return the system hostname.
+  * `now` - Get the milliseconds past the epoch.
+  * `print` - Print "anything".
+  * `println` - Print "anything" by invoking `print`, then outputting a newline.
+  * `putc` -  Print the given character.
+  * `pwd` - Return the present working directory.  (Change with `cd`.)
+  * `random` - Return a random integer between zero and N-1.
+  * `read-line` - Return a single line of input from STDIN, built on top of `getc`.
+  * `syscall` - Allow making an arbitrary Linux syscall.  (i.e. Calling a Linux kernel function.)
+  * `system` - Execute a command, via the shell, and return the output.
+
+
+* String functions
+  * `random_string` - Return a random string, suitable for a filename, of the given length.
+  * `strstr` - Find a string within another.
+  * `lower` - Return the given string, converted to lower-case.
+  * `upper` - Return the given string, converted to upper-case.
 
 
 
