@@ -322,7 +322,8 @@ The first argument is the number of the function to call, after that the argumen
   "Is the given item nil?"
   (nil? x))
 
-
+;; Ensure we have our syscall IDs defined
+(require syscall)
 
 
 ;;; 2. Printing
@@ -382,8 +383,6 @@ do the right thing for each entry in the given list."
     (if res
         (if (= 1 (car res))
             t))))
-
-(defconst SYS_getdents64 217)
 
 (defconst O_RDONLY       0)
 (defconst O_DIRECTORY    65536)
@@ -456,8 +455,6 @@ The implementation here is either horrid, or awesome.  You decide."
   "Does the named path exist?"
   (cons? (stat path)))
 
-(defconst SYS_close 3)
-
 (defun fclose (handle)
   "Close the given handle.
 
@@ -471,8 +468,6 @@ As a special case closing a NIL file-handle is valid"
           res
          nil)))
     (t   (do (println "Calling fclose with an invalid handle-type") (exit 1)))))
-
-(defconst SYS_open 2)
 
 (defun fopen (str mode)
   "Open a file with the given mode.
@@ -490,9 +485,7 @@ Mode is \"r\" for read, \"w\" for write, and \"a\" for append."
       handle
      nil)))
 
-(defconst SYS_lseek 8)
 (defconst SEEK_END   2)
-
 (defconst SEEK_START 0)
 
 (defun fread (handle)
@@ -514,8 +507,6 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
                    nil
                    mem))))))))
 
-(defconst SYS_write 1)
-
 (defun fwrite (handle data len)
   "Write the given data, of length LEN, to the specified file-handle.
 
@@ -533,8 +524,6 @@ It is assumed the filehandle came from fopen, but nil is also accepted."
     (if res
         (if (= 0 (car res))
             t))))
-
-(defconst SYS_mkdir 83)
 
 (defun mkdir (path)
   "Make the given directory.
@@ -568,8 +557,6 @@ Note that this does not create parents, use (mkdirs) for that."
         (join (list (car res) "/" binary)))))
 
 
-(defconst SYS_rmdir 84)
-
 (defun rmdir (path)
   (if (< (syscall SYS_rmdir path) 0)
       nil
@@ -599,8 +586,6 @@ Note that this does not create parents, use (mkdirs) for that."
 (defun u64! (buf pos val)
   (sys_u64! buf pos val))
 
-(defconst SYS_stat 4)
-
 (defun stat (path)
   "Return details of the given filesystem entry.
 
@@ -627,8 +612,6 @@ This returns a list of the form (TYPE SIZE MODE)."
                 (t (set! type -1))               ; UNKNOWN -> -1
                 )
               (list type size mode)))))))        ; return the list
-
-(defconst SYS_unlink 87)
 
 (defun unlink (path)
   "Delete the given file from the filesystem.
@@ -1219,8 +1202,6 @@ Incrementing by the given step each time."
 ;; These are functions which are designed to interface with the
 ;; system environment more than just with File I/O
 
-(defconst SYS_read 0)
-
 ;; undocumented
 (defun lst2array (lst)
   "Convert a lisp list to a C-style array of strings"
@@ -1232,8 +1213,6 @@ Incrementing by the given step each time."
       (set! i (+ i 1)))
     (u64! m (* i 8) 0)
     m))
-
-(defconst SYS_chdir 80)
 
 (defun cd (path)
   "Change to the given working directory"
@@ -1263,15 +1242,11 @@ Uses (environment) to get all environmental variables, and filters."
             (getenv-loop name (cdr xs))))
       nil))
 
-(defconst SYS_getgid 104)
-
 (defun getgid ()
   "Return the group ID of the current user."
   (let ((res (syscall SYS_getgid)))
     (if (< res 0)
       nil  res )))
-
-(defconst SYS_getpid 39)
 
 (defun getpid ()
   "Return the process ID of the current process."
@@ -1279,15 +1254,11 @@ Uses (environment) to get all environmental variables, and filters."
     (if (< res 0)
       nil  res )))
 
-(defconst SYS_getuid 102)
-
 (defun getuid ()
   "Return the ID of the current user."
   (let ((res (syscall SYS_getuid)))
     (if (< res 0)
       nil  res )))
-
-(defconst SYS_uname 63)
 
 (defun hostname ()
   "Return the system hostname, via the uname syscall."
@@ -1302,8 +1273,6 @@ Uses (environment) to get all environmental variables, and filters."
          (set! hst (strcat hst (string (chr (strat buf (+ i 65))))))
          (set! i (+ i 1)))
         hst))))
-
-(defconst SYS_clock_gettime 228)
 
 (defun now ()
   "Return the number of milliseconds since the Unix EPOCH."
@@ -1323,17 +1292,12 @@ Uses (environment) to get all environmental variables, and filters."
     ((int?  c) (syscall 1 1 (string (chr (& 255 c))) 1))
     (t         (do (println "putc called with bogus arg") (exit 1)))))
 
-(defconst SYS_getcwd 79)
-
 (defun pwd ()
   "Return the current working directory"
   (let ((len 1024)
         (buf (alloc len)))
     (if (>= (syscall SYS_getcwd buf len) 0)
       buf  nil)))
-
-
-(defconst SYS_getrandom 318)
 
 (defun random (n)
   "Return a random number between zero and N-1, (both zero and N-1 are valid return values.)
@@ -1369,12 +1333,6 @@ The newline which terminates input is not included."
               (set! done t)
               (set! text (strcat text (string (chr ch)))))))
     text))
-
-(defconst SYS_fork   57)
-(defconst SYS_execve 59)
-(defconst SYS_dup2   33)
-(defconst SYS_wait4  61)
-(defconst SYS_exit   60)
 
 ;; shell to use for running system commands.
 (defvar sys_run_shell "/bin/sh")
