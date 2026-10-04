@@ -69,6 +69,15 @@ Property list code, included as part of `stdlib.lisp`, so there is no need to ad
 ```
 
 
+### syscall
+
+A package containing the definition of linux kernel syscall-numbers, as read from `/usr/include/x86_64-linux-gnu/asm/unistd_64.h`.
+
+```lisp
+(require syscall)
+```
+
+
 ### tree
 
 A package containing simple AVL-tree routines, used by [our lisp interpreter](../INCEPTION.md).
