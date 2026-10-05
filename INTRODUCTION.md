@@ -137,6 +137,14 @@ Optionally you may write some help/usage information in your definition:
       "Return the factorial of the given number."
       (if (<= n 1) 1 (* n (fact (- n 1)))))
 
+In the compiler the help information does nothing useful, but inside `inception` you can use the `help` function to view it:
+
+    > (help print)
+         Arguments: (&xs)
+         Summary  : Print everything we're given.
+         This function accepts variadic arguments, and maps against a local lambda to
+         do the right thing for each entry in the given list.
+
 Here's another simple function:
 
     (defun square (x)
